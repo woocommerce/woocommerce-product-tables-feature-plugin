@@ -26,15 +26,13 @@ class WC_Product_Tables_Bootstrap {
 		add_action( 'before_woocommerce_init', array( $this, 'includes' ) );
 	}
 
-	public function includes() {
-		include 'class-wc-product-tables-backwards-compat.php';
-	}
-
 	/**
 	 * Include classes
 	 */
 	public function includes() {
+		require_once 'class-wc-product-tables-backwards-compat.php';
 		require_once 'class-wc-product-tables-install.php';
+		require_once 'class-wc-product-tables-migrate-data.php';
 	}
 
 	/**
