@@ -22,6 +22,11 @@ class WC_Product_Tables_Bootstrap {
 	 */
 	public function __construct() {
 		add_filter( 'woocommerce_product_data_store', array( $this, 'replace_core_data_store' ) );
+		add_action( 'before_woocommerce_init', array( $this, 'includes' ) );
+	}
+
+	public function includes() {
+		include 'class-wc-product-tables-backwards-compat.php';
 	}
 
 	/**
