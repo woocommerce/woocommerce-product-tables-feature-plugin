@@ -22,6 +22,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data    = array(
 			'product_id' => $product->get_id( 'edit' ),
 		);
+		$changes = $product->get_changes();
 		$columns = array(
 			'sku',
 			'thumbnail_id',
@@ -46,15 +47,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		);
 
 		foreach ( $columns as $prop => $column ) {
-			$data[ $column ] = $product->{"get_$column"}( 'edit' );
+			if ( array_key_exists( $prop, $changes ) ) {
+				$data[ $column ] = $product->{"get_$column"}( 'edit' );
+				$this->updated_props[] = $prop;
+			}
 		}
 
-		// @todo handle/store updated props.
-
-		$wpdb->replace(
-			"{$wpdb->prefix}products",
-			$data
-		);
+		$wpdb->replace( "{$wpdb->prefix}products", $data ); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -63,7 +62,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param int $product_id Product ID to grab from the database.
 	 * @return array
 	 */
-	protected function get_product_from_db( $product_id ) {
+	protected function get_product_row_from_db( $product_id ) {
 		global $wpdb;
 
 		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
@@ -83,36 +82,43 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param WC_Product $product The product object.
 	 */
 	protected function read_product_data( &$product ) {
-		$product->set_props( $this->get_product_from_db( $product->get_id() ) );
+		$product->set_props( $this->get_product_row_from_db( $product->get_id() ) );
 	}
 
 	/**
 	 * Method to create a new product in the database.
 	 *
 	 * @param WC_Product $product The product object.
+	 * @throws Exception Thrown if product cannot be created.
 	 */
 	public function create( &$product ) {
-		if ( ! $product->get_date_created( 'edit' ) ) {
-			$product->set_date_created( current_time( 'timestamp', true ) );
-		}
+		try {
+			wc_transaction_query( 'start' );
 
-		$id = wp_insert_post( apply_filters( 'woocommerce_new_product_data', array(
-			'post_type'      => 'product',
-			'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
-			'post_author'    => get_current_user_id(),
-			'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
-			'post_content'   => $product->get_description(),
-			'post_excerpt'   => $product->get_short_description(),
-			'post_parent'    => $product->get_parent_id(),
-			'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
-			'ping_status'    => 'closed',
-			'menu_order'     => $product->get_menu_order(),
-			'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
-			'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
-			'post_name'      => $product->get_slug( 'edit' ),
-		) ), true );
+			if ( ! $product->get_date_created( 'edit' ) ) {
+				$product->set_date_created( current_time( 'timestamp', true ) );
+			}
 
-		if ( $id && ! is_wp_error( $id ) ) {
+			$id = wp_insert_post( apply_filters( 'woocommerce_new_product_data', array(
+				'post_type'      => 'product',
+				'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
+				'post_author'    => get_current_user_id(),
+				'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
+				'post_content'   => $product->get_description(),
+				'post_excerpt'   => $product->get_short_description(),
+				'post_parent'    => $product->get_parent_id(),
+				'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
+				'ping_status'    => 'closed',
+				'menu_order'     => $product->get_menu_order(),
+				'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
+				'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
+				'post_name'      => $product->get_slug( 'edit' ),
+			) ), true );
+
+			if ( empty( $id ) || is_wp_error( $id ) ) {
+				throw new Exception( 'db_error' );
+			}
+
 			$product->set_id( $id );
 
 			$this->update_product_data( $product );
@@ -129,7 +135,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 			$this->clear_caches( $product );
 
+			wc_transaction_query( 'commit' );
+
 			do_action( 'woocommerce_new_product', $id );
+		} catch ( Exception $e ) {
+			wc_transaction_query( 'rollback' );
 		}
 	}
 
@@ -287,7 +297,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @return string
 	 */
 	public function get_product_type( $product_id ) {
-		$data = $this->get_product_from_db( $product_id );
+		$data = $this->get_product_row_from_db( $product_id );
 		return ! empty( $data->product_type ) ? $data->product_type : 'simple';
 	}
 }
