@@ -49,10 +49,32 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$data[ $column ] = $product->{"get_$column"}( 'edit' );
 		}
 
+		// @todo handle/store updated props.
+
 		$wpdb->replace(
 			"{$wpdb->prefix}products",
 			$data
 		);
+	}
+
+	/**
+	 * Get product data row from the DB whilst utilising cache.
+	 *
+	 * @param int $product_id Product ID to grab from the database.
+	 * @return array
+	 */
+	protected function get_product_from_db( $product_id ) {
+		global $wpdb;
+
+		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
+
+		if ( false === $data ) {
+			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
+		}
+
+		return $data;
 	}
 
 	/**
@@ -61,17 +83,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param WC_Product $product The product object.
 	 */
 	protected function read_product_data( &$product ) {
-		global $wpdb;
-
-		$data = wp_cache_get( 'woocommerce_product_' . $product->get_id(), 'product' );
-
-		if ( false === $data ) {
-			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product->get_id() ) ); // WPCS: db call ok.
-
-			wp_cache_set( 'woocommerce_product_' . $product->get_id(), $data, 'product' );
-		}
-
-		$product->set_props( $data );
+		$product->set_props( $this->get_product_from_db( $product->get_id() ) );
 	}
 
 	/**
@@ -108,11 +120,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$this->update_terms( $product, true );
 			$this->update_visibility( $product, true );
 			$this->update_attributes( $product, true );
-			$this->update_version_and_type( $product );
 			$this->handle_updated_props( $product );
 
 			$product->save_meta_data();
 			$product->apply_changes();
+
+			update_post_meta( $product->get_id(), '_product_version', WC_VERSION );
 
 			$this->clear_caches( $product );
 
@@ -124,7 +137,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * Method to read a product from the database.
 	 *
 	 * @param WC_Product $product The product object.
-	 * @throws Exception
+	 * @throws Exception Exception if the product cannot be read due to being invalid.
 	 */
 	public function read( &$product ) {
 		$product->set_defaults();
@@ -208,14 +221,16 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$product->read_meta_data( true ); // Refresh internal meta data, in case things were hooked into `save_post` or another WP hook.
 		}
 
+		$this->update_product_data( $product );
 		$this->update_post_meta( $product );
 		$this->update_terms( $product );
 		$this->update_visibility( $product );
 		$this->update_attributes( $product );
-		$this->update_version_and_type( $product );
 		$this->handle_updated_props( $product );
 
 		$product->apply_changes();
+
+		update_post_meta( $product->get_id(), '_product_version', WC_VERSION );
 
 		$this->clear_caches( $product );
 
@@ -244,7 +259,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
-			$wpdb->delete( "{$wpdb->prefix}products", array( 'product_id' => $id ) );
+			$wpdb->delete( "{$wpdb->prefix}products", array( 'product_id' => $id ) ); // WPCS: db call ok, cache ok.
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {
@@ -252,5 +267,27 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$product->set_status( 'trash' );
 			do_action( 'woocommerce_trash_' . $post_type, $id );
 		}
+	}
+
+	/**
+	 * Clear any caches.
+	 *
+	 * @param WC_Product $product The product object.
+	 */
+	protected function clear_caches( &$product ) {
+		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
+		wc_delete_product_transients( $product->get_id() );
+	}
+
+	/**
+	 * Get the product type based on product ID.
+	 *
+	 * @since 3.0.0
+	 * @param int $product_id Product ID to query.
+	 * @return string
+	 */
+	public function get_product_type( $product_id ) {
+		$data = $this->get_product_from_db( $product_id );
+		return ! empty( $data->product_type ) ? $data->product_type : 'simple';
 	}
 }
