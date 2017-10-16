@@ -22,8 +22,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return mixed $result
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
+		global $wpdb;
 
-		return $result;
+		$mapping = $this->get_mapping();
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
+			return $result;
+		}
+
+		$mapped_query = $mapping[ $meta_key ]['get'];
+		$query_results = $wpdb->get_results( $wpdb->prepare( $mapped_query, $post_id ) );
+
+		if ( $single && $query_results ) {
+			return $query_results[0];
+		}
+
+		if ( $single && empty( $query_results ) ) {
+			return '';
+		}
+
+		return $query_results;
 	}
 
 	/**
