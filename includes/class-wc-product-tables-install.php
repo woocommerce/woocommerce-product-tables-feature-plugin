@@ -24,6 +24,8 @@ class WC_Product_Tables_Install {
 	public function activate() {
 		global $wpdb;
 
+		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+
 		$collate = '';
 
 		if ( $wpdb->has_cap( 'collation' ) ) {
@@ -31,7 +33,7 @@ class WC_Product_Tables_Install {
 		}
 
 		$tables = "
-			CREATE TABLE {$wpdb->prefix}_woocommerce_products (
+			CREATE TABLE {$wpdb->prefix}woocommerce_products (
 			  product_id bigint(20) NOT NULL,
 			  sku varchar(100) NOT NULL,
 			  thumbnail_id bigint(20) NOT NULL,
@@ -56,7 +58,7 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (product_id)
 			) $collate;
 
-			CREATE TABLE product_attributes (
+			CREATE TABLE {$wpdb->prefix}woocommerce_product_attributes (
 			  attribute_id bigint(20) NOT NULL,
 			  product_id bigint(20) NOT NULL,
 			  name varchar(1000) NOT NULL,
@@ -66,7 +68,7 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (attribute_id)
 			) $collate;
 
-			CREATE TABLE product_attribute_values (
+			CREATE TABLE {$wpdb->prefix}woocommerce_product_attribute_values (
 			  attribute_value_id bigint(20) NOT NULL,
 			  product_id bigint(20) NOT NULL,
 			  product_attribute_id bigint(20) NOT NULL,
@@ -76,7 +78,7 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (attribute_value_id)
 			) $collate;
 
-			CREATE TABLE product_downloads (
+			CREATE TABLE {$wpdb->prefix}woocommerce_product_downloads (
 			  download_id bigint(20) NOT NULL,
 			  product_id bigint(20) NOT NULL,
 			  name varchar(1000) NOT NULL,
@@ -87,7 +89,7 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (download_id)
 			) $collate;
 
-			CREATE TABLE product_relationships (
+			CREATE TABLE {$wpdb->prefix}woocommerce_product_relationships (
 			  relationship_id bigint(20) NOT NULL,
 			  type varchar(100) NOT NULL,
 			  product_id bigint(20) NOT NULL,
@@ -96,7 +98,7 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (relationship_id)
 			) $collate;
 
-			CREATE TABLE product_variation_attribute_values (
+			CREATE TABLE {$wpdb->prefix}woocommerce_product_variation_attribute_values (
 			  variation_attribute_value_id bigint(20) NOT NULL,
 			  product_id bigint(20) NOT NULL,
 			  value text NOT NULL,
@@ -104,5 +106,9 @@ class WC_Product_Tables_Install {
 			  PRIMARY KEY  (variation_attribute_value_id)
 			) $collate;
 		";
+
+		dbDelta( $tables );
 	}
 }
+
+new WC_Product_Tables_Install();

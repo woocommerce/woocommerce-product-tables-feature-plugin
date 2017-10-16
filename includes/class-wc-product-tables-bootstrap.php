@@ -9,7 +9,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) || class_exists( 'WC_Product_Tables_Bootstrap' ) ) {
-	return;
+	//return;
 }
 
 /**
@@ -21,7 +21,15 @@ class WC_Product_Tables_Bootstrap {
 	 * Constructor.
 	 */
 	public function __construct() {
+		$this->includes();
 		add_filter( 'woocommerce_product_data_store', array( $this, 'replace_core_data_store' ) );
+	}
+
+	/**
+	 * Include classes
+	 */
+	public function includes() {
+		require_once 'class-wc-product-tables-install.php';
 	}
 
 	/**
