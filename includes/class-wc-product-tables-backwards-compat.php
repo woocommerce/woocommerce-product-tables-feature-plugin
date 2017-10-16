@@ -145,7 +145,36 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'update' => "UPDATE {$prefix}products SET weight = %f WHERE product_id = %d",
 				'delete' => "UPDATE {$prefix}products SET weight = NULL WHERE product_id = %d",
 			),
-
+/*			'_visibility', // Now a term. @todo figure a good way to handle this.
+			'_sku', // Product table
+			'_price', // Product table
+			'_regular_price', // Product table
+			'_sale_price', // Product table
+			'_sale_price_dates_from', // Product table
+			'_sale_price_dates_to', // Product table
+			'total_sales', // Produce table
+			'_tax_status', // Product table
+			'_tax_class', // Product table
+			'_manage_stock', // Product table stock column. Null if not managing stock.
+			'_stock', // Product table
+			'_stock_status', // Product table
+			'_length', // Product table
+			'_width', // Product table
+			'_height', // Product table
+			'_upsell_ids', // Product relationship table
+			'_crosssell_ids', // Product relationship table
+			'_default_attributes', // Attributes table(s)
+			'_product_attributes', // Attributes table(s)
+			'_virtual', // Product table
+			'_downloadable', // Product table
+			'_download_limit', // Product downloads table
+			'_download_expiry', // Product downloads table
+			'_featured', // Now a term. @todo figure a good way to handle this.
+			'_downloadable_files', // Product downloads table
+			'_wc_average_rating', // Product table
+			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
+			'_thumbnail_id', // Product table
+			'_product_image_gallery', // Product relationship table*/
 		);
 	}
 }
