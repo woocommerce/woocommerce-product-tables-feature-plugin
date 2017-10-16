@@ -12,6 +12,71 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
 
 	/**
+	 * Relationships.
+	 *
+	 * @since 4.0.0
+	 * @var   array
+	 */
+	protected $relationships = array(
+		'image_gallery' => 'gallery_image_ids',
+		'upsell'        => 'upsell_ids',
+		'cross_sell'    => 'cross_sell_ids',
+		'child'         => 'children',
+	);
+
+	/**
+	 * Update relationships.
+	 *
+	 * @since 4.0.0
+	 * @param WC_Product $product Product instance.
+	 * @param string     $type    Type of relationship.
+	 */
+	protected function update_relationships( &$product, $type = '' ) {
+		global $wpdb;
+
+		if ( empty( $relationships[ $type ] ) ) {
+			return;
+		}
+
+		$prop       = $relationships[ $type ];
+		$new_values = $product->{"get_$prop"}( 'edit' );
+		$old_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "SELECT object_id FROM {$wpdb->prefix}product_relationships WHERE type = %s AND product_id = %d", $type, $product->get_id() ) ), 'object_id' );
+		$missing    = array_diff( $old_values, $new_values );
+
+		// Delete from database missing values.
+		foreach ( $missing as $object_id ) {
+			$wpdb->delete( $wpdb->prefix . 'product_relationships', array(
+				'object_id'  => $object_id,
+				'product_id' => $product->get_id(),
+			), array(
+				'%d',
+				'%d',
+			) );
+		}
+
+		// Insert or update relationship.
+		foreach ( $new_values as $key => $value ) {
+			$relationship = array(
+				'type'       => $type,
+				'product_id' => $product->get_id(),
+				'object_id'  => $value,
+				'priority'   => $key,
+			);
+
+			$wpdb->replace(
+				"{$wpdb->prefix}product_relationships",
+				$relationship,
+				array(
+					'%s',
+					'%d',
+					'%d',
+					'%d',
+				)
+			);
+		}
+	}
+
+	/**
 	 * Store data into our custom product data table.
 	 *
 	 * @param WC_Product $product The product object.
