@@ -19,7 +19,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	protected function update_product_data( &$product ) {
 		global $wpdb;
 
-		$update  = array();
+		$data    = array(
+			'product_id' => $product->get_id( 'edit' ),
+		);
 		$columns = array(
 			'sku',
 			'thumbnail_id',
@@ -43,16 +45,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'stock_status',
 		);
 
-		foreach ( $columns as $column ) {
-			$update[ $column ] = $product->{"get_$column"}( 'edit' );
+		foreach ( $columns as $prop => $column ) {
+			$data[ $column ] = $product->{"get_$column"}( 'edit' );
 		}
 
 		$wpdb->replace(
 			"{$wpdb->prefix}products",
-			$update,
-			array(
-				'product_id' => $product->get_id(),
-			)
+			$data,
 		);
 	}
 
@@ -64,16 +63,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	protected function read_product_data( &$product ) {
 		global $wpdb;
 
-		// @todo cache.
-		$product->set_props(
-			$wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product->get_id() ) )
-		);
+		$data = wp_cache_get( 'woocommerce_product_' . $product->get_id(), 'product' );
+
+		if ( false === $data ) {
+			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product->get_id() ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_' . $product->get_id(), $data, 'product' );
+		}
+
+		$product->set_props( $data );
 	}
 
 	/**
 	 * Method to create a new product in the database.
 	 *
-	 * @param WC_Product $product
+	 * @param WC_Product $product The product object.
 	 */
 	public function create( &$product ) {
 		if ( ! $product->get_date_created( 'edit' ) ) {
@@ -119,7 +123,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Method to read a product from the database.
 	 *
-	 * @param WC_Product $product
+	 * @param WC_Product $product The product object.
 	 * @throws Exception
 	 */
 	public function read( &$product ) {
@@ -156,7 +160,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Method to update a product in the database.
 	 *
-	 * @param WC_Product $product
+	 * @param WC_Product $product The product object.
 	 */
 	public function update( &$product ) {
 		$product->save_meta_data();
