@@ -40,12 +40,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		$prop       = $relationships[ $type ];
 		$new_values = $product->{"get_$prop"}( 'edit' );
-		$old_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "SELECT object_id FROM {$wpdb->prefix}product_relationships WHERE type = %s AND product_id = %d", $type, $product->get_id() ) ), 'object_id' );
+		$old_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "SELECT object_id FROM {$wpdb->prefix}wc_product_relationships WHERE type = %s AND product_id = %d", $type, $product->get_id() ) ), 'object_id' );
 		$missing    = array_diff( $old_values, $new_values );
 
 		// Delete from database missing values.
 		foreach ( $missing as $object_id ) {
-			$wpdb->delete( $wpdb->prefix . 'product_relationships', array(
+			$wpdb->delete( $wpdb->prefix . 'wc_product_relationships', array(
 				'object_id'  => $object_id,
 				'product_id' => $product->get_id(),
 			), array(
@@ -64,7 +64,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			);
 
 			$wpdb->replace(
-				"{$wpdb->prefix}product_relationships",
+				"{$wpdb->prefix}wc_product_relationships",
 				$relationship,
 				array(
 					'%s',
@@ -118,7 +118,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			}
 		}
 
-		$wpdb->replace( "{$wpdb->prefix}products", $data ); // WPCS: db call ok, cache ok.
+		$wpdb->replace( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -133,7 +133,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
 
 		if ( false === $data ) {
-			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
+			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
 		}
@@ -334,7 +334,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
-			$wpdb->delete( "{$wpdb->prefix}products", array( 'product_id' => $id ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $id ) ); // WPCS: db call ok, cache ok.
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {
