@@ -12,6 +12,71 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
 
 	/**
+	 * Relationships.
+	 *
+	 * @since 4.0.0
+	 * @var   array
+	 */
+	protected $relationships = array(
+		'image_gallery' => 'gallery_image_ids',
+		'upsell'        => 'upsell_ids',
+		'cross_sell'    => 'cross_sell_ids',
+		'child'         => 'children',
+	);
+
+	/**
+	 * Update relationships.
+	 *
+	 * @since 4.0.0
+	 * @param WC_Product $product Product instance.
+	 * @param string     $type    Type of relationship.
+	 */
+	protected function update_relationships( &$product, $type = '' ) {
+		global $wpdb;
+
+		if ( empty( $relationships[ $type ] ) ) {
+			return;
+		}
+
+		$prop       = $relationships[ $type ];
+		$new_values = $product->{"get_$prop"}( 'edit' );
+		$old_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "SELECT object_id FROM {$wpdb->prefix}product_relationships WHERE type = %s AND product_id = %d", $type, $product->get_id() ) ), 'object_id' );
+		$missing    = array_diff( $old_values, $new_values );
+
+		// Delete from database missing values.
+		foreach ( $missing as $object_id ) {
+			$wpdb->delete( $wpdb->prefix . 'product_relationships', array(
+				'object_id'  => $object_id,
+				'product_id' => $product->get_id(),
+			), array(
+				'%d',
+				'%d',
+			) );
+		}
+
+		// Insert or update relationship.
+		foreach ( $new_values as $key => $value ) {
+			$relationship = array(
+				'type'       => $type,
+				'product_id' => $product->get_id(),
+				'object_id'  => $value,
+				'priority'   => $key,
+			);
+
+			$wpdb->replace(
+				"{$wpdb->prefix}product_relationships",
+				$relationship,
+				array(
+					'%s',
+					'%d',
+					'%d',
+					'%d',
+				)
+			);
+		}
+	}
+
+	/**
 	 * Store data into our custom product data table.
 	 *
 	 * @param WC_Product $product The product object.
@@ -19,7 +84,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	protected function update_product_data( &$product ) {
 		global $wpdb;
 
-		$update  = array();
+		$data    = array(
+			'product_id' => $product->get_id( 'edit' ),
+		);
+		$changes = $product->get_changes();
 		$columns = array(
 			'sku',
 			'thumbnail_id',
@@ -43,17 +111,34 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'stock_status',
 		);
 
-		foreach ( $columns as $column ) {
-			$update[ $column ] = $product->{"get_$column"}( 'edit' );
+		foreach ( $columns as $prop => $column ) {
+			if ( array_key_exists( $prop, $changes ) ) {
+				$data[ $column ] = $product->{"get_$column"}( 'edit' );
+				$this->updated_props[] = $prop;
+			}
 		}
 
-		$wpdb->replace(
-			"{$wpdb->prefix}products",
-			$update,
-			array(
-				'product_id' => $product->get_id(),
-			)
-		);
+		$wpdb->replace( "{$wpdb->prefix}products", $data ); // WPCS: db call ok, cache ok.
+	}
+
+	/**
+	 * Get product data row from the DB whilst utilising cache.
+	 *
+	 * @param int $product_id Product ID to grab from the database.
+	 * @return array
+	 */
+	protected function get_product_row_from_db( $product_id ) {
+		global $wpdb;
+
+		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
+
+		if ( false === $data ) {
+			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
+		}
+
+		return $data;
 	}
 
 	/**
@@ -62,41 +147,43 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param WC_Product $product The product object.
 	 */
 	protected function read_product_data( &$product ) {
-		global $wpdb;
-
-		// @todo cache.
-		$product->set_props(
-			$wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}products WHERE product_id = %d;", $product->get_id() ) )
-		);
+		$product->set_props( $this->get_product_row_from_db( $product->get_id() ) );
 	}
 
 	/**
 	 * Method to create a new product in the database.
 	 *
-	 * @param WC_Product $product
+	 * @param WC_Product $product The product object.
+	 * @throws Exception Thrown if product cannot be created.
 	 */
 	public function create( &$product ) {
-		if ( ! $product->get_date_created( 'edit' ) ) {
-			$product->set_date_created( current_time( 'timestamp', true ) );
-		}
+		try {
+			wc_transaction_query( 'start' );
 
-		$id = wp_insert_post( apply_filters( 'woocommerce_new_product_data', array(
-			'post_type'      => 'product',
-			'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
-			'post_author'    => get_current_user_id(),
-			'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
-			'post_content'   => $product->get_description(),
-			'post_excerpt'   => $product->get_short_description(),
-			'post_parent'    => $product->get_parent_id(),
-			'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
-			'ping_status'    => 'closed',
-			'menu_order'     => $product->get_menu_order(),
-			'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
-			'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
-			'post_name'      => $product->get_slug( 'edit' ),
-		) ), true );
+			if ( ! $product->get_date_created( 'edit' ) ) {
+				$product->set_date_created( current_time( 'timestamp', true ) );
+			}
 
-		if ( $id && ! is_wp_error( $id ) ) {
+			$id = wp_insert_post( apply_filters( 'woocommerce_new_product_data', array(
+				'post_type'      => 'product',
+				'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
+				'post_author'    => get_current_user_id(),
+				'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
+				'post_content'   => $product->get_description(),
+				'post_excerpt'   => $product->get_short_description(),
+				'post_parent'    => $product->get_parent_id(),
+				'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
+				'ping_status'    => 'closed',
+				'menu_order'     => $product->get_menu_order(),
+				'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
+				'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
+				'post_name'      => $product->get_slug( 'edit' ),
+			) ), true );
+
+			if ( empty( $id ) || is_wp_error( $id ) ) {
+				throw new Exception( 'db_error' );
+			}
+
 			$product->set_id( $id );
 
 			$this->update_product_data( $product );
@@ -104,23 +191,28 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$this->update_terms( $product, true );
 			$this->update_visibility( $product, true );
 			$this->update_attributes( $product, true );
-			$this->update_version_and_type( $product );
 			$this->handle_updated_props( $product );
 
 			$product->save_meta_data();
 			$product->apply_changes();
 
+			update_post_meta( $product->get_id(), '_product_version', WC_VERSION );
+
 			$this->clear_caches( $product );
 
+			wc_transaction_query( 'commit' );
+
 			do_action( 'woocommerce_new_product', $id );
+		} catch ( Exception $e ) {
+			wc_transaction_query( 'rollback' );
 		}
 	}
 
 	/**
 	 * Method to read a product from the database.
 	 *
-	 * @param WC_Product $product
-	 * @throws Exception
+	 * @param WC_Product $product The product object.
+	 * @throws Exception Exception if the product cannot be read due to being invalid.
 	 */
 	public function read( &$product ) {
 		$product->set_defaults();
@@ -156,7 +248,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Method to update a product in the database.
 	 *
-	 * @param WC_Product $product
+	 * @param WC_Product $product The product object.
 	 */
 	public function update( &$product ) {
 		$product->save_meta_data();
@@ -204,14 +296,16 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$product->read_meta_data( true ); // Refresh internal meta data, in case things were hooked into `save_post` or another WP hook.
 		}
 
+		$this->update_product_data( $product );
 		$this->update_post_meta( $product );
 		$this->update_terms( $product );
 		$this->update_visibility( $product );
 		$this->update_attributes( $product );
-		$this->update_version_and_type( $product );
 		$this->handle_updated_props( $product );
 
 		$product->apply_changes();
+
+		update_post_meta( $product->get_id(), '_product_version', WC_VERSION );
 
 		$this->clear_caches( $product );
 
@@ -240,7 +334,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
-			$wpdb->delete( "{$wpdb->prefix}products", array( 'product_id' => $id ) );
+			$wpdb->delete( "{$wpdb->prefix}products", array( 'product_id' => $id ) ); // WPCS: db call ok, cache ok.
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {
@@ -248,5 +342,27 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$product->set_status( 'trash' );
 			do_action( 'woocommerce_trash_' . $post_type, $id );
 		}
+	}
+
+	/**
+	 * Clear any caches.
+	 *
+	 * @param WC_Product $product The product object.
+	 */
+	protected function clear_caches( &$product ) {
+		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
+		wc_delete_product_transients( $product->get_id() );
+	}
+
+	/**
+	 * Get the product type based on product ID.
+	 *
+	 * @since 3.0.0
+	 * @param int $product_id Product ID to query.
+	 * @return string
+	 */
+	public function get_product_type( $product_id ) {
+		$data = $this->get_product_row_from_db( $product_id );
+		return ! empty( $data->product_type ) ? $data->product_type : 'simple';
 	}
 }
