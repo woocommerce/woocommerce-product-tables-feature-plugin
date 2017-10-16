@@ -9,7 +9,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) || class_exists( 'WC_Product_Tables_Bootstrap' ) ) {
-	return;
+	//return;
 }
 
 /**
@@ -21,12 +21,18 @@ class WC_Product_Tables_Bootstrap {
 	 * Constructor.
 	 */
 	public function __construct() {
+		$this->includes();
 		add_filter( 'woocommerce_product_data_store', array( $this, 'replace_core_data_store' ) );
 		add_action( 'before_woocommerce_init', array( $this, 'includes' ) );
 	}
 
+	/**
+	 * Include classes
+	 */
 	public function includes() {
-		include 'class-wc-product-tables-backwards-compat.php';
+		require_once 'class-wc-product-tables-backwards-compat.php';
+		require_once 'class-wc-product-tables-install.php';
+		require_once 'class-wc-product-tables-migrate-data.php';
 	}
 
 	/**
