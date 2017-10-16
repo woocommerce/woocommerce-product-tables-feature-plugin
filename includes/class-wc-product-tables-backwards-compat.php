@@ -6,6 +6,11 @@
 class WC_Product_Tables_Backwards_Compatibility {
 
 	public function __construct() {
+		// Don't turn on backwards-compatibility if in the middle of a migration.
+		if ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) {
+			return;
+		}
+
 		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
 		add_filter( 'add_post_metadata', array( $this, 'add_metadata_to_tables' ), 99, 5 );
 		add_filter( 'update_post_metadata', array( $this, 'update_metadata_in_tables' ), 99, 5 );
@@ -54,8 +59,24 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return null/bool $result
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
+		global $wpdb;
 
-		return $result;
+		$mapping = $this->get_mapping();
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
+			return $result;
+		}
+
+		if ( $unique ) {
+			$existing = $wpdb->get_results( $wpdb->prepare( $mapping[ $meta_key ]['get'], $post_id ) );
+			if ( $existing ) {
+				return false;
+			}
+		}
+
+		$mapped_query = $mapping[ $meta_key ]['add'];
+		$result = $wpdb->query( $wpdb->prepare( $mapped_query, $post_id, $meta_value ) );
+
+		return (bool) $result;
 	}
 
 	/**
@@ -69,8 +90,20 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return null/bool $result
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
+		global $wpdb;
 
-		return $result;
+		$mapping = $this->get_mapping();
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
+			return $result;
+		}
+
+		$mapped_query = $mapping[ $meta_key ]['update'];
+
+		// @todo: $prev_value support.
+
+		$result = $wpdb->query( $wpdb->prepare( $mapped_query, $post_id, $meta_value ) );
+
+		return (bool) $result;
 	}
 
 	/**
@@ -84,6 +117,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return null/bool $result
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $meta_value, $delete_all ) {
+		global $wpdb;
+
+		$mapping = $this->get_mapping();
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
+			return $result;
+		}
+
+		$mapped_query = $mapping[ $meta_key ]['delete'];
+
+		// @todo $meta_value support
+		// @todo $delete_all support
+
+		$result = $wpdb->query( $wpdb->prepare( $mapped_query, $post_id ) );
 
 		return $result;
 	}
@@ -95,9 +141,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 		return array(
 			'_weight' => array(
 				'get' => "SELECT weight FROM {$prefix}products WHERE product_id = %d",
-				'add' => "",
-				'update' => "",
-				'delete' => "",
+				'add' => "UPDATE {$prefix}products SET weight = %f WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}products SET weight = %f WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}products SET weight = NULL WHERE product_id = %d",
 			),
 
 		);
