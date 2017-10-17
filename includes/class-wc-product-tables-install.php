@@ -50,10 +50,10 @@ class WC_Product_Tables_Install {
 			  total_sales double NOT NULL,
 			  price double NOT NULL,
 			  regular_price double NOT NULL,
-			  sale_price double,
-			  date_on_sale_from int(8),
-			  date_on_sale_to int(8),
-			  average_rating float,
+			  sale_price double NOT NULL,
+			  date_on_sale_from datetime NOT NULL,
+			  date_on_sale_to datetime NOT NULL,
+			  average_rating float NOT NULL,
 			  stock_status varchar(100) NOT NULL,
 			  PRIMARY KEY  (product_id)
 			) $collate;
