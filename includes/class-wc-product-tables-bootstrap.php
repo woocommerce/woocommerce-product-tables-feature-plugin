@@ -29,7 +29,7 @@ class WC_Product_Tables_Bootstrap {
 	 * Include classes
 	 */
 	public function includes() {
-		require_once 'class-wc-product-tables-backwards-compat.php';
+		require_once 'class-wc-product-tables-backwards-compatibility.php';
 		require_once 'class-wc-product-tables-install.php';
 		require_once 'class-wc-product-tables-migrate-data.php';
 	}
