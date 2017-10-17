@@ -2,6 +2,7 @@
 
 /**
  * Backwards compatibility layer for metadata access.
+ * @todo WP_Query meta query support? (IMO no. They should be using CRUD search helpers)
  */
 class WC_Product_Tables_Backwards_Compatibility {
 
@@ -139,23 +140,44 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$prefix = $wpdb->prefix;
 
 		return array(
-			'_weight' => array(
-				'get' => "SELECT weight FROM {$prefix}products WHERE product_id = %d",
-				'add' => "UPDATE {$prefix}products SET weight = %f WHERE product_id = %d",
-				'update' => "UPDATE {$prefix}products SET weight = %f WHERE product_id = %d",
-				'delete' => "UPDATE {$prefix}products SET weight = NULL WHERE product_id = %d",
+			'_sku' => array(
+				'get' => "SELECT sku FROM {$prefix}wc_products WHERE product_id = %d",
+				'add' => "UPDATE {$prefix}wc_products SET sku = %s WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}wc_products SET sku = %s WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}wc_products SET sku = '' WHERE product_id = %d",
 			),
-/*			'_visibility', // Now a term. @todo figure a good way to handle this.
-			'_sku', // Product table
-			'_price', // Product table
-			'_regular_price', // Product table
-			'_sale_price', // Product table
+			'_price' => array(
+				'get' => "SELECT price FROM {$prefix}wc_products WHERE product_id = %d",
+				'add' => "UPDATE {$prefix}wc_products SET price = %f WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}wc_products SET price = %f WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}wc_products SET price = 0.0 WHERE product_id = %d",
+			),
+			'_regular_price' => array(
+				'get' => "SELECT regular_price FROM {$prefix}wc_products WHERE product_id = %d",
+				'add' => "UPDATE {$prefix}wc_products SET regular_price = %f WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}wc_products SET regular_price = %f WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}wc_products SET regular_price = 0.0 WHERE product_id = %d",
+			),
+			'_sale_price' => array(
+				'get' => "SELECT sale_price FROM {$prefix}wc_products WHERE product_id = %d",
+				'add' => "UPDATE {$prefix}wc_products SET sale_price = %f WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}wc_products SET sale_price = %f WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}wc_products SET sale_price = 0.0 WHERE product_id = %d",
+			),
+			'_weight' => array(
+				'get' => "SELECT weight FROM {$prefix}wc_products WHERE product_id = %d",
+				'add' => "UPDATE {$prefix}wc_products SET weight = %f WHERE product_id = %d",
+				'update' => "UPDATE {$prefix}wc_products SET weight = %f WHERE product_id = %d",
+				'delete' => "UPDATE {$prefix}wc_products SET weight = NULL WHERE product_id = %d",
+			),
+
+/*
 			'_sale_price_dates_from', // Product table
 			'_sale_price_dates_to', // Product table
-			'total_sales', // Produce table
+			'total_sales', // Product table
 			'_tax_status', // Product table
 			'_tax_class', // Product table
-			'_manage_stock', // Product table stock column. Null if not managing stock.
+			'_manage_stock', // Product table stock  column. Null if not managing stock.
 			'_stock', // Product table
 			'_stock_status', // Product table
 			'_length', // Product table
@@ -174,7 +196,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'_wc_average_rating', // Product table
 			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
 			'_thumbnail_id', // Product table
-			'_product_image_gallery', // Product relationship table*/
+			'_product_image_gallery', // Product relationship table
+			'_visibility', // Now a term. @todo figure a good way to handle this.
+*/
 		);
 	}
 }
