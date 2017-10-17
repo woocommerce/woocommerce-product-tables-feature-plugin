@@ -8,8 +8,8 @@
  * @author Automattic
  */
 
-if ( ! defined( 'ABSPATH' ) || class_exists( 'WC_Product_Tables_Bootstrap' ) ) {
-	// return;
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
 }
 
 /**
