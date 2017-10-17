@@ -53,16 +53,15 @@ class WC_Product_Tables_Migrate_Data {
 			$priority = 1;
 
 			// Migrate download files.
-			foreach ( get_post_meta( $product->ID, '_downloadable_files' ) as $download_key => $downloadable_file ) {
+			foreach ( maybe_unserialize( $metas['_downloadable_files'][0] ) as $download_key => $downloadable_file ) {
 				$new_download = array(
 					'product_id' => $product->ID,
 					'name' => $downloadable_file['name'],
 					'url' => $downloadable_file['file'],
-					'limit' => $metas['_download_limit'],
-					'expires' => $metas['_download_expiry'],
+					'limit' => $metas['_download_limit'][0],
+					'expires' => $metas['_download_expiry'][0],
 					'priority' => $priority,
 				);
-
 				self::insert( 'wc_product_downloads', $new_download );
 
 				// TODO: verify if we need to change the function that checks download permissions.

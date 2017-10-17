@@ -83,13 +83,13 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_downloads (
-			  `download_id` bigint(20) NOT NULL,
+			  `download_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `name` varchar(1000) NOT NULL,
 			  `url` text NOT NULL,
-			  `limit` int(11) NOT NULL,
-			  `expires` int(11) NOT NULL,
-			  `priority` int(11) NOT NULL,
+			  `limit` int(11) default NULL,
+			  `expires` int(11) default NULL,
+			  `priority` int(11) default 1,
 			  PRIMARY KEY  (`download_id`)
 			) $collate;
 
