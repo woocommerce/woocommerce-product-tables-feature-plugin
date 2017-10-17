@@ -606,18 +606,44 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param  WC_Product $product Product Object.
 	 */
 	protected function handle_updated_props( &$product ) {
+		global $wpdb;
+
 		if ( in_array( 'regular_price', $this->updated_props, true ) || in_array( 'sale_price', $this->updated_props, true ) ) {
 			if ( $product->get_sale_price( 'edit' ) >= $product->get_regular_price( 'edit' ) ) {
-				update_post_meta( $product->get_id(), '_sale_price', '' );
+				$wpdb->update(
+					"{$wpdb->prefix}wc_products",
+					array(
+						'sale_price' => null,
+					),
+					array(
+						'product_id' => $product->get_id( 'edit' ),
+					)
+				); // WPCS: db call ok, cache ok.
 				$product->set_sale_price( '' );
 			}
 		}
 		if ( in_array( 'date_on_sale_from', $this->updated_props, true ) || in_array( 'date_on_sale_to', $this->updated_props, true ) || in_array( 'regular_price', $this->updated_props, true ) || in_array( 'sale_price', $this->updated_props, true ) || in_array( 'product_type', $this->updated_props, true ) ) {
 			if ( $product->is_on_sale( 'edit' ) ) {
-				update_post_meta( $product->get_id(), '_price', $product->get_sale_price( 'edit' ) );
+				$wpdb->update(
+					"{$wpdb->prefix}wc_products",
+					array(
+						'price' => $product->get_sale_price( 'edit' ),
+					),
+					array(
+						'product_id' => $product->get_id( 'edit' ),
+					)
+				); // WPCS: db call ok, cache ok.
 				$product->set_price( $product->get_sale_price( 'edit' ) );
 			} else {
-				update_post_meta( $product->get_id(), '_price', $product->get_regular_price( 'edit' ) );
+				$wpdb->update(
+					"{$wpdb->prefix}wc_products",
+					array(
+						'price' => $product->get_regular_price( 'edit' ),
+					),
+					array(
+						'product_id' => $product->get_id( 'edit' ),
+					)
+				); // WPCS: db call ok, cache ok.
 				$product->set_price( $product->get_regular_price( 'edit' ) );
 			}
 		}
