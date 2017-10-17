@@ -266,7 +266,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
 				return ! empty( $relationship->type ) && $relationship->type === $type;
 			});
-			$values = wp_list_pluck( $relationships, 'object_id' );
+			$values = array_values( wp_list_pluck( $relationships, 'object_id' ) );
 			$props[ $prop ] = $values;
 		}
 

@@ -387,7 +387,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function get_manage_stock( $args ) {
-		$default = array(
+		$defaults = array(
 			'product_id' => 0,
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -417,7 +417,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function set_manage_stock( $args ) {
-		$default = array(
+		$defaults = array(
 			'product_id' => 0,
 			'value' => false,
 		);
