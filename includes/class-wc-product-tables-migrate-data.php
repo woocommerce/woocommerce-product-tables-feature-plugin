@@ -112,7 +112,7 @@ class WC_Product_Tables_Migrate_Data {
 					$is_global = false;
 					if ( false !== strpos( $attr_name, 'pa_' ) ) {
 						// global attribute
-						$attribute_data['taxonomy_id'] => get_term_by( 'name', $attr_name )->term_taxonomy_id;
+						$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
 						$is_global = true;
 						$attr_terms = get_terms( array(
 							'taxonomy' => $attr_name,
@@ -130,9 +130,9 @@ class WC_Product_Tables_Migrate_Data {
 				  				'value' => $term->name,
 				  				'priority' => $count,
 								'is_default' => 0
-							)
+							);
 							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] && $default_attributes[ $attr_name ] == $term->slug ) ) {
+								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] == $term->slug ) {
 									$term_data['is_default'] = 1;
 								}
 							}
@@ -151,7 +151,7 @@ class WC_Product_Tables_Migrate_Data {
 								'is_default' => 0,
 							);
 							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] && $default_attributes[ $attr_name ] ==  trim( $attr_value ) ) ) {
+								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] == trim( $attr_value ) ) {
 									$attr_value_data['is_default'] = 1;
 								}
 							}
