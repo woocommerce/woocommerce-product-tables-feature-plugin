@@ -200,7 +200,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data = wp_cache_get( 'woocommerce_product_relationships_' . $product_id, 'product' );
 
 		if ( empty( $data ) ) {
-			$data = $wpdb->get_results( $wpdb->prepare( "SELECT object_id, type FROM {$wpdb->prefix}wc_product_relationships WHERE product_id = %d", $product_id ) ); // WPCS: db call ok, cache ok.
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_relationships_' . $product_id, $data, 'product' );
 		}
@@ -214,7 +214,19 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param WC_Product $product The product object.
 	 */
 	protected function read_product_data( &$product ) {
-		$product->set_props( $this->get_product_row_from_db( $product->get_id() ) );
+		$props                     = $this->get_product_row_from_db( $product->get_id() );
+		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
+
+		foreach ( $this->relationships as $type => $prop ) {
+			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
+				return ! empty( $relationship->type ) && $relationship->type === $type;
+			});
+			$values = wp_list_pluck( $relationships, 'object_id' );
+
+			$props[ $prop ] = $values;
+		}
+
+		$product->set_props( $props );
 	}
 
 	/**
