@@ -111,10 +111,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'stock_status',
 		);
 
-		foreach ( $columns as $prop => $column ) {
-			if ( array_key_exists( $prop, $changes ) ) {
+		foreach ( $columns as $column ) {
+			if ( array_key_exists( $column, $changes ) ) {
 				$data[ $column ] = $product->{"get_$column"}( 'edit' );
-				$this->updated_props[] = $prop;
+				$this->updated_props[] = $column;
 			}
 		}
 
