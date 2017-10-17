@@ -942,12 +942,92 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
+			'_crosssell_ids' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+						'value' => array(),
+					),
+				),
+			),
+			'_product_image_gallery' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+						'value' => array(),
+					),
+				),
+			),
+			'_children' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+						'value' => array(),
+					),
+				),
+			),
 		);
 
 		/*
+			@todo
 			'_manage_stock', // Product table stock column. Null if not managing stock.
-			'_upsell_ids', // Product relationship table
-			'_crosssell_ids', // Product relationship table
 			'_default_attributes', // Attributes table(s)
 			'_product_attributes', // Attributes table(s)
 			'_download_limit', // Product downloads table
@@ -955,7 +1035,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'_featured', // Now a term.
 			'_downloadable_files', // Product downloads table
 			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
-			'_product_image_gallery', // Product relationship table
 			'_visibility', // Now a term.
 		*/
 	}
