@@ -100,6 +100,7 @@ class WC_Product_Tables_Migrate_Data {
 				$priority++;
 			}
 
+			$default_attributes = get_post_meta( $product->ID, '_default_attributes' );
 			foreach ( get_post_meta( $product->ID, '_product_attributes' ) as $attribute ) {
 				foreach ( $attribute as $attr_name => $attr ) {
 					$attribute_data = array(
@@ -108,11 +109,50 @@ class WC_Product_Tables_Migrate_Data {
 						'is_visible' => $attr['is_visible'],
 						'is_variations' => $attr['is_variation'],
 					);
+					$is_global = false;
 					if ( false !== strpos( $attr_name, 'pa_' ) ) {
 						// global attribute
-						$attribute_data['taxonomy_id'] => get_term_by( 'name', $attr['name'] )->term_taxonomy_id
+						$attribute_data['taxonomy_id'] => get_term_by( 'name', $attr_name )->term_taxonomy_id;
+						$is_global = true;
+						$attr_terms = get_terms( array(
+							'taxonomy' => $attr_name,
+							'object_ids' => $product->ID,
+						) );
 					}
-					$wpdb->insert( $wpdb->prefix . 'wc_wc_product_attributes', $attribute_data );
+					$wpdb->insert( $wpdb->prefix . 'wc_product_attributes', $attribute_data );
+					$attr_id = $wpdb->insert_id;
+					if ( $is_global ) {
+						$count = 1;
+						foreach ( $attr_terms as $term ) {
+							$term_data = array(
+								'product_id' => $product->ID,
+				  				'product_attribute_id' => $attr_id,
+				  				'value' => $term->name,
+				  				'priority' => $count,
+								'is_default' => 0
+							)
+							foreach ( $default_attributes as $default_attr ) {
+								if ( isset( $default_attributes[ $attr_name ] && $default_attributes[ $attr_name ] == $term->slug ) ) {
+									$term_data['is_default'] = 1;
+								}
+							}
+							$wpdb->insert( $wpdb->prefix . 'wc_product_attribute_values', $term_data );
+							$count++;
+						}
+					} else {
+						$attribute_values = explode( '|', $attr['value'] );
+						$count = 1;
+						foreach ( $attribute_values as $attr_value ) {
+							$attr_value_data = array(
+								'product_id' => $product->ID,
+								'product_attribute_id' => $attr_id,
+								'value' => trim( $attr_value ),
+								'priority' => $count,
+							);
+							$wpdb->insert( $wpdb->prefix . 'wc_product_attribute_values', $attr_value_data );
+							$count++;
+						}
+					}
 				}
 			}
 		}
