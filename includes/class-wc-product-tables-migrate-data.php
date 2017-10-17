@@ -24,8 +24,6 @@ class WC_Product_Tables_Migrate_Data {
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
 
-			print_r( $metas );
-
 			$new_data = array(
 				'product_id' => $product->ID,
 				'sku' => $metas['_sku'][0],
