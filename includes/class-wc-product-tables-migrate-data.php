@@ -239,7 +239,7 @@ class WC_Product_Tables_Migrate_Data {
 			if ( $is_global ) {
 				self::migrate_global_attributes( $product->ID, $attr_id, $attr_name );
 			} else {
-				self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr_values );
+				self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr['value'] );
 			}
 
 			// Variation attribute values, lets check if the parent product has any child products ie. variations.
@@ -274,7 +274,7 @@ class WC_Product_Tables_Migrate_Data {
 				'is_default' => 0,
 			);
 			foreach ( $default_attributes as $default_attr ) {
-				if ( isset( $default_attr[ $attr_name ] ) && $default_attr[ $attr_name ] === $term->slug ) {
+				if ( isset( $default_attr[ $attribute_name ] ) && $default_attr[ $attribute_name ] === $term->slug ) {
 					$term_data['is_default'] = 1;
 				}
 			}
@@ -289,7 +289,7 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param int    $product_id Product ID.
 	 * @param int    $attribute_id Attribute ID.
 	 * @param string $attribute_name Attribute name.
-	 * @param array  $attribute_values Attribute values.
+	 * @param string $attribute_values Attribute values.
 	 */
 	protected static function migrate_custom_attributes( $product_id, $attribute_id, $attribute_name, $attribute_values ) {
 		$attribute_values = explode( '|', $attribute_values );
