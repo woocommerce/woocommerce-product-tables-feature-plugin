@@ -169,26 +169,7 @@ class WC_Product_Tables_Migrate_Data {
 
 					// Variation attribute values, lets check if the parent product has any child products ie. variations.
 					if ( 'product' === $product->post_type ) {
-						$variable_products = $wpdb->get_results(
-							$wpdb->prepare(
-								"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
-								$product->ID
-							)
-						);
-
-						if ( $variable_products ) {
-							foreach ( $variable_products as $variable_product ) {
-								$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attr_name );
-								if ( $variation_value ) {
-									$variation_data = array(
-										'product_id' => $variable_product->ID,
-										'value' => $variation_value,
-										'product_attribute_id' => $attr_id,
-									);
-									$self::insert( 'wc_product_variation_attribute_values', $variation_data );
-								}
-							}
-						}
+						self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
 					}
 				}
 			}
@@ -244,6 +225,36 @@ class WC_Product_Tables_Migrate_Data {
 			$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
 
 			$priority++;
+		}
+	}
+
+	/**
+	 * Migrate variation attribute values
+	 *
+	 * @param int    $parent_id Parent product ID.
+	 * @param int    $attribute_id Attribute ID.
+	 * @param string $attribute_name Attribute name.
+	 */
+	protected static function migrate_variation_attribute_values( $parent_id, $attribute_id, $attribute_name ) {
+		$variable_products = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
+				$parent_id
+			)
+		);
+
+		if ( $variable_products ) {
+			foreach ( $variable_products as $variable_product ) {
+				$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attribute_name );
+				if ( $variation_value ) {
+					$variation_data = array(
+						'product_id' => $variable_product->ID,
+						'value' => $variation_value,
+						'product_attribute_id' => $attribute_id,
+					);
+					$self::insert( 'wc_product_variation_attribute_values', $variation_data );
+				}
+			}
 		}
 	}
 }
