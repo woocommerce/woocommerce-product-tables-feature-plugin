@@ -159,6 +159,19 @@ class WC_Product_Tables_Migrate_Data {
 							$count++;
 						}
 					}
+
+					// Variation attribute values
+					if ( 'product_variation' == $product->post_type ) {
+						$variation_value = get_post_meta( $product->ID, 'attribute_' . $attr_name );
+						if ( $variation_value ) {
+							$variation_data = array(
+								'product_id' => $product->ID,
+								'value' => $variation_value,
+								'product_attribute_id' => $attr_id,
+							);
+							$wpdb->insert( $wpdb->prefix . 'wc_product_variation_attribute_values', $variation_data );
+						}
+					}
 				}
 			}
 		}
