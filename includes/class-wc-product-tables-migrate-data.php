@@ -26,26 +26,26 @@ class WC_Product_Tables_Migrate_Data {
 
 			$new_data = array(
 				'product_id' => $product->ID,
-				'sku' => $metas['_sku'][0],
-				'image_id' => $metas['_thumbnail_id'][0],
-				'height' => $metas['_height'][0],
-				'width' => $metas['_width'][0],
-				'length' => $metas['_lenght'][0],
-				'weight' => $metas['_weight'][0],
-				'stock_quantity' => $metas['_stock'][0],
+				'sku' => isset( $metas['_sku'] ) ? $metas['_sku'][0] : null,
+				'image_id' => isset( $metas['_thumbnail_id'] ) ? $metas['_thumbnail_id'][0] : null,
+				'height' => isset( $metas['_height'] ) ? $metas['_height'][0] : null,
+				'width' => isset( $metas['_width'] ) ? $metas['_width'][0] : null,
+				'length' => isset( $metas['_lenght'] ) ? $metas['_lenght'][0] : null,
+				'weight' => isset( $metas['_weight'] ) ? $metas['_weight'][0] : null,
+				'stock_quantity' => isset( $metas['_stock'] ) ? $metas['_stock'][0] : null,
 				'type' => wp_get_post_terms( $product->ID, 'product_type' )[0]->slug,
-				'virtual' => $metas['_virtual'][0],
-				'downloadable' => $metas['_downloadable'][0],
-				'tax_class' => $metas['_tax_class'][0],
-				'tax_status' => $metas['_tax_status'][0],
-				'total_sales' => $metas['total_sales'][0],
-				'price' => $metas['_price'][0],
-				'regular_price' => $metas['_regular_price'][0],
-				'sale_price' => $metas['_sale_price'][0],
-				'date_on_sale_from' => $metas['_date_on_sale'][0],
-				'date_on_sale_to' => $metas['_date_on_sale_to'][0],
-				'average_rating' => $metas['_average_rating'][0],
-				'stock_status' => $metas['_stock_status'][0],
+				'virtual' => isset( $metas['_virtual'] ) ? $metas['_virtual'][0] : null,
+				'downloadable' => isset( $metas['_downloadable'] ) ? $metas['_downloadable'][0] : null,
+				'tax_class' => isset( $metas['_tax_class'] ) ? $metas['_tax_class'][0] : null,
+				'tax_status' => isset( $metas['_tax_status'] ) ? $metas['_tax_status'][0] : null,
+				'total_sales' => isset( $metas['total_sales'] ) ? $metas['total_sales'][0] : null,
+				'price' => isset( $metas['_price'] ) ? $metas['_price'][0] : null,
+				'regular_price' => isset( $metas['_regular_price'] ) ? $metas['_regular_price'][0] : null,
+				'sale_price' => isset( $metas['_sale_price'] ) ? $metas['_sale_price'][0] : null,
+				'date_on_sale_from' => isset( $metas['_date_on_sale'] ) ? $metas['_date_on_sale'][0] : null,
+				'date_on_sale_to' => isset( $metas['_date_on_sale_to'] ) ? $metas['_date_on_sale_to'][0] : null,
+				'average_rating' => isset( $metas['_average_rating'] ) ? $metas['_average_rating'][0] : null,
+				'stock_status' => isset( $metas['_stock_status'] ) ? $metas['_stock_status'][0] : null,
 			);
 
 			self::insert( 'wc_products', $new_data );
@@ -53,23 +53,24 @@ class WC_Product_Tables_Migrate_Data {
 			$priority = 1;
 
 			// Migrate download files.
-			foreach ( get_post_meta( $product->ID, '_downloadable_files' ) as $download_key => $downloadable_file ) {
+			$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
+
+			foreach ( $downloadable_files as $download_key => $downloadable_file ) {
 				$new_download = array(
 					'product_id' => $product->ID,
 					'name' => $downloadable_file['name'],
 					'url' => $downloadable_file['file'],
-					'limit' => $metas['_download_limit'],
-					'expires' => $metas['_download_expiry'],
+					'limit' => isset( $metas['_download_limit'] ) ? $metas['_download_limit'][0] : null,
+					'expires' => isset( $metas['_download_expiry'] ) ? $metas['_download_expiry'][0] : null,
 					'priority' => $priority,
 				);
-
-				self::insert( 'wc_product_downloads', $new_download );
+				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
 				// TODO: verify if we need to change the function that checks download permissions.
 				$wpdb->update(
 					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
 					array(
-						'download_id' => $wpdb->insert_id,
+						'download_id' => $new_download_id,
 					),
 					array(
 						'download_id' => $download_key,
@@ -91,7 +92,10 @@ class WC_Product_Tables_Migrate_Data {
 			$priority = 1;
 
 			// Migrate product images.
-			$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
+			$image_ids = get_post_meta( $product->ID, '_product_image_gallery' );
+			if ( ! is_array( $image_ids ) && false !== strpos( $image_ids, ',' ) ) {
+				$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
+			}
 
 			foreach ( $image_ids as $image_id ) {
 				$relationship = array(
@@ -121,7 +125,6 @@ class WC_Product_Tables_Migrate_Data {
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)
-			AND ID = 10
 		" );
 	}
 
@@ -130,7 +133,7 @@ class WC_Product_Tables_Migrate_Data {
 	 *
 	 * @param string $table Table name where to insert data into.
 	 * @param array  $data Array of name value pairs for data to insert.
-	 * @return inserted row ID.
+	 * @return int inserted row ID.
 	 */
 	public static function insert( $table, $data ) {
 		global $wpdb;
@@ -152,6 +155,9 @@ class WC_Product_Tables_Migrate_Data {
 		$priority = 1;
 
 		foreach ( get_post_meta( $product_id, $old_meta_key ) as $child ) {
+			if ( empty( $child ) ) {
+				continue;
+			}
 			$relationship = array(
 				'type' => $relationship_type,
 				'product_id' => $product_id,
@@ -208,7 +214,7 @@ class WC_Product_Tables_Migrate_Data {
 					'product_id' => $product->ID,
 					'name' => $attr['name'],
 					'is_visible' => $attr['is_visible'],
-					'is_variations' => $attr['is_variation'],
+					'is_variation' => $attr['is_variation'],
 				);
 				$is_global = false;
 				if ( false !== strpos( $attr_name, 'pa_' ) ) {
