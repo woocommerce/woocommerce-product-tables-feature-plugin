@@ -17,7 +17,7 @@ class WC_Product_Tables_Install {
 	 * @return void
 	 */
 	public function __construct() {
-		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( $this, 'activate' ) );
+		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( __CLASS__, 'activate' ) );
 	}
 
 	/**
@@ -25,7 +25,7 @@ class WC_Product_Tables_Install {
 	 *
 	 * @return void
 	 */
-	public function activate() {
+	public static function activate() {
 		global $wpdb;
 
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
@@ -40,25 +40,25 @@ class WC_Product_Tables_Install {
 			CREATE TABLE {$wpdb->prefix}wc_products (
 			  `product_id` bigint(20) NOT NULL,
 			  `sku` varchar(100) NOT NULL default '',
-			  `image_id` bigint(20) NOT NULL default 0,
+			  `image_id` bigint(20) NULL default 0,
 			  `height` double NULL default NULL,
 			  `width` double NULL default NULL,
 			  `length` double NULL default NULL,
 			  `weight` double NULL default NULL,
 			  `stock_quantity` double NULL default NULL,
-			  `type` varchar(100) NOT NULL default 'simple',
-			  `virtual` tinyint(1) NOT NULL default 0,
-			  `downloadable` tinyint(1) NOT NULL default 0,
-			  `tax_class` varchar(100) NOT NULL default '',
-			  `tax_status` varchar(100) NOT NULL default 'taxable',
-			  `total_sales` double NOT NULL default 0,
+			  `type` varchar(100) NULL default 'simple',
+			  `virtual` tinyint(1) NULL default 0,
+			  `downloadable` tinyint(1) NULL default 0,
+			  `tax_class` varchar(100) NULL default '',
+			  `tax_status` varchar(100) NULL default 'taxable',
+			  `total_sales` double NULL default 0,
 			  `price` double NULL default NULL,
 			  `regular_price` double NULL default NULL,
 			  `sale_price` double NULL default NULL,
 			  `date_on_sale_from` datetime NULL default NULL,
 			  `date_on_sale_to` datetime NULL default NULL,
-			  `average_rating` float NOT NULL default 0,
-			  `stock_status` varchar(100) NOT NULL default 'instock',
+			  `average_rating` float NULL default 0,
+			  `stock_status` varchar(100) NULL default 'instock',
 			  PRIMARY KEY  (`product_id`)
 			) $collate;
 
@@ -83,13 +83,13 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_downloads (
-			  `download_id` bigint(20) NOT NULL,
+			  `download_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `name` varchar(1000) NOT NULL,
 			  `url` text NOT NULL,
-			  `limit` int(11) NOT NULL,
-			  `expires` int(11) NOT NULL,
-			  `priority` int(11) NOT NULL,
+			  `limit` int(11) default NULL,
+			  `expires` int(11) default NULL,
+			  `priority` int(11) default 1,
 			  PRIMARY KEY  (`download_id`)
 			) $collate;
 
