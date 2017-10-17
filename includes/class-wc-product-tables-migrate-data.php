@@ -27,7 +27,7 @@ class WC_Product_Tables_Migrate_Data {
 			$new_data = array(
 				'product_id' => $product->ID,
 				'sku' => $metas['_sku'],
-				'thumbnail_id' => $metas['_thumbnail_id'],
+				'image_id' => $metas['_thumbnail_id'],
 				'height' => $metas['_height'],
 				'width' => $metas['_width'],
 				'length' => $metas['_lenght'],
@@ -174,7 +174,7 @@ class WC_Product_Tables_Migrate_Data {
 		global $wpdb;
 		$variable_products = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
+				"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_parent = %d",
 				$parent_id
 			)
 		);
