@@ -2,6 +2,7 @@
 /**
  * Data migration class
  *
+ * @package WooCommerce Product Tables Feature Plugin
  * @author Automattic
  **/
 
@@ -10,14 +11,15 @@
  */
 class WC_Product_Tables_Migrate_Data {
 
-	public static function run() {
+	/**
+	 * Main function that runs the whole migration.
+	 */
+	public static function migrate() {
 		global $wpdb;
 
 		define( 'WC_PRODUCT_TABLES_MIGRATING', true );
 
-		$products = $wpdb->get_results(
-			"SELECT * FROM {$wpdb->posts} WHERE post_type IN ('product', 'product_variation') AND ID NOT IN (SELECT product_id FROM {$wpdb->prefix}woocommerce_products)"
-		);
+		$products = self::get_products();
 
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
@@ -46,11 +48,11 @@ class WC_Product_Tables_Migrate_Data {
 				'stock_status' => $metas['_stock_status'],
 			);
 
-			$wpdb->insert( $wpdb->prefix . 'wc_products', $new_data );
+			self::insert( 'wc_products', $new_data );
 
 			$priority = 1;
 
-			// migrate download files
+			// Migrate download files.
 			foreach ( get_post_meta( $product->ID, '_downloadable_files' ) as $download_key => $downloadable_file ) {
 				$new_download = array(
 					'product_id' => $product->ID,
@@ -61,9 +63,9 @@ class WC_Product_Tables_Migrate_Data {
 					'priority' => $priority,
 				);
 
-				$wpdb->insert( $wpdb->prefix . 'wc_product_downloads', $new_download );
+				self::insert( 'wc_product_downloads', $new_download );
 
-				// TODO: verify if we need to change the function that checks download permissions
+				// TODO: verify if we need to change the function that checks download permissions.
 				$wpdb->update(
 					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
 					array(
@@ -77,18 +79,18 @@ class WC_Product_Tables_Migrate_Data {
 				$priority++;
 			}
 
-			// migrate grouped products
+			// Migrate grouped products.
 			self::migrate_relationship( $product->ID, 'grouped', '_children' );
 
-			// migrate upsells
+			// Migrate upsells.
 			self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
 
-			// migrate cross-sells
+			// Migrate cross-sells.
 			self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
 
 			$priority = 1;
 
-			// migrate product images
+			// Migrate product images.
 			$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
 
 			foreach ( $image_ids as $image_id ) {
@@ -99,7 +101,7 @@ class WC_Product_Tables_Migrate_Data {
 					'priority' => $priority,
 				);
 
-				$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
+				self::insert( 'wc_product_relationships', $relationship );
 
 				$priority++;
 			}
@@ -115,7 +117,7 @@ class WC_Product_Tables_Migrate_Data {
 					);
 					$is_global = false;
 					if ( false !== strpos( $attr_name, 'pa_' ) ) {
-						// global attribute
+						// Global attribute.
 						$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
 						$is_global = true;
 						$attr_terms = get_terms(
@@ -125,8 +127,7 @@ class WC_Product_Tables_Migrate_Data {
 							)
 						);
 					}
-					$wpdb->insert( $wpdb->prefix . 'wc_product_attributes', $attribute_data );
-					$attr_id = $wpdb->insert_id;
+					$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
 					if ( $is_global ) {
 						$count = 1;
 						foreach ( $attr_terms as $term ) {
@@ -138,11 +139,11 @@ class WC_Product_Tables_Migrate_Data {
 								'is_default' => 0,
 							);
 							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] == $term->slug ) {
+								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] === $term->slug ) {
 									$term_data['is_default'] = 1;
 								}
 							}
-							$wpdb->insert( $wpdb->prefix . 'wc_product_attribute_values', $term_data );
+							self::insert( 'wc_product_attribute_values', $term_data );
 							$count++;
 						}
 					} else {
@@ -157,17 +158,17 @@ class WC_Product_Tables_Migrate_Data {
 								'is_default' => 0,
 							);
 							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] == trim( $attr_value ) ) {
+								if ( isset( $default_attributes[ $attr_name ] ) && trim( $attr_value ) === $default_attributes[ $attr_name ] ) {
 									$attr_value_data['is_default'] = 1;
 								}
 							}
-							$wpdb->insert( $wpdb->prefix . 'wc_product_attribute_values', $attr_value_data );
+							self::insert( 'wc_product_attribute_values', $attr_value_data );
 							$count++;
 						}
 					}
 
-					// Variation attribute values, lets check if the parent product has any child products ie. variations
-					if ( 'product' == $product->post_type ) {
+					// Variation attribute values, lets check if the parent product has any child products ie. variations.
+					if ( 'product' === $product->post_type ) {
 						$variable_products = $wpdb->get_results(
 							$wpdb->prepare(
 								"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
@@ -184,7 +185,7 @@ class WC_Product_Tables_Migrate_Data {
 										'value' => $variation_value,
 										'product_attribute_id' => $attr_id,
 									);
-									$wpdb->insert( $wpdb->prefix . 'wc_product_variation_attribute_values', $variation_data );
+									$self::insert( 'wc_product_variation_attribute_values', $variation_data );
 								}
 							}
 						}
@@ -192,6 +193,31 @@ class WC_Product_Tables_Migrate_Data {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get a list of products in the wp_posts table
+	 */
+	public static function get_products() {
+		global $wpdb;
+		return $wpdb->get_results( "
+			SELECT * FROM {$wpdb->posts}
+			WHERE post_type IN ('product', 'product_variation')
+			AND ID NOT IN (
+				SELECT product_id FROM {$wpdb->prefix}woocommerce_products
+			)
+		" );
+	}
+
+	/**
+	 * Insert data into table
+	 *
+	 * @param string $table Table name where to insert data into.
+	 * @param array  $data Array of name value pairs for data to insert.
+	 */
+	public static function insert( $table, $data ) {
+		$wpdb->insert( $wpdb->prefix . $table, $data );
+		return $wpdb->insert_id;
 	}
 
 	/**
