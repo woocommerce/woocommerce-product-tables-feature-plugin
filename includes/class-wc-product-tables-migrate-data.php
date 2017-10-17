@@ -219,7 +219,10 @@ class WC_Product_Tables_Migrate_Data {
 				$is_global = false;
 				if ( false !== strpos( $attr_name, 'pa_' ) ) {
 					// Global attribute.
-					$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
+					$attribute_data['taxonomy_id'] = get_terms( array(
+						'taxonomy' => $attr_name,
+						'object_ids' => $product_id,
+					) )[0]->term_taxonomy_id;
 					$is_global = true;
 				}
 				$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
@@ -251,7 +254,7 @@ class WC_Product_Tables_Migrate_Data {
 				'object_ids' => $product_id,
 			)
 		);
-		$default_attributes = get_post_meta( $product_id, '_default_attributes' );
+		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
 		$count = 1;
 		foreach ( $attr_terms as $term ) {
 			$term_data = array(
