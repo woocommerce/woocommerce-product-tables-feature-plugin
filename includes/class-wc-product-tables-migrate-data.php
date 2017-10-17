@@ -160,16 +160,24 @@ class WC_Product_Tables_Migrate_Data {
 						}
 					}
 
-					// Variation attribute values
-					if ( 'product_variation' == $product->post_type ) {
-						$variation_value = get_post_meta( $product->ID, 'attribute_' . $attr_name );
-						if ( $variation_value ) {
-							$variation_data = array(
-								'product_id' => $product->ID,
-								'value' => $variation_value,
-								'product_attribute_id' => $attr_id,
-							);
-							$wpdb->insert( $wpdb->prefix . 'wc_product_variation_attribute_values', $variation_data );
+					// Variation attribute values, lets check if the parent product has any child products ie. variations
+					if ( 'product' == $product->post_type ) {
+						$variable_products = $wpdb->get_results( $wpdb->prepare( "
+							SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d
+						", $product->ID ) );
+
+						if ( $variable_products ) {
+							foreach ( $variable_products as $variable_product ) {
+								$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attr_name );
+								if ( $variation_value ) {
+									$variation_data = array(
+										'product_id' => $variable_product->ID,
+										'value' => $variation_value,
+										'product_attribute_id' => $attr_id,
+									);
+									$wpdb->insert( $wpdb->prefix . 'wc_product_variation_attribute_values', $variation_data );
+								}
+							}
 						}
 					}
 				}
