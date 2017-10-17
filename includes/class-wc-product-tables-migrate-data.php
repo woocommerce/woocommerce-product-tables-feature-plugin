@@ -46,11 +46,12 @@ class WC_Product_Tables_Migrate_Data {
 				'stock_status' => $metas['_stock_status'],
 			);
 
-			$wpdb->insert( $wpdb->prefix . 'woocommerce_products', $new_data );
+			$wpdb->insert( $wpdb->prefix . 'wc_products', $new_data );
 
 			$priority = 1;
 
-			foreach ( $metas['_downloadable_files'] as $download_key => $downloadable_file ) {
+			// migrate download files
+			foreach ( get_post_meta( $product->ID, '_downloadable_files' ) as $download_key => $downloadable_file ) {
 				$new_download = array(
 					'product_id' => $product->ID,
 					'name' => $downloadable_file['name'],
@@ -60,7 +61,7 @@ class WC_Product_Tables_Migrate_Data {
 					'priority' => $priority,
 				);
 
-				$wpdb->insert( $wpdb->prefix . 'woocommerce_product_downloads', $new_download );
+				$wpdb->insert( $wpdb->prefix . 'wc_product_downloads', $new_download );
 
 				//TODO: verify if we need to change the function that checks download permissions
 				$wpdb->update(
@@ -72,7 +73,59 @@ class WC_Product_Tables_Migrate_Data {
 				$priority++;
 			}
 
+			// migrate grouped products
+			self::migrate_relationship( $product->ID, 'grouped', '_children' );
 
+			// migrate upsells
+			self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
+
+			// migrate cross-sells
+			self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
+
+			$priority = 1;
+
+			// migrate product images
+			$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
+
+			foreach ( $image_ids as $image_id ) {
+				$relationship = array(
+					'type' => 'image',
+					'product_id' => $product->ID,
+					'object_id' => $image_id,
+					'priority' => $priority,
+				);
+
+				$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
+
+				$priority++;
+			}
+		}
+	}
+
+	/**
+	 * Migrate product relationship from the old data structure to the new data structure.
+	 * Product relationships can be grouped products, upsells or cross-sells.
+	 *
+	 * @param int $product_id Product ID.
+	 * @param string $relationship_type 'grouped', 'upsell' or 'crosssell'.
+	 * @param string $old_meta_key Old meta key.
+	 */
+	protected static function migrate_relationship( $product_id, $relationship_type, $old_meta_key ) {
+		global $wpdb;
+
+		$priority = 1;
+
+		foreach ( get_post_meta( $product_id, $old_meta_key ) as $child ) {
+			$relationship = array(
+				'type' => $relationship_type,
+				'product_id' => $product_id,
+				'object_id' => $child,
+				'priority' => $priority,
+			);
+
+			$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
+
+			$priority++;
 		}
 	}
 }
