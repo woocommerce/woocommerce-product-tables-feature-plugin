@@ -95,7 +95,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'length',
 			'width',
 			'weight',
-			'stock',
+			'stock_quantity',
 			'product_type',
 			'virtual',
 			'downloadable',
@@ -138,7 +138,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
 		}
 
-		return $data;
+		return (array) $data;
 	}
 
 	/**

@@ -41,7 +41,7 @@ class WC_Product_Tables_Install {
 			  width double NOT NULL,
 			  length double NOT NULL,
 			  weight double NOT NULL,
-			  stock double NOT NULL,
+			  stock_quantity double NOT NULL,
 			  product_type varchar(100) NOT NULL,
 			  virtual tinyint(1) NOT NULL,
 			  downloable tinyint(1) NOT NULL,
