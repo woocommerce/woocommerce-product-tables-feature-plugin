@@ -231,7 +231,7 @@ class WC_Product_Tables_Migrate_Data {
 				// Global attribute.
 				$attribute_data['taxonomy_id'] = get_terms( array(
 					'taxonomy' => $attr_name,
-					'object_ids' => $product_id,
+					'object_ids' => $product->ID,
 				) )[0]->term_taxonomy_id;
 				$is_global = true;
 			}
