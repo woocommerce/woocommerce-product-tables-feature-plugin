@@ -125,7 +125,6 @@ class WC_Product_Tables_Migrate_Data {
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)
-			AND ID = 10
 		" );
 	}
 
@@ -215,7 +214,7 @@ class WC_Product_Tables_Migrate_Data {
 					'product_id' => $product->ID,
 					'name' => $attr['name'],
 					'is_visible' => $attr['is_visible'],
-					'is_variations' => $attr['is_variation'],
+					'is_variation' => $attr['is_variation'],
 				);
 				$is_global = false;
 				if ( false !== strpos( $attr_name, 'pa_' ) ) {
