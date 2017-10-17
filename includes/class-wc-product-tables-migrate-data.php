@@ -66,7 +66,6 @@ class WC_Product_Tables_Migrate_Data {
 				);
 				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
-				// TODO: verify if we need to change the function that checks download permissions.
 				$wpdb->update(
 					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
 					array(
