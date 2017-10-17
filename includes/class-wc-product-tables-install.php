@@ -63,7 +63,7 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attributes (
-			  `attribute_id` bigint(20) NOT NULL,
+			  `attribute_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `name` varchar(1000) NOT NULL,
 			  `is_visible` tinyint(1) NOT NULL,
@@ -73,7 +73,7 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attribute_values (
-			  `attribute_value_id` bigint(20) NOT NULL,
+			  `attribute_value_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `product_attribute_id` bigint(20) NOT NULL,
 			  `value` text NOT NULL,
@@ -94,7 +94,7 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_relationships (
-			  `relationship_id` bigint(20) NOT NULL,
+			  `relationship_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `type` varchar(100) NOT NULL,
 			  `product_id` bigint(20) NOT NULL,
 			  `object_id` bigint(20) NOT NULL,
@@ -103,7 +103,7 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_variation_attribute_values (
-			  `variation_attribute_value_id` bigint(20) NOT NULL,
+			  `variation_attribute_value_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `value` text NOT NULL,
 			  `product_attribute_id` bigint(20) NOT NULL,
