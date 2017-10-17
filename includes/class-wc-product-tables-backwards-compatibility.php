@@ -1184,10 +1184,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'_product_attributes', // Attributes table(s)
 			'_download_limit', // Product downloads table
 			'_download_expiry', // Product downloads table
-			'_featured', // Now a term.
 			'_downloadable_files', // Product downloads table
-			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
-			'_visibility', // Now a term.
 		*/
 	}
 }
