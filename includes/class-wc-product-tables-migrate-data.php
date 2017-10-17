@@ -148,7 +148,13 @@ class WC_Product_Tables_Migrate_Data {
 								'product_attribute_id' => $attr_id,
 								'value' => trim( $attr_value ),
 								'priority' => $count,
+								'is_default' => 0,
 							);
+							foreach ( $default_attributes as $default_attr ) {
+								if ( isset( $default_attributes[ $attr_name ] && $default_attributes[ $attr_name ] ==  trim( $attr_value ) ) ) {
+									$attr_value_data['is_default'] = 1;
+								}
+							}
 							$wpdb->insert( $wpdb->prefix . 'wc_product_attribute_values', $attr_value_data );
 							$count++;
 						}
