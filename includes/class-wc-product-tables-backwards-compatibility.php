@@ -360,9 +360,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function set_variation_description( $args ) {
-		$default = array(
+		$defaults = array(
 			'product_id' => 0,
-			'value' => '',
+			'value'      => '',
 		);
 		$args = wp_parse_args( $args, $defaults );
 
