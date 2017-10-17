@@ -197,7 +197,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type string $format     Format to be mapped to the value.
 	 *     @type string $value      Value save on the database.
 	 * }
-	 * @return array
+	 * @return bool
 	 */
 	public function update_in_product_table( $args ) {
 		global $wpdb;
@@ -265,7 +265,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type string $type       Type of relationship.
 	 *     @type string $value      Value to save on database.
 	 * }
-	 * @return array
+	 * @return bool
 	 */
 	public function update_relationship_table( $args ) {
 		global $wpdb;
@@ -333,7 +333,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *
 	 *     @type int    $product_id Product ID.
 	 * }
-	 * @return string
+	 * @return array
 	 */
 	public function get_variation_description( $args ) {
 		$default = array(
@@ -342,10 +342,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$args = wp_parse_args( $args, $defaults );
 
 		if ( ! $args['product_id'] ) {
-			return '';
+			return array();
 		}
 
-		return get_post_field( 'post_excerpt', $args['product_id'], 'raw' );
+		return array( get_post_field( 'post_excerpt', $args['product_id'], 'raw' ) );
 	}
 
 	/**
@@ -357,7 +357,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type int    $product_id Product ID.
 	 *     @type string $value      Value to save on database.
 	 * }
-	 * @return array
+	 * @return bool
 	 */
 	public function set_variation_description( $args ) {
 		$default = array(
@@ -374,6 +374,69 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'ID' => $args['product_id'],
 			'post_excerpt' => $args['value'],
 		) );
+	}
+
+	/**
+	 * Get whether stock is managed.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_manage_stock( $args ) {
+		$default = array(
+			'product_id' => 0,
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$args['column'] = 'stock_quantity';
+		$stock = $this->get_from_product_table( $args );
+		if ( ! empty( $stock ) && is_numeric( $stock[0] ) ) {
+			return array( true );
+		}
+
+		return array( false );
+	}
+
+	/**
+	 * Set whether stock is managed.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type bool   $value      Value to save on database.
+	 * }
+	 * @return bool
+	 */
+	public function set_manage_stock( $args ) {
+		$default = array(
+			'product_id' => 0,
+			'value' => false,
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return false;
+		}
+
+		$args['column'] = 'stock_quantity';
+		if ( $args['value'] ) {
+			$args['value'] = 0;
+			$args['format'] = '%d';
+			return $this->update_in_product_table( $args );
+		}
+
+		$args['value'] = 'NULL';
+		$args['format'] = '';
+		return $this->update_in_product_table( $args );
 	}
 
 	/**
@@ -1093,12 +1156,30 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
-
+			'_manage_stock' => array(
+				'get' => array(
+					'function' => array( $this, 'get_manage_stock' ),
+					'args' => array(),
+				),
+				'add' => array(
+					'function' => array( $this, 'set_manage_stock' ),
+					'args' => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'set_manage_stock' ),
+					'args' => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'set_manage_stock' ),
+					'args' => array(
+						'value' => false,
+					),
+				),
+			),
 		);
 
 		/*
 			@todo
-			'_manage_stock', // Product table stock column. Null if not managing stock.
 			'_default_attributes', // Attributes table(s)
 			'_product_attributes', // Attributes table(s)
 			'_download_limit', // Product downloads table
