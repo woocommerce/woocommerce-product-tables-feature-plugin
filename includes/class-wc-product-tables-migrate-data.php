@@ -26,26 +26,26 @@ class WC_Product_Tables_Migrate_Data {
 
 			$new_data = array(
 				'product_id' => $product->ID,
-				'sku' => $metas['_sku'],
-				'image_id' => $metas['_thumbnail_id'],
-				'height' => $metas['_height'],
-				'width' => $metas['_width'],
-				'length' => $metas['_lenght'],
-				'weight' => $metas['_weight'],
-				'stock' => $metas['_stock'],
-				'product_type' => $metas['_product_type'],
-				'virtual' => $metas['_virtual'],
-				'downloable' => $metas['_downloable'],
-				'tax_class' => $metas['_tax_class'],
-				'tax_status' => $metas['_tax_status'],
-				'total_sales' => $metas['total_sales'],
-				'price' => $metas['_price'],
-				'regular_price' => $metas['_regular_price'],
-				'sale_price' => $metas['_sale_price'],
-				'date_on_sale' => $metas['_date_on_sale'],
-				'date_on_sale_to' => $metas['_date_on_sale_to'],
-				'average_rating' => $metas['_average_rating'],
-				'stock_status' => $metas['_stock_status'],
+				'sku' => $metas['_sku'][0],
+				'image_id' => $metas['_thumbnail_id'][0],
+				'height' => $metas['_height'][0],
+				'width' => $metas['_width'][0],
+				'length' => $metas['_lenght'][0],
+				'weight' => $metas['_weight'][0],
+				'stock_quantity' => $metas['_stock'][0],
+				'type' => wp_get_post_terms( $product->ID, 'product_type' )[0]->slug,
+				'virtual' => $metas['_virtual'][0],
+				'downloadable' => $metas['_downloadable'][0],
+				'tax_class' => $metas['_tax_class'][0],
+				'tax_status' => $metas['_tax_status'][0],
+				'total_sales' => $metas['total_sales'][0],
+				'price' => $metas['_price'][0],
+				'regular_price' => $metas['_regular_price'][0],
+				'sale_price' => $metas['_sale_price'][0],
+				'date_on_sale_from' => $metas['_date_on_sale'][0],
+				'date_on_sale_to' => $metas['_date_on_sale_to'][0],
+				'average_rating' => $metas['_average_rating'][0],
+				'stock_status' => $metas['_stock_status'][0],
 			);
 
 			self::insert( 'wc_products', $new_data );
@@ -119,8 +119,9 @@ class WC_Product_Tables_Migrate_Data {
 			SELECT * FROM {$wpdb->posts}
 			WHERE post_type IN ('product', 'product_variation')
 			AND ID NOT IN (
-				SELECT product_id FROM {$wpdb->prefix}woocommerce_products
+				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)
+			AND ID = 10
 		" );
 	}
 

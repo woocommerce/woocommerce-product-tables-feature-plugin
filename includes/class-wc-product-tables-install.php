@@ -17,7 +17,7 @@ class WC_Product_Tables_Install {
 	 * @return void
 	 */
 	public function __construct() {
-		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( $this, 'activate' ) );
+		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( self, 'activate' ) );
 	}
 
 	/**
@@ -25,7 +25,7 @@ class WC_Product_Tables_Install {
 	 *
 	 * @return void
 	 */
-	public function activate() {
+	public static function activate() {
 		global $wpdb;
 
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
@@ -57,7 +57,7 @@ class WC_Product_Tables_Install {
 			  `sale_price` double NULL default NULL,
 			  `date_on_sale_from` datetime NULL default NULL,
 			  `date_on_sale_to` datetime NULL default NULL,
-			  `average_rating` float NOT NULL default 0,
+			  `average_rating` float NULL default 0,
 			  `stock_status` varchar(100) NOT NULL default 'instock',
 			  PRIMARY KEY  (`product_id`)
 			) $collate;
