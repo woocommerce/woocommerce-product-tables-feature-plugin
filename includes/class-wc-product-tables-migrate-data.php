@@ -131,6 +131,7 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param array  $data Array of name value pairs for data to insert.
 	 */
 	public static function insert( $table, $data ) {
+		global $wpdb;
 		$wpdb->insert( $wpdb->prefix . $table, $data );
 		return $wpdb->insert_id;
 	}
@@ -170,6 +171,7 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param string $attribute_name Attribute name.
 	 */
 	protected static function migrate_variation_attribute_values( $parent_id, $attribute_id, $attribute_name ) {
+		global $wpdb;
 		$variable_products = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
