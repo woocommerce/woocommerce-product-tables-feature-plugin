@@ -256,7 +256,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['type'] || ! $args['product_id'] ) {
 			return array();
 		}
-
+		// @todo caching
 		return $wpdb->get_results( $wpdb->prepare( "SELECT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ); // WPCS: db call ok, cache ok.
 	}
 
@@ -287,6 +287,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$new_values = $args['value'];
+
+		// @todo caching
 		$existing_relationship_data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d AND `type` = %s ORDER BY `priority` ASC", $args['product_id'], $args['type'] ) );  // WPCS: db call ok, cache ok.
 		$old_values = wp_list_pluck( $existing_relationship_data, 'object_id' );
 		$missing    = array_diff( $old_values, $new_values );
