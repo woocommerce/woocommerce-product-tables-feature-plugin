@@ -600,7 +600,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
-	 * Handle updated meta props after updating meta data. @todo
+	 * Handle updated meta props after updating meta data.
 	 *
 	 * @since  3.0.0
 	 * @param  WC_Product $product Product Object.
@@ -663,5 +663,106 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$this->updated_props = array();
 	}
 
-	// @todo read_attributes, read_downloads, update_attributes, update_downloads, get_on_sale_products, is_existing_sku, get_product_id_by_sku, get_starting_sales, get_ending_sales, find_matching_product_variation sort_all_product_variations, get_related_products_query, update_product_stock, update_product_sales update_average_rating, search_products, get_product_type get_wp_query_args, query
+	/**
+	 * Returns an array of on sale products, as an array of objects with an
+	 * ID and parent_id present. Example: $return[0]->id, $return[0]->parent_id.
+	 *
+	 * @return array
+	 * @since 3.0.0
+	 */
+	public function get_on_sale_products() {
+		global $wpdb;
+
+		return $wpdb->get_results( "
+			SELECT products.product_id as id, posts.post_parent as parent_id
+			FROM {$wpdb->prefix}wc_products as products
+			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+			WHERE products.sale_price NOT IS NULL
+			AND products.price = products.sale_price
+			" ); // WPCS: db call ok, cache ok.
+	}
+
+	/**
+	 * Check if product sku is found for any other product IDs.
+	 *
+	 * @since 3.0.0
+	 * @param int    $product_id Product ID to query.
+	 * @param string $sku Will be slashed to work around https://core.trac.wordpress.org/ticket/27421.
+	 * @return bool
+	 */
+	public function is_existing_sku( $product_id, $sku ) {
+		global $wpdb;
+
+		return $wpdb->get_var( $wpdb->prepare( "
+			SELECT products.product_id
+			FROM {$wpdb->prefix}wc_products as products
+			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+			WHERE posts.post_status != 'trash'
+			AND products.sku = '%s'
+			AND products.product_id <> %d
+			LIMIT 1;
+		 ", wp_slash( $sku ), $product_id ) ); // WPCS: db call ok, cache ok.
+	}
+
+	/**
+	 * Return product ID based on SKU.
+	 *
+	 * @since 3.0.0
+	 * @param string $sku Product SKU.
+	 * @return int
+	 */
+	public function get_product_id_by_sku( $sku ) {
+		global $wpdb;
+
+		$id = $wpdb->get_var( $wpdb->prepare( "
+			SELECT products.product_id
+			FROM {$wpdb->prefix}wc_products as products
+			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+			WHERE posts.post_status != 'trash'
+			AND products.sku = '%s'
+			LIMIT 1;
+		 ", $sku ) );
+
+		return (int) apply_filters( 'woocommerce_get_product_id_by_sku', $id, $sku );
+	}
+
+	/**
+	 * Returns an array of IDs of products that have sales starting soon.
+	 *
+	 * @since 3.0.0
+	 * @return array
+	 */
+	public function get_starting_sales() {
+		global $wpdb;
+
+		return $wpdb->get_col( $wpdb->prepare( "
+			SELECT products.product_id
+			FROM {$wpdb->prefix}wc_products as products
+			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+			WHERE products.`sale_price_dates_from` > 0
+			AND products.`sale_price_dates_from` < %s
+			AND products.`price` != products.`sale_price`
+		", current_time( 'timestamp', true ) ) );
+	}
+
+	/**
+	 * Returns an array of IDs of products that have sales which are due to end.
+	 *
+	 * @since 3.0.0
+	 * @return array
+	 */
+	public function get_ending_sales() {
+		global $wpdb;
+
+		return $wpdb->get_col( $wpdb->prepare( "
+			SELECT products.product_id
+			FROM {$wpdb->prefix}wc_products as products
+			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+			WHERE products.`sale_price_dates_to` > 0
+			AND products.`sale_price_dates_to` < %s
+			AND products.`price` != products.`regular_price`
+		", current_time( 'timestamp', true ) ) );
+	}
+
+	// @todo read_attributes, read_downloads, update_attributes, update_downloads, find_matching_product_variation sort_all_product_variations, get_related_products_query, update_product_stock, update_product_sales update_average_rating, search_products, get_product_type get_wp_query_args, query
 }
