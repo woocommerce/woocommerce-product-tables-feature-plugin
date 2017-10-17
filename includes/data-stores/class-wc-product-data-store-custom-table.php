@@ -80,8 +80,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * Store data into our custom product data table.
 	 *
 	 * @param WC_Product $product The product object.
+	 * @param bool $force Force update. Used during create.
 	 */
-	protected function update_product_data( &$product ) {
+	protected function update_product_data( &$product, $force = false ) {
 		global $wpdb;
 
 		$data    = array(
@@ -90,13 +91,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$changes = $product->get_changes();
 		$columns = array(
 			'sku',
-			'thumbnail_id',
+			'image_id',
 			'height',
 			'length',
 			'width',
 			'weight',
 			'stock_quantity',
-			'product_type',
+			'type',
 			'virtual',
 			'downloadable',
 			'tax_class',
@@ -112,13 +113,18 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		);
 
 		foreach ( $columns as $column ) {
-			if ( array_key_exists( $column, $changes ) ) {
-				$data[ $column ] = $product->{"get_$column"}( 'edit' );
+			$data[ $column ] = $product->{"get_$column"}( 'edit' );
+
+			if ( $force || array_key_exists( $column, $changes ) ) {
 				$this->updated_props[] = $column;
 			}
 		}
 
-		$wpdb->replace( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
+		if ( $force ) {
+			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
+		} else {
+			$wpdb->replace( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
+		}
 	}
 
 	/**
@@ -186,7 +192,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 			$product->set_id( $id );
 
-			$this->update_product_data( $product );
+			$this->update_product_data( $product, true );
 			$this->update_post_meta( $product, true );
 			$this->update_terms( $product, true );
 			$this->update_visibility( $product, true );
