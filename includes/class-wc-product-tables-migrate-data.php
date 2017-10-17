@@ -123,7 +123,6 @@ class WC_Product_Tables_Migrate_Data {
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)
-			AND ID = 10
 		" );
 	}
 
