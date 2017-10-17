@@ -197,8 +197,85 @@ class WC_Product_Tables_Backwards_Compatibility {
 		);
 	}
 
+	public function get_from_relationship_table( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'type' => '',
+			'product_id' => '',
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['type'] || ! $args['product_id'] ) {
+			return array();
+		}
+
+		$query = "SELECT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s";
+		return $wpdb->get_results( $wpdb->prepare( $query, $args['product_id'], $args['type'] ) );
+	}
+
+	public function update_relationship_table( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'type' => '',
+			'product_id' => '',
+			'value' => array(),
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['type'] || ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$new_values = $args['value'];
+		$existing_relationship_data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d AND `type` = %s ORDER BY `priority` ASC", $args['product_id'], $args['type'] ) );
+		$old_values = wp_list_pluck( $existing_relationship_data, 'object_id' );
+		$missing    = array_diff( $old_values, $new_values );
+
+		// Delete from database missing values.
+		foreach ( $missing as $object_id ) {
+			$wpdb->delete(
+				$wpdb->prefix . 'wc_product_relationships', array(
+					'object_id'  => $object_id,
+					'product_id' => $args['product_id'],
+				), array(
+					'%d',
+					'%d',
+				)
+			);
+		}
+
+		// Insert or update relationship.
+		foreach ( $new_values as $key => $value ) {
+			$relationship = array(
+				'type'       => $args['type'],
+				'product_id' => $args['product_id'],
+				'object_id'  => $value,
+				'priority'   => $key,
+			);
+
+			$wpdb->replace(
+				"{$wpdb->prefix}wc_product_relationships",
+				$relationship,
+				array(
+					'%s',
+					'%d',
+					'%d',
+					'%d',
+				)
+			);
+		}
+
+		return true;
+	}
+
 	protected function get_mapping() {
 		return array(
+
+			/**
+			 * In product table.
+			 */
 			'_sku' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
@@ -542,6 +619,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 				),
 			),
 
+			/**
+			 * In relationship table.
+			 */
+			'_upsell_ids' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array( 'type' => 'upsell' ),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array( 'type' => 'upsell' ),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array( 'type' => 'upsell' ),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array( 'type' => 'upsell', 'value' => array() ),
+				),
+			),
 		);
 
 		/*
