@@ -1,4 +1,9 @@
 <?php
+/**
+ * File for the WC_Product_Tables_Backwards_Compatibility class.
+ *
+ * @package WooCommerceProductTablesFeaturePlugin/Classes
+ */
 
 /**
  * Backwards compatibility layer for metadata access.
@@ -7,6 +12,9 @@
  */
 class WC_Product_Tables_Backwards_Compatibility {
 
+	/**
+	 * WC_Product_Tables_Backwards_Compatibility constructor.
+	 */
 	public function __construct() {
 		// Don't turn on backwards-compatibility if in the middle of a migration.
 		if ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) {
