@@ -125,10 +125,11 @@ class WC_Product_Tables_Migrate_Data {
 	}
 
 	/**
-	 * Insert data into table
+	 * Insert data into table and return new row ID.
 	 *
 	 * @param string $table Table name where to insert data into.
 	 * @param array  $data Array of name value pairs for data to insert.
+	 * @return inserted row ID.
 	 */
 	public static function insert( $table, $data ) {
 		global $wpdb;
