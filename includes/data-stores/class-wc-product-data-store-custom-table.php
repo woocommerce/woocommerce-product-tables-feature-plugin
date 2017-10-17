@@ -33,8 +33,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Update relationships.
 	 *
-	 * @todo Bump PHP requirement to at least 5.3.
-	 *
 	 * @since 4.0.0
 	 * @param WC_Product $product Product instance.
 	 * @param string     $type    Type of relationship.
@@ -602,6 +600,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Handle updated meta props after updating meta data.
 	 *
+	 * @todo can these checks and updates be moved elsewhere?
+	 *
 	 * @since  3.0.0
 	 * @param  WC_Product $product Product Object.
 	 */
@@ -721,7 +721,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			WHERE posts.post_status != 'trash'
 			AND products.sku = '%s'
 			LIMIT 1;
-		 ", $sku ) );
+		 ", $sku ) ); // WPCS: db call ok, cache ok.
 
 		return (int) apply_filters( 'woocommerce_get_product_id_by_sku', $id, $sku );
 	}
@@ -742,7 +742,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			WHERE products.`sale_price_dates_from` > 0
 			AND products.`sale_price_dates_from` < %s
 			AND products.`price` != products.`sale_price`
-		", current_time( 'timestamp', true ) ) );
+		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -761,8 +761,73 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			WHERE products.`sale_price_dates_to` > 0
 			AND products.`sale_price_dates_to` < %s
 			AND products.`price` != products.`regular_price`
-		", current_time( 'timestamp', true ) ) );
+		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
 	}
 
-	// @todo read_attributes, read_downloads, update_attributes, update_downloads, find_matching_product_variation sort_all_product_variations, get_related_products_query, update_product_stock, update_product_sales update_average_rating, search_products, get_product_type get_wp_query_args, query
+	/**
+	 * Update a product's stock amount directly.
+	 *
+	 * @since  3.0.0 this supports set, increase and decrease.
+	 * @param  int      $product_id_with_stock Product ID to update.
+	 * @param  int|null $stock_quantity Quantity to set.
+	 * @param  string   $operation set, increase and decrease.
+	 */
+	public function update_product_stock( $product_id_with_stock, $stock_quantity = null, $operation = 'set' ) {
+		global $wpdb;
+
+		switch ( $operation ) {
+			case 'increase':
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = stock + %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				break;
+			case 'decrease':
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = stock - %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				break;
+			default:
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				break;
+		}
+
+		wp_cache_delete( 'woocommerce_product_' . $product_id_with_stock, 'product' );
+	}
+
+	/**
+	 * Update a product's sale count directly.
+	 *
+	 * @since  3.0.0 this supports set, increase and decrease.
+	 * @param  int      $product_id Product ID to update.
+	 * @param  int|null $quantity Quantity to set.
+	 * @param  string   $operation set, increase and decrease.
+	 */
+	public function update_product_sales( $product_id, $quantity = null, $operation = 'set' ) {
+		global $wpdb;
+
+		switch ( $operation ) {
+			case 'increase':
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET total_sales = total_sales + %f WHERE product_id = %d;", $quantity, $product_id ) ); // WPCS: db call ok, cache ok.
+				break;
+			case 'decrease':
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET total_sales = total_sales - %f WHERE product_id = %d;", $quantity, $product_id ) ); // WPCS: db call ok, cache ok.
+				break;
+			default:
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET total_sales = %f WHERE product_id = %d;", $quantity, $product_id ) ); // WPCS: db call ok, cache ok.
+				break;
+		}
+
+		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
+	}
+
+	/**
+	 * Update a products average rating meta.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function update_average_rating( $product ) {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET average_rating = %f WHERE product_id = %d;", $product->get_average_rating( 'edit' ), $product->get_id() ) ); // WPCS: db call ok, cache ok.
+		self::update_visibility( $product, true );
+		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
+	}
+
+	// @todo read_attributes, read_downloads, update_attributes, update_downloads, find_matching_product_variation, search_products, get_product_type get_wp_query_args, query
 }
