@@ -94,17 +94,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * Store data into our custom product data table.
 	 *
 	 * @param WC_Product $product The product object.
-	 * @param bool       $force Force update. Used during create.
 	 */
-	protected function update_product_data( &$product, $force = false ) {
+	protected function update_product_data( &$product ) {
 		global $wpdb;
 
 		$data    = array();
 		$changes = $product->get_changes();
+		$insert  = false;
 		$row     = $this->get_product_row_from_db( $product->get_id( 'edit' ) );
 
 		if ( ! $row ) {
-			$force = true;
+			$insert = true;
 		}
 
 		$columns = array(
@@ -146,14 +146,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		);
 
 		foreach ( $columns as $column ) {
-			if ( $force || array_key_exists( $column, $changes ) ) {
+			if ( $insert || array_key_exists( $column, $changes ) ) {
 				$value                 = $product->{"get_$column"}( 'edit' );
 				$data[ $column ]       = '' === $value && in_array( $column, $allow_null, true ) ? null : $value;
 				$this->updated_props[] = $column;
 			}
 		}
 
-		if ( $force ) {
+		if ( $insert ) {
 			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} else {
@@ -163,7 +163,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		}
 
 		foreach ( $this->relationships as $type => $prop ) {
-			if ( $force || array_key_exists( $prop, $changes ) ) {
+			if ( array_key_exists( $prop, $changes ) ) {
 				$this->update_relationship( $product, $type );
 			}
 		}
@@ -320,7 +320,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 			$product->set_id( $id );
 
-			$this->update_product_data( $product, true );
+			$this->update_product_data( $product );
 			$this->update_post_meta( $product, true );
 			$this->update_terms( $product, true );
 			$this->update_visibility( $product, true );
@@ -826,7 +826,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET average_rating = %f WHERE product_id = %d;", $product->get_average_rating( 'edit' ), $product->get_id() ) ); // WPCS: db call ok, cache ok.
 		self::update_visibility( $product, true );
-		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
+		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 	}
 
 	// @todo read_attributes, update_attributes, find_matching_product_variation, read_downloads, update_downloads
