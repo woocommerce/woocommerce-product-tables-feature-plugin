@@ -21,8 +21,8 @@ class WC_Product_Tables_Bootstrap {
 	 * Constructor.
 	 */
 	public function __construct() {
+		$this->includes();
 		add_filter( 'woocommerce_product_data_store', array( $this, 'replace_core_data_store' ) );
-		add_action( 'before_woocommerce_init', array( $this, 'includes' ) );
 	}
 
 	/**
