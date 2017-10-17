@@ -156,7 +156,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		if ( $insert ) {
 			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
-		} else {
+		} elseif ( ! empty( $data ) ) {
 			$wpdb->update( "{$wpdb->prefix}wc_products", $data, array(
 				'product_id' => $product->get_id( 'edit' ),
 			) ); // WPCS: db call ok, cache ok.
@@ -677,7 +677,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			SELECT products.product_id as id, posts.post_parent as parent_id
 			FROM {$wpdb->prefix}wc_products as products
 			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE products.sale_price NOT IS NULL
+			WHERE products.sale_price IS NOT NULL
 			AND products.price = products.sale_price
 			" ); // WPCS: db call ok, cache ok.
 	}
