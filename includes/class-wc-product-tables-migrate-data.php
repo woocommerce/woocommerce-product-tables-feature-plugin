@@ -99,6 +99,22 @@ class WC_Product_Tables_Migrate_Data {
 
 				$priority++;
 			}
+
+			foreach ( get_post_meta( $product->ID, '_product_attributes' ) as $attribute ) {
+				foreach ( $attribute as $attr_name => $attr ) {
+					$attribute_data = array(
+						'product_id' => $product->ID,
+						'name' => $attr['name'],
+						'is_visible' => $attr['is_visible'],
+						'is_variations' => $attr['is_variation'],
+					);
+					if ( false !== strpos( $attr_name, 'pa_' ) ) {
+						// global attribute
+						$attribute_data['taxonomy_id'] => get_term_by( 'name', $attr['name'] )->term_taxonomy_id
+					}
+					$wpdb->insert( $wpdb->prefix . 'wc_wc_product_attributes', $attribute_data );
+				}
+			}
 		}
 	}
 
