@@ -1,13 +1,19 @@
 <?php
+/**
+ * WC Product Data Store: Stored in custom tables.
+ *
+ * @category Data_Store
+ * @author   Automattic
+ * @package  WooCommerce/Classes/Data_Store
+ * @version  1.0.0
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * WC Product Data Store: Stored in custom tables.
- *
- * @category Class
- * @author   Automattic
+ * WC_Product_Data_Store_Custom_Table class.
  */
 class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
 
@@ -27,20 +33,25 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Update relationships.
 	 *
+	 * @todo Bump PHP requirement to at least 5.3.
+	 *
 	 * @since 4.0.0
 	 * @param WC_Product $product Product instance.
 	 * @param string     $type    Type of relationship.
 	 */
-	protected function update_relationships( &$product, $type = '' ) {
+	protected function update_relationship( &$product, $type = '' ) {
 		global $wpdb;
 
-		if ( empty( $relationships[ $type ] ) ) {
+		if ( empty( $this->relationships[ $type ] ) ) {
 			return;
 		}
 
-		$prop       = $relationships[ $type ];
+		$prop       = $this->relationships[ $type ];
 		$new_values = $product->{"get_$prop"}( 'edit' );
-		$old_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "SELECT object_id FROM {$wpdb->prefix}wc_product_relationships WHERE type = %s AND product_id = %d", $type, $product->get_id() ) ), 'object_id' );
+		$relationships = array_filter( $this->get_product_relationship_rows_from_db( $product->get_id() ), function ( $relationship ) use ( $type ) {
+			return ! empty( $relationship->type ) && $relationship->type === $type;
+		});
+		$old_values = wp_list_pluck( $relationships, 'object_id' );
 		$missing    = array_diff( $old_values, $new_values );
 
 		// Delete from database missing values.
@@ -53,7 +64,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					'%d',
 					'%d',
 				)
-			);
+			); // WPCS: db call ok, cache ok.
 		}
 
 		// Insert or update relationship.
@@ -74,7 +85,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					'%d',
 					'%d',
 				)
-			);
+			); // WPCS: db call ok, cache ok.
 		}
 	}
 
@@ -87,10 +98,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	protected function update_product_data( &$product, $force = false ) {
 		global $wpdb;
 
-		$data    = array(
-			'product_id' => $product->get_id( 'edit' ),
-		);
+		$data    = array();
 		$changes = $product->get_changes();
+		$row     = $this->get_product_row_from_db( $product->get_id( 'edit' ) );
+
+		if ( ! $row ) {
+			$force = true;
+		}
+
 		$columns = array(
 			'sku',
 			'image_id',
@@ -114,18 +129,42 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'stock_status',
 		);
 
-		foreach ( $columns as $column ) {
-			$data[ $column ] = $product->{"get_$column"}( 'edit' );
+		// @todo: Adapt getters to return null in core.
+		$allow_null = array(
+			'height',
+			'length',
+			'width',
+			'weight',
+			'stock_quantity',
+			'price',
+			'regular_price',
+			'sale_price',
+			'date_on_sale_from',
+			'date_on_sale_to',
+			'average_rating',
+		);
 
+		foreach ( $columns as $column ) {
 			if ( $force || array_key_exists( $column, $changes ) ) {
+				$value                 = $product->{"get_$column"}( 'edit' );
+				$data[ $column ]       = '' === $value && in_array( $column, $allow_null, true ) ? null : $value;
 				$this->updated_props[] = $column;
 			}
 		}
 
 		if ( $force ) {
+			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} else {
-			$wpdb->replace( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
+			$wpdb->update( "{$wpdb->prefix}wc_products", $data, array(
+				'product_id' => $product->get_id( 'edit' ),
+			) ); // WPCS: db call ok, cache ok.
+		}
+
+		foreach ( $this->relationships as $type => $prop ) {
+			if ( $force || array_key_exists( $prop, $changes ) ) {
+				$this->update_relationship( $product, $type );
+			}
 		}
 	}
 
@@ -140,10 +179,30 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
 
-		if ( false === $data ) {
+		if ( empty( $data ) ) {
 			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
+		}
+
+		return (array) $data;
+	}
+
+	/**
+	 * Get product relationship data rows from the DB whilst utilising cache.
+	 *
+	 * @param int $product_id Product ID to grab from the database.
+	 * @return array
+	 */
+	protected function get_product_relationship_rows_from_db( $product_id ) {
+		global $wpdb;
+
+		$data = wp_cache_get( 'woocommerce_product_relationships_' . $product_id, 'product' );
+
+		if ( empty( $data ) ) {
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_relationships_' . $product_id, $data, 'product' );
 		}
 
 		return (array) $data;
@@ -155,7 +214,19 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * @param WC_Product $product The product object.
 	 */
 	protected function read_product_data( &$product ) {
-		$product->set_props( $this->get_product_row_from_db( $product->get_id() ) );
+		$props                     = $this->get_product_row_from_db( $product->get_id() );
+		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
+
+		foreach ( $this->relationships as $type => $prop ) {
+			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
+				return ! empty( $relationship->type ) && $relationship->type === $type;
+			});
+			$values = wp_list_pluck( $relationships, 'object_id' );
+
+			$props[ $prop ] = $values;
+		}
+
+		$product->set_props( $props );
 	}
 
 	/**
@@ -231,7 +302,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	public function read( &$product ) {
 		$product->set_defaults();
 
-		if ( ! $product->get_id() || ! ( $post_object = get_post( $product->get_id() ) ) || 'product' !== $post_object->post_type ) {
+		$post_object = $product->get_id() ? get_post( $product->get_id() ) : null;
+
+		if ( ! $post_object || 'product' !== $post_object->post_type ) {
 			throw new Exception( __( 'Invalid product.', 'woocommerce' ) );
 		}
 
@@ -365,12 +438,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
+
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_products",
 				array(
 					'product_id' => $id,
 				)
 			); // WPCS: db call ok, cache ok.
+
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_product_relationships",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
+
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {
@@ -387,6 +469,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 */
 	protected function clear_caches( &$product ) {
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
+		wp_cache_delete( 'woocommerce_product_relationships_' . $product->get_id(), 'product' );
 		wc_delete_product_transients( $product->get_id() );
 	}
 
