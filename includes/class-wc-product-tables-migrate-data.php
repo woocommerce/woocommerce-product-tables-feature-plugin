@@ -62,13 +62,13 @@ class WC_Product_Tables_Migrate_Data {
 					'expires' => $metas['_download_expiry'][0],
 					'priority' => $priority,
 				);
-				self::insert( 'wc_product_downloads', $new_download );
+				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
 				// TODO: verify if we need to change the function that checks download permissions.
 				$wpdb->update(
 					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
 					array(
-						'download_id' => $wpdb->insert_id,
+						'download_id' => $new_download_id,
 					),
 					array(
 						'download_id' => $download_key,
