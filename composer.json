@@ -1,0 +1,18 @@
+{
+  "name": "woocommerce/woocommerce-product-tables-feature-plugin",
+  "description": "WooCommerce product tables feature plugin",
+  "homepage": "https://github.com/woocommerce/woocommerce-product-tables-feature-plugin",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0+",
+  "require-dev": {
+    "wp-coding-standards/wpcs": "0.13.1"
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "\"vendor/bin/phpcs\" --config-set installed_paths vendor/wp-coding-standards/wpcs"
+    ],
+    "post-update-cmd": [
+      "\"vendor/bin/phpcs\" --config-set installed_paths vendor/wp-coding-standards/wpcs"
+    ]
+  }
+}
