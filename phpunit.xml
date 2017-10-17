@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	bootstrap="tests/class-wcpt-unit-tests-bootstrap.php"
+	backupGlobals="false"
+	colors="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	verbose="true"
+	syntaxCheck="true"
+	>
+	<testsuites>
+		<testsuite name="WooCommerce Test Suite">
+			<directory suffix=".php">./../woocommerce/tests/unit-tests</directory>
+		</testsuite>
+	</testsuites>
+	<filter>
+		<whitelist addUncoveredFilesFromWhitelist="true">
+			<directory suffix=".php">./../woocommerce/includes</directory>
+			<file>./../woocommerce/woocommerce.php</file>
+			<file>./../woocommerce/uninstall.php</file>
+			<exclude>
+				<directory suffix=".php">./../woocommerce/includes/admin/helper/views</directory>
+				<directory suffix=".php">./../woocommerce/includes/admin/importers/views</directory>
+				<directory suffix=".php">./../woocommerce/includes/admin/meta-boxes/views</directory>
+				<directory suffix=".php">./../woocommerce/includes/admin/plugin-updates/views</directory>
+				<directory suffix=".php">./../woocommerce/includes/admin/views</directory>
+				<directory suffix=".php">./../woocommerce/includes/api/legacy</directory>
+				<directory suffix=".php">./../woocommerce/includes/api/v1</directory>
+				<directory suffix=".php">./../woocommerce/includes/gateways/simplify-commerce/includes</directory>
+				<directory suffix=".php">./../woocommerce/includes/legacy</directory>
+				<directory suffix=".php">./../woocommerce/includes/libraries</directory>
+				<directory suffix=".php">./../woocommerce/includes/shipping/legacy-flat-rate</directory>
+				<directory suffix=".php">./../woocommerce/includes/shipping/legacy-free-shipping</directory>
+				<directory suffix=".php">./../woocommerce/includes/shipping/legacy-international-delivery</directory>
+				<directory suffix=".php">./../woocommerce/includes/shipping/legacy-local-delivery</directory>
+				<directory suffix=".php">./../woocommerce/includes/shipping/legacy-local-pickup</directory>
+				<directory suffix=".php">./../woocommerce/includes/updates</directory>
+				<directory suffix=".php">./../woocommerce/includes/vendor</directory>
+				<directory suffix=".php">./../woocommerce/includes/widgets</directory>
+				<file>./../woocommerce/includes/wc-deprecated-functions.php</file>
+				<file>./../woocommerce/includes/wc-template-hooks.php</file>
+				<file>./../woocommerce/includes/wc-widget-functions.php</file>
+			</exclude>
+		</whitelist>
+	</filter>
+</phpunit>

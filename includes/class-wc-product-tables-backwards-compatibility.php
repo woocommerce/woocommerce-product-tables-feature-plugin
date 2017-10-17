@@ -243,7 +243,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$defaults = array(
-			'product_id' => '',
+			'product_id' => 0,
 			'type'       => '',
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -271,7 +271,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$defaults = array(
-			'product_id' => '',
+			'product_id' => 0,
 			'type'       => '',
 			'value'      => array(),
 		);
@@ -323,6 +323,57 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Get the variation description.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return string
+	 */
+	public function get_variation_description( $args ) {
+		$default = array(
+			'product_id' => 0,
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return '';
+		}
+
+		return get_post_field( 'post_excerpt', $args['product_id'], 'raw' );
+	}
+
+	/**
+	 * Set the variation description.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type string $value      Value to save on database.
+	 * }
+	 * @return array
+	 */
+	public function set_variation_description( $args ) {
+		$defaults = array(
+			'product_id' => 0,
+			'value'      => '',
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return false;
+		}
+
+		return wp_update_post( array(
+			'ID' => $args['product_id'],
+			'post_excerpt' => $args['value'],
+		) );
 	}
 
 	/**
@@ -1018,6 +1069,31 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
+
+			/**
+			 * Super custom.
+			 */
+			'_variation_description' => array(
+				'get' => array(
+					'function' => array( $this, 'get_variation_description' ),
+					'args' => array(),
+				),
+				'add' => array(
+					'function' => array( $this, 'set_variation_description' ),
+					'args' => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'set_variation_description' ),
+					'args' => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'set_variation_description' ),
+					'args' => array(
+						'value' => '',
+					),
+				),
+			),
+
 		);
 
 		/*
