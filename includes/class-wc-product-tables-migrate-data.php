@@ -212,7 +212,7 @@ class WC_Product_Tables_Migrate_Data {
 					'product_id' => $product->ID,
 					'name' => $attr['name'],
 					'is_visible' => $attr['is_visible'],
-					'is_variations' => $attr['is_variation'],
+					'is_variation' => $attr['is_variation'],
 				);
 				$is_global = false;
 				if ( false !== strpos( $attr_name, 'pa_' ) ) {
