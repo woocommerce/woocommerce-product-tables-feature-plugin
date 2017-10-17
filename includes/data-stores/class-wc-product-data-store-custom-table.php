@@ -826,7 +826,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET average_rating = %f WHERE product_id = %d;", $product->get_average_rating( 'edit' ), $product->get_id() ) ); // WPCS: db call ok, cache ok.
 		self::update_visibility( $product, true );
-		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
+		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 	}
 
 	// @todo read_attributes, update_attributes, find_matching_product_variation, read_downloads, update_downloads
