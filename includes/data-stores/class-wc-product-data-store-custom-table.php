@@ -68,18 +68,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		}
 
 		// Insert or update relationship.
-		foreach ( $new_values as $key => $value ) {
+		$existing = wp_list_pluck( $relationships, 'relationship_id', 'object_id' );
+		foreach ( $new_values as $priority => $object_id ) {
 			$relationship = array(
-				'type'       => $type,
-				'product_id' => $product->get_id(),
-				'object_id'  => $value,
-				'priority'   => $key,
+				'relationship_id' => isset( $existing[ $object_id ] ) ? $existing[ $object_id ] : 0,
+				'type'            => $type,
+				'product_id'      => $product->get_id(),
+				'object_id'       => $object_id,
+				'priority'        => $priority,
 			);
 
 			$wpdb->replace(
 				"{$wpdb->prefix}wc_product_relationships",
 				$relationship,
 				array(
+					'%d',
 					'%s',
 					'%d',
 					'%d',
@@ -200,7 +203,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data = wp_cache_get( 'woocommerce_product_relationships_' . $product_id, 'product' );
 
 		if ( empty( $data ) ) {
-			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `relationship_id`, `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_relationships_' . $product_id, $data, 'product' );
 		}
@@ -209,12 +212,56 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
-	 * Read data from our custom product data table.
+	 * Read product data. Can be overridden by child classes to load other props.
 	 *
-	 * @param WC_Product $product The product object.
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
 	 */
 	protected function read_product_data( &$product ) {
-		$props                     = $this->get_product_row_from_db( $product->get_id() );
+		$id            = $product->get_id();
+		$props         = $this->get_product_row_from_db( $product->get_id() );
+		$review_count  = get_post_meta( $id, '_wc_review_count', true );
+		$rating_counts = get_post_meta( $id, '_wc_rating_count', true );
+
+		if ( '' === $review_count ) {
+			WC_Comments::get_review_count_for_product( $product );
+		} else {
+			$props['review_count'] = $review_count;
+		}
+
+		if ( '' === $rating_counts ) {
+			WC_Comments::get_rating_counts_for_product( $product );
+		} else {
+			$props['rating_counts'] = $rating_counts;
+		}
+
+		$meta_to_props = array(
+			'_backorders'         => 'backorders',
+			'_sold_individually'  => 'sold_individually',
+			'_purchase_note'      => 'purchase_note',
+			'_default_attributes' => 'default_attributes',
+			'_download_limit'     => 'download_limit',
+			'_download_expiry'    => 'download_expiry',
+		);
+
+		foreach ( $meta_to_props as $meta_key => $prop ) {
+			$props[ $prop ] = get_post_meta( $id, $meta_key, true );
+		}
+
+		$taxonomies_to_props = array(
+			'product_cat'            => 'category_ids',
+			'product_tag'            => 'tag_ids',
+			'product_shipping_class' => 'shipping_class_id',
+		);
+
+		foreach ( $taxonomies_to_props as $taxonomy => $prop ) {
+			$props[ $prop ] = $this->get_term_ids( $taxonomy, 'product_cat' );
+
+			if ( 'shipping_class_id' === $prop ) {
+				$props[ $prop ] = current( $props[ $prop ] );
+			}
+		}
+
 		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
 
 		foreach ( $this->relationships as $type => $prop ) {
@@ -222,11 +269,15 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 				return ! empty( $relationship->type ) && $relationship->type === $type;
 			});
 			$values = wp_list_pluck( $relationships, 'object_id' );
-
 			$props[ $prop ] = $values;
 		}
 
 		$product->set_props( $props );
+
+		// Handle sale dates on the fly in case of missed cron schedule.
+		if ( $product->is_type( 'simple' ) && $product->is_on_sale( 'edit' ) && $product->get_sale_price( 'edit' ) !== $product->get_price( 'edit' ) ) {
+			$product->set_price( $product->get_sale_price( 'edit' ) );
+		}
 	}
 
 	/**
@@ -325,7 +376,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			)
 		);
 
-		$this->read_product_data( $product );
 		$this->read_attributes( $product );
 		$this->read_downloads( $product );
 		$this->read_visibility( $product );
@@ -439,6 +489,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
 
+			// @todo repeat for all new tables.
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_products",
 				array(
@@ -484,4 +535,107 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data = $this->get_product_row_from_db( $product_id );
 		return ! empty( $data->product_type ) ? $data->product_type : 'simple';
 	}
+
+	/**
+	 * Helper method that updates all the post meta for a product based on it's settings in the WC_Product class.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param bool       $force Force update. Used during create.
+	 * @since 3.0.0
+	 */
+	protected function update_post_meta( &$product, $force = false ) {
+		$meta_key_to_props = array(
+			'_backorders'         => 'backorders',
+			'_sold_individually'  => 'sold_individually',
+			'_purchase_note'      => 'purchase_note',
+			'_default_attributes' => 'default_attributes',
+			'_download_limit'     => 'download_limit',
+			'_download_expiry'    => 'download_expiry',
+			'_wc_rating_count'       => 'rating_counts',
+			'_wc_review_count'       => 'review_count',
+		);
+
+		// Make sure to take extra data (like product url or text for external products) into account.
+		$extra_data_keys = $product->get_extra_data_keys();
+
+		foreach ( $extra_data_keys as $key ) {
+			$meta_key_to_props[ '_' . $key ] = $key;
+		}
+
+		$props_to_update = $force ? $meta_key_to_props : $this->get_props_to_update( $product, $meta_key_to_props );
+
+		foreach ( $props_to_update as $meta_key => $prop ) {
+			$value = $product->{"get_$prop"}( 'edit' );
+			switch ( $prop ) {
+				case 'sold_individually':
+					$updated = update_post_meta( $product->get_id(), $meta_key, wc_bool_to_string( $value ) );
+					break;
+				default:
+					$updated = update_post_meta( $product->get_id(), $meta_key, $value );
+					break;
+			}
+			if ( $updated ) {
+				$this->updated_props[] = $prop;
+			}
+		}
+
+		// Update extra data associated with the product like button text or product URL for external products.
+		if ( ! $this->extra_data_saved ) {
+			foreach ( $extra_data_keys as $key ) {
+				if ( ! array_key_exists( $key, $props_to_update ) ) {
+					continue;
+				}
+				$function = 'get_' . $key;
+				if ( is_callable( array( $product, $function ) ) ) {
+					if ( update_post_meta( $product->get_id(), '_' . $key, $product->{$function}( 'edit' ) ) ) {
+						$this->updated_props[] = $key;
+					}
+				}
+			}
+		}
+
+		if ( $this->update_downloads( $product, $force ) ) {
+			$this->updated_props[] = 'downloads';
+		}
+	}
+
+	/**
+	 * Handle updated meta props after updating meta data. @todo
+	 *
+	 * @since  3.0.0
+	 * @param  WC_Product $product Product Object.
+	 */
+	protected function handle_updated_props( &$product ) {
+		if ( in_array( 'regular_price', $this->updated_props, true ) || in_array( 'sale_price', $this->updated_props, true ) ) {
+			if ( $product->get_sale_price( 'edit' ) >= $product->get_regular_price( 'edit' ) ) {
+				update_post_meta( $product->get_id(), '_sale_price', '' );
+				$product->set_sale_price( '' );
+			}
+		}
+		if ( in_array( 'date_on_sale_from', $this->updated_props, true ) || in_array( 'date_on_sale_to', $this->updated_props, true ) || in_array( 'regular_price', $this->updated_props, true ) || in_array( 'sale_price', $this->updated_props, true ) || in_array( 'product_type', $this->updated_props, true ) ) {
+			if ( $product->is_on_sale( 'edit' ) ) {
+				update_post_meta( $product->get_id(), '_price', $product->get_sale_price( 'edit' ) );
+				$product->set_price( $product->get_sale_price( 'edit' ) );
+			} else {
+				update_post_meta( $product->get_id(), '_price', $product->get_regular_price( 'edit' ) );
+				$product->set_price( $product->get_regular_price( 'edit' ) );
+			}
+		}
+
+		if ( in_array( 'stock_quantity', $this->updated_props, true ) ) {
+			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock' : 'woocommerce_product_set_stock' , $product );
+		}
+
+		if ( in_array( 'stock_status', $this->updated_props, true ) ) {
+			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock_status' : 'woocommerce_product_set_stock_status' , $product->get_id(), $product->get_stock_status(), $product );
+		}
+
+		// Trigger action so 3rd parties can deal with updated props.
+		do_action( 'woocommerce_product_object_updated_props', $product, $this->updated_props );
+
+		// After handling, we can reset the props array.
+		$this->updated_props = array();
+	}
+
+	// @todo read_attributes, read_downloads, update_attributes, update_downloads, get_on_sale_products, is_existing_sku, get_product_id_by_sku, get_starting_sales, get_ending_sales, find_matching_product_variation sort_all_product_variations, get_related_products_query, update_product_stock, update_product_sales update_average_rating, search_products, get_product_type get_wp_query_args, query
 }
