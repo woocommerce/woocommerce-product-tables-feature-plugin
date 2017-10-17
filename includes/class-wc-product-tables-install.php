@@ -2,9 +2,13 @@
 /**
  * Installation related functions and actions
  *
+ * @package WooCommerce Product Tables Feature Plugin
  * @author Automattic
- **/
+ */
 
+ /**
+  * Class handling table installs
+  */
 class WC_Product_Tables_Install {
 
 	/**
