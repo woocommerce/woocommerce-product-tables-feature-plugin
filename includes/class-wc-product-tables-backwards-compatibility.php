@@ -30,11 +30,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Get product data from the custom tables instead of the post meta table.
 	 *
-	 * @param null   $result
-	 * @param int    $post_id
-	 * @param string $meta_key
-	 * @param bool   $single
-	 * @return mixed $result
+	 * @param array|null $result   Query result.
+	 * @param int        $post_id  Post ID.
+	 * @param string     $meta_key The meta key to retrieve.
+	 * @param bool       $single   Whether to return a single value.
+	 * @return string|array
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
 		global $wpdb;
@@ -50,6 +50,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$args['product_id'] = $post_id;
 
 		$query_results = call_user_func( $mapped_func, $args );
+
 		if ( $single && $query_results ) {
 			return $query_results[0];
 		}
@@ -64,12 +65,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Add product data to the custom tables instead of the post meta table.
 	 *
-	 * @param null   $result
-	 * @param int    $post_id
-	 * @param string $meta_key
-	 * @param mixed  $meta_value
-	 * @param bool   $unique
-	 * @return null/bool $result
+	 * @param array|null $result     Query result.
+	 * @param int        $post_id    Post ID.
+	 * @param string     $meta_key   Metadata key.
+	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
+	 * @param bool       $unique     Whether the same key should not be added.
+	 * @return int|bool
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
 		global $wpdb;
@@ -98,12 +99,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Update product data in the custom tables instead of the post meta table.
 	 *
-	 * @param null   $result
-	 * @param int    $post_id
-	 * @param string $meta_key
-	 * @param mixed  $meta_value
-	 * @param mixed  $prev_value
-	 * @return null/bool $result
+	 * @param array|null $result     Query result.
+	 * @param int        $post_id    Post ID.
+	 * @param string     $meta_key   Metadata key.
+	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
+	 * @param mixed      $prev_value Previous value to check before removing.
+	 * @return int|bool
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
 		global $wpdb;
@@ -128,12 +129,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Delete product data from the custom tables instead of the post meta table.
 	 *
-	 * @param null   $result
-	 * @param int    $post_id
-	 * @param string $meta_key
-	 * @param mixed  $meta_value
-	 * @param bool   $delete_all
-	 * @return null/bool $result
+	 * @param array|null $result     Query result.
+	 * @param int        $post_id    Post ID.
+	 * @param string     $meta_key   Metadata key.
+	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
+	 * @param bool       $delete_all Delete all metadata.
+	 * @return int|bool
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $meta_value, $delete_all ) {
 		global $wpdb;
@@ -155,12 +156,23 @@ class WC_Product_Tables_Backwards_Compatibility {
 		return (bool) call_user_func( $mapped_func, $args );
 	}
 
+	/**
+	 * Get from product table.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type string $column     Column name.
+	 * }
+	 * @return array
+	 */
 	public function get_from_product_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
-			'column' => '',
 			'product_id' => 0,
+			'column'     => '',
 		);
 		$args = wp_parse_args( $args, $defaults );
 
@@ -168,18 +180,38 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$query = "SELECT %s from {$wpdb->prefix}wc_products WHERE product_id = %d";
-		return $wpdb->get_results( $wpdb->prepare( $query, $args['column'], $args['product_id'] ) );
+		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+
+		if ( empty( $data ) ) {
+			$data = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], $data, 'product' );
+		}
+
+		return $data;
 	}
 
+	/**
+	 * Update from product table.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type string $column     Column name.
+	 *     @type string $format     Format to be mapped to the value.
+	 *     @type string $value      Value save on the database.
+	 * }
+	 * @return array
+	 */
 	public function update_in_product_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
-			'column' => '',
 			'product_id' => 0,
-			'format' => '%s',
-			'value' => '',
+			'column'     => '',
+			'format'     => '%s',
+			'value'      => '',
 		);
 		$args = wp_parse_args( $args, $defaults );
 
@@ -191,354 +223,591 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		return (bool) $wpdb->update(
 			$wpdb->prefix . 'wc_products',
-			array( $args['column'] => $args['value'] ),
-			array( 'product_id' => $args['product_id'] ),
+			array(
+				$args['column'] => $args['value'],
+			),
+			array(
+				'product_id' => $args['product_id'],
+			),
 			$format
-		);
+		); // WPCS: db call ok, cache ok.
 	}
 
+	/**
+	 * Get mapping.
+	 *
+	 * @return array
+	 */
 	protected function get_mapping() {
 		return array(
 			'_sku' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'sku' ),
+					'args' => array(
+						'column' => 'sku',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sku', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'sku',
+						'format' => '%s',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sku', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'sku',
+						'format' => '%s',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sku', 'format' => '%s', 'value' => '' ),
+					'args' => array(
+						'column' => 'sku',
+						'format' => '%s',
+						'value' => '',
+					),
 				),
 			),
 			'_price' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'price' ),
+					'args' => array(
+						'column' => 'price',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'price',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'price',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'price', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'price',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_regular_price' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'regular_price' ),
+					'args' => array(
+						'column' => 'regular_price',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'regular_price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'regular_price',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'regular_price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'regular_price',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'regular_price', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'regular_price',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_sale_price' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'sale_price' ),
+					'args' => array(
+						'column' => 'sale_price',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sale_price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'sale_price',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sale_price', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'sale_price',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'sale_price', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'sale_price',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_sale_price_dates_from' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_from' ),
+					'args' => array(
+						'column' => 'date_on_sale_from',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_from', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'date_on_sale_from',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_from', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'date_on_sale_from',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_from', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'date_on_sale_from',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_sale_price_dates_to' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_to' ),
+					'args' => array(
+						'column' => 'date_on_sale_to',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_to', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'date_on_sale_to',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_to', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'date_on_sale_to',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'date_on_sale_to', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'date_on_sale_to',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'total_sales' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'total_sales' ),
+					'args' => array(
+						'column' => 'total_sales',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'total_sales', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'total_sales',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'total_sales', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'total_sales',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'total_sales', 'format' => '%d', 'value' => 0 ),
+					'args' => array(
+						'column' => 'total_sales',
+						'format' => '%d',
+						'value' => 0,
+					),
 				),
 			),
 			'_tax_status' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'tax_status' ),
+					'args' => array(
+						'column' => 'tax_status',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_status', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'tax_status',
+						'format' => '%s',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_status', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'tax_status',
+						'format' => '%s',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_status', 'format' => '%s', 'value' => 'taxable' ),
+					'args' => array(
+						'column' => 'tax_status',
+						'format' => '%s',
+						'value' => 'taxable',
+					),
 				),
 			),
 			'_tax_class' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'tax_class' ),
+					'args' => array(
+						'column' => 'tax_class',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_class', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'tax_class',
+						'format' => '%s',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_class', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'tax_class',
+						'format' => '%s',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'tax_class', 'format' => '%s', 'value' => '' ),
+					'args' => array(
+						'column' => 'tax_class',
+						'format' => '%s',
+						'value' => '',
+					),
 				),
 			),
 			'_stock' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'stock_quantity' ),
+					'args' => array(
+						'column' => 'stock_quantity',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_quantity', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'stock_quantity',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_quantity', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'stock_quantity',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_quantity', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'stock_quantity',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_stock_status' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'stock_status' ),
+					'args' => array(
+						'column' => 'stock_status',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_status', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'stock_status',
+						'format' => '%s',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_status', 'format' => '%s' ),
+					'args' => array(
+						'column' => 'stock_status',
+						'format' => '%s',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'stock_status', 'format' => '', 'value' => 'instock' ),
+					'args' => array(
+						'column' => 'stock_status',
+						'format' => '',
+						'value' => 'instock',
+					),
 				),
 			),
 			'_length' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'length' ),
+					'args' => array(
+						'column' => 'length',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'length', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'length',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'length', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'length',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'length', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'length',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_width' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'width' ),
+					'args' => array(
+						'column' => 'width',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'width', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'width',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'width', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'width',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'width', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'width',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_height' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'height' ),
+					'args' => array(
+						'column' => 'height',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'height', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'height',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'height', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'height',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'height', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'height',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_weight' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'weight' ),
+					'args' => array(
+						'column' => 'weight',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'weight', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'weight',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'weight', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'weight',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'weight', 'format' => '', 'value' => 'NULL' ),
+					'args' => array(
+						'column' => 'weight',
+						'format' => '',
+						'value' => 'NULL',
+					),
 				),
 			),
 			'_virtual' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'virtual' ),
+					'args' => array(
+						'column' => 'virtual',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'virtual', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'virtual',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'virtual', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'virtual',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'virtual', 'format' => '%d', 'value' => 0 ),
+					'args' => array(
+						'column' => 'virtual',
+						'format' => '%d',
+						'value' => 0,
+					),
 				),
 			),
 			'_downloadable' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'downloadable' ),
+					'args' => array(
+						'column' => 'downloadable',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'downloadable', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'downloadable',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'downloadable', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'downloadable',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'downloadable', 'format' => '%d', 'value' => 0 ),
+					'args' => array(
+						'column' => 'downloadable',
+						'format' => '%d',
+						'value' => 0,
+					),
 				),
 			),
 			'_wc_average_rating' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'average_rating' ),
+					'args' => array(
+						'column' => 'average_rating',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'average_rating', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'average_rating',
+						'format' => '%f',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'average_rating', 'format' => '%f' ),
+					'args' => array(
+						'column' => 'average_rating',
+						'format' => '%f',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'average_rating', 'format' => '%f', 'value' => 0 ),
+					'args' => array(
+						'column' => 'average_rating',
+						'format' => '%f',
+						'value' => 0,
+					),
 				),
 			),
 			'_thumbnail_id' => array(
 				'get' => array(
 					'function' => array( $this, 'get_from_product_table' ),
-					'args' => array( 'column' => 'image_id' ),
+					'args' => array(
+						'column' => 'image_id',
+					),
 				),
 				'add' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'image_id', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'image_id', 'format' => '%d' ),
+					'args' => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_in_product_table' ),
-					'args' => array( 'column' => 'image_id', 'format' => '%d', 'value' => 0 ),
+					'args' => array(
+						'column' => 'image_id',
+						'format' => '%d',
+						'value' => 0,
+					),
 				),
 			),
 
@@ -560,4 +829,5 @@ class WC_Product_Tables_Backwards_Compatibility {
 		*/
 	}
 }
+
 new WC_Product_Tables_Backwards_Compatibility();
