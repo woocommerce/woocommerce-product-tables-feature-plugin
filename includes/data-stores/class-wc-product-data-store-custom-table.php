@@ -233,6 +233,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$props['rating_counts'] = $rating_counts;
 		}
 
+		$props['manage_stock'] = ! is_null( $props['stock_quantity'] );
+
 		$meta_to_props = array(
 			'_backorders'         => 'backorders',
 			'_sold_individually'  => 'sold_individually',
