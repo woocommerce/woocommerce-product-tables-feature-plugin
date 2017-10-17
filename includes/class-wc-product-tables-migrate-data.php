@@ -24,6 +24,8 @@ class WC_Product_Tables_Migrate_Data {
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
 
+			print_r( $metas );
+
 			$new_data = array(
 				'product_id' => $product->ID,
 				'sku' => $metas['_sku'][0],
@@ -90,7 +92,10 @@ class WC_Product_Tables_Migrate_Data {
 			$priority = 1;
 
 			// Migrate product images.
-			$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
+			$image_ids = get_post_meta( $product->ID, '_product_image_gallery' );
+			if ( ! is_array( $image_ids ) && false !== strpos( $image_ids, ',' ) ) {
+				$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
+			}
 
 			foreach ( $image_ids as $image_id ) {
 				$relationship = array(
@@ -151,6 +156,9 @@ class WC_Product_Tables_Migrate_Data {
 		$priority = 1;
 
 		foreach ( get_post_meta( $product_id, $old_meta_key ) as $child ) {
+			if ( empty( $child ) ) {
+				continue;
+			}
 			$relationship = array(
 				'type' => $relationship_type,
 				'product_id' => $product_id,
