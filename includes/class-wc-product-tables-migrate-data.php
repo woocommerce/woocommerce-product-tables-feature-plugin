@@ -23,7 +23,6 @@ class WC_Product_Tables_Migrate_Data {
 
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
-
 			$new_data = array(
 				'product_id' => $product->ID,
 				'sku' => isset( $metas['_sku'] ) ? $metas['_sku'][0] : null,
@@ -93,9 +92,13 @@ class WC_Product_Tables_Migrate_Data {
 
 			// Migrate product images.
 			$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
-			if ( $image_ids ) {
-				if ( ! is_array( $image_ids ) && false !== strpos( $image_ids, ',' ) ) {
-					$image_ids = explode( ',', $image_ids );
+			if ( ! empty( $image_ids ) ) {
+				if ( ! is_array( $image_ids ) ) {
+					if ( false !== strpos( $image_ids, ',' ) ) {
+						$image_ids = explode( ',', $image_ids );
+					} else {
+						$image_ids = array( $image_ids );
+					}
 				}
 
 				foreach ( $image_ids as $image_id ) {
@@ -156,6 +159,9 @@ class WC_Product_Tables_Migrate_Data {
 
 		$priority = 1;
 		$children = get_post_meta( $product_id, $old_meta_key, true );
+		if ( empty( $children ) ) {
+			return;
+		}
 		foreach ( $children as $child ) {
 			if ( empty( $child ) ) {
 				continue;
@@ -209,36 +215,37 @@ class WC_Product_Tables_Migrate_Data {
 	 *
 	 * @param WP_Post $product Product of type WP_Post from DB.
 	 */
-	public static function migrate_attributes( $product ) {
-		$attributes = get_post_meta( $product->ID, '_product_attributes', true );
-		foreach ( $attributes  as $attribute ) {
-			foreach ( $attribute as $attr_name => $attr ) {
-				$attribute_data = array(
-					'product_id' => $product->ID,
-					'name' => $attr['name'],
-					'is_visible' => $attr['is_visible'],
-					'is_variation' => $attr['is_variation'],
-				);
-				$is_global = false;
-				if ( false !== strpos( $attr_name, 'pa_' ) ) {
-					// Global attribute.
-					$attribute_data['taxonomy_id'] = get_terms( array(
-						'taxonomy' => $attr_name,
-						'object_ids' => $product_id,
-					) )[0]->term_taxonomy_id;
-					$is_global = true;
-				}
-				$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
-				if ( $is_global ) {
-					self::migrate_global_attributes( $product->ID, $attr_id, $attr_name );
-				} else {
-					self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr_values );
-				}
+	public static function migrate_attributes( &$product ) {
+		$product_attributes = get_post_meta( $product->ID, '_product_attributes', true );
+		if ( empty( $product_attributes ) ) {
+			return;
+		}
+		foreach ( $product_attributes as $attr_name => $attr ) {
+			$attribute_data = array(
+				'product_id' => $product->ID,
+				'name' => $attr['name'],
+				'is_visible' => $attr['is_visible'],
+				'is_variation' => $attr['is_variation'],
+			);
+			$is_global = false;
+			if ( false !== strpos( $attr_name, 'pa_' ) ) {
+				// Global attribute.
+				$attribute_data['taxonomy_id'] = get_terms( array(
+					'taxonomy' => $attr_name,
+					'object_ids' => $product_id,
+				) )[0]->term_taxonomy_id;
+				$is_global = true;
+			}
+			$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
+			if ( $is_global ) {
+				self::migrate_global_attributes( $product->ID, $attr_id, $attr_name );
+			} else {
+				self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr_values );
+			}
 
-				// Variation attribute values, lets check if the parent product has any child products ie. variations.
-				if ( 'product' === $product->post_type ) {
-					self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
-				}
+			// Variation attribute values, lets check if the parent product has any child products ie. variations.
+			if ( 'product' === $product->post_type ) {
+				self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
 			}
 		}
 	}
@@ -261,8 +268,8 @@ class WC_Product_Tables_Migrate_Data {
 		$count = 1;
 		foreach ( $attr_terms as $term ) {
 			$term_data = array(
-				'product_id' => $product->ID,
-				'product_attribute_id' => $attr_id,
+				'product_id' => $product_id,
+				'product_attribute_id' => $attribute_id,
 				'value' => $term->name,
 				'priority' => $count,
 				'is_default' => 0,
