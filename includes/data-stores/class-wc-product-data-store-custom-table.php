@@ -438,12 +438,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
+
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_products",
 				array(
 					'product_id' => $id,
 				)
 			); // WPCS: db call ok, cache ok.
+
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_product_relationships",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
+
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {

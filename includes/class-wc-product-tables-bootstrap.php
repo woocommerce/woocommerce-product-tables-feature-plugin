@@ -8,8 +8,8 @@
  * @author Automattic
  */
 
-if ( ! defined( 'ABSPATH' ) || class_exists( 'WC_Product_Tables_Bootstrap' ) ) {
-	// return;
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
 }
 
 /**
@@ -32,6 +32,10 @@ class WC_Product_Tables_Bootstrap {
 		require_once 'class-wc-product-tables-backwards-compatibility.php';
 		require_once 'class-wc-product-tables-install.php';
 		require_once 'class-wc-product-tables-migrate-data.php';
+
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			require_once 'class-wc-product-tables-cli.php';
+		}
 	}
 
 	/**
