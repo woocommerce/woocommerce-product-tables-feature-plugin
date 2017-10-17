@@ -5,7 +5,9 @@
 
 	<description>WooCommerce dev PHP_CodeSniffer ruleset.</description>
 
-	<rule ref="WordPress" />
+	<rule ref="WordPress">
+		<exclude name="WordPress.VIP.DirectDatabaseQuery" />
+	</rule>
 
 	<rule ref="WordPress.VIP.ValidatedSanitizedInput">
 		<properties>
