@@ -20,6 +20,7 @@ class WC_Product_Tables_Cli {
 	 * @subcommand migrate-data
 	 */
 	public function migrate_data() {
+		$this->recreate_tables();
 		WC_Product_Tables_Migrate_Data::migrate();
 	}
 
