@@ -16,11 +16,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * WC_Product_Tables_Backwards_Compatibility constructor.
 	 */
 	public function __construct() {
-		// Don't turn on backwards-compatibility if in the middle of a migration.
-		if ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) {
-			return;
-		}
-
 		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
 		add_filter( 'add_post_metadata', array( $this, 'add_metadata_to_tables' ), 99, 5 );
 		add_filter( 'update_post_metadata', array( $this, 'update_metadata_in_tables' ), 99, 5 );
@@ -40,7 +35,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -76,7 +71,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -110,7 +105,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -140,7 +135,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -256,7 +251,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['type'] || ! $args['product_id'] ) {
 			return array();
 		}
-
+		// @todo caching
 		return $wpdb->get_results( $wpdb->prepare( "SELECT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ); // WPCS: db call ok, cache ok.
 	}
 
@@ -287,6 +282,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$new_values = $args['value'];
+
+		// @todo caching
 		$existing_relationship_data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d AND `type` = %s ORDER BY `priority` ASC", $args['product_id'], $args['type'] ) );  // WPCS: db call ok, cache ok.
 		$old_values = wp_list_pluck( $existing_relationship_data, 'object_id' );
 		$missing    = array_diff( $old_values, $new_values );
@@ -940,12 +937,92 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
+			'_crosssell_ids' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'crosssell',
+						'value' => array(),
+					),
+				),
+			),
+			'_product_image_gallery' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'image',
+						'value' => array(),
+					),
+				),
+			),
+			'_children' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_relationship_table' ),
+					'args' => array(
+						'type' => 'grouped',
+						'value' => array(),
+					),
+				),
+			),
 		);
 
 		/*
+			@todo
 			'_manage_stock', // Product table stock column. Null if not managing stock.
-			'_upsell_ids', // Product relationship table
-			'_crosssell_ids', // Product relationship table
 			'_default_attributes', // Attributes table(s)
 			'_product_attributes', // Attributes table(s)
 			'_download_limit', // Product downloads table
@@ -953,7 +1030,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'_featured', // Now a term.
 			'_downloadable_files', // Product downloads table
 			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
-			'_product_image_gallery', // Product relationship table
 			'_visibility', // Now a term.
 		*/
 	}
