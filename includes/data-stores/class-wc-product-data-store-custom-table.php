@@ -211,7 +211,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Read product data. Can be overridden by child classes to load other props.
 	 *
-	 * @param WC_Product Product object.
+	 * @param WC_Product $product Product object.
 	 * @since 3.0.0
 	 */
 	protected function read_product_data( &$product ) {
@@ -487,7 +487,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			wp_delete_post( $id );
 
 			// @todo repeat for all new tables.
-
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_products",
 				array(
@@ -537,8 +536,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	/**
 	 * Helper method that updates all the post meta for a product based on it's settings in the WC_Product class.
 	 *
-	 * @param WC_Product
-	 * @param bool Force update. Used during create.
+	 * @param WC_Product $product Product object.
+	 * @param bool       $force Force update. Used during create.
 	 * @since 3.0.0
 	 */
 	protected function update_post_meta( &$product, $force = false ) {
@@ -565,10 +564,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		foreach ( $props_to_update as $meta_key => $prop ) {
 			$value = $product->{"get_$prop"}( 'edit' );
 			switch ( $prop ) {
-				case 'sold_individually' :
+				case 'sold_individually':
 					$updated = update_post_meta( $product->get_id(), $meta_key, wc_bool_to_string( $value ) );
 					break;
-				default :
+				default:
 					$updated = update_post_meta( $product->get_id(), $meta_key, $value );
 					break;
 			}
