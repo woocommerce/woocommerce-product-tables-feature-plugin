@@ -829,5 +829,5 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
 	}
 
-	// @todo read_attributes, read_downloads, update_attributes, update_downloads, find_matching_product_variation, search_products, get_product_type get_wp_query_args, query
+	// @todo read_attributes, update_attributes, find_matching_product_variation, read_downloads, update_downloads
 }
