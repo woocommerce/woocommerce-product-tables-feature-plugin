@@ -68,18 +68,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		}
 
 		// Insert or update relationship.
-		foreach ( $new_values as $key => $value ) {
+		$existing = wp_list_pluck( $relationships, 'relationship_id', 'object_id' );
+		foreach ( $new_values as $priority => $object_id ) {
 			$relationship = array(
-				'type'       => $type,
-				'product_id' => $product->get_id(),
-				'object_id'  => $value,
-				'priority'   => $key,
+				'relationship_id' => isset( $existing[ $object_id ] ) ? $existing[ $object_id ] : 0,
+				'type'            => $type,
+				'product_id'      => $product->get_id(),
+				'object_id'       => $object_id,
+				'priority'        => $priority,
 			);
 
 			$wpdb->replace(
 				"{$wpdb->prefix}wc_product_relationships",
 				$relationship,
 				array(
+					'%d',
 					'%s',
 					'%d',
 					'%d',
@@ -200,7 +203,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$data = wp_cache_get( 'woocommerce_product_relationships_' . $product_id, 'product' );
 
 		if ( empty( $data ) ) {
-			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `relationship_id`, `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_relationships_' . $product_id, $data, 'product' );
 		}

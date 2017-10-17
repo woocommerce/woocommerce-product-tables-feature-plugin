@@ -17,7 +17,7 @@ class WC_Product_Tables_Install {
 	 * @return void
 	 */
 	public function __construct() {
-		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( self, 'activate' ) );
+		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( __CLASS__, 'activate' ) );
 	}
 
 	/**
