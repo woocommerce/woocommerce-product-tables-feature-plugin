@@ -252,7 +252,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		);
 
 		foreach ( $taxonomies_to_props as $taxonomy => $prop ) {
-			$props[ $prop ] = $this->get_term_ids( $taxonomy, 'product_cat' );
+			$props[ $prop ] = $this->get_term_ids( $product, $taxonomy );
 
 			if ( 'shipping_class_id' === $prop ) {
 				$props[ $prop ] = current( $props[ $prop ] );
