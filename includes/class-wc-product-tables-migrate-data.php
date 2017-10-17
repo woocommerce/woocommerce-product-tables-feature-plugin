@@ -39,7 +39,7 @@ class WC_Product_Tables_Migrate_Data {
 				'tax_class' => isset( $metas['_tax_class'] ) ? $metas['_tax_class'][0] : null,
 				'tax_status' => isset( $metas['_tax_status'] ) ? $metas['_tax_status'][0] : null,
 				'total_sales' => isset( $metas['total_sales'] ) ? $metas['total_sales'][0] : null,
-				'price' => isset( $metas['_price'] ) ? $metas['_price'][0] : null,
+				'price' => isset( $metas['_price'] ) ? rsort( $metas['_price'] )[0] : null, // Sort from low to high picking lowest.
 				'regular_price' => isset( $metas['_regular_price'] ) ? $metas['_regular_price'][0] : null,
 				'sale_price' => isset( $metas['_sale_price'] ) ? $metas['_sale_price'][0] : null,
 				'date_on_sale_from' => isset( $metas['_date_on_sale'] ) ? $metas['_date_on_sale'][0] : null,
@@ -92,22 +92,24 @@ class WC_Product_Tables_Migrate_Data {
 			$priority = 1;
 
 			// Migrate product images.
-			$image_ids = get_post_meta( $product->ID, '_product_image_gallery' );
-			if ( ! is_array( $image_ids ) && false !== strpos( $image_ids, ',' ) ) {
-				$image_ids = explode( ',', get_post_meta( $product->ID, '_product_image_gallery' ) );
-			}
+			$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
+			if ( $image_ids ) {
+				if ( ! is_array( $image_ids ) && false !== strpos( $image_ids, ',' ) ) {
+					$image_ids = explode( ',', $image_ids );
+				}
 
-			foreach ( $image_ids as $image_id ) {
-				$relationship = array(
-					'type' => 'image',
-					'product_id' => $product->ID,
-					'object_id' => $image_id,
-					'priority' => $priority,
-				);
+				foreach ( $image_ids as $image_id ) {
+					$relationship = array(
+						'type' => 'image',
+						'product_id' => $product->ID,
+						'object_id' => $image_id,
+						'priority' => $priority,
+					);
 
-				self::insert( 'wc_product_relationships', $relationship );
+					self::insert( 'wc_product_relationships', $relationship );
 
-				$priority++;
+					$priority++;
+				}
 			}
 
 			self::migrate_attributes( $product );
@@ -153,8 +155,8 @@ class WC_Product_Tables_Migrate_Data {
 		global $wpdb;
 
 		$priority = 1;
-
-		foreach ( get_post_meta( $product_id, $old_meta_key ) as $child ) {
+		$children = get_post_meta( $product_id, $old_meta_key, true );
+		foreach ( $children as $child ) {
 			if ( empty( $child ) ) {
 				continue;
 			}
@@ -189,7 +191,7 @@ class WC_Product_Tables_Migrate_Data {
 
 		if ( $variable_products ) {
 			foreach ( $variable_products as $variable_product ) {
-				$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attribute_name );
+				$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attribute_name, true );
 				if ( $variation_value ) {
 					$variation_data = array(
 						'product_id' => $variable_product->ID,
@@ -208,7 +210,8 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param WP_Post $product Product of type WP_Post from DB.
 	 */
 	public static function migrate_attributes( $product ) {
-		foreach ( get_post_meta( $product->ID, '_product_attributes' ) as $attribute ) {
+		$attributes = get_post_meta( $product->ID, '_product_attributes', true );
+		foreach ( $attributes  as $attribute ) {
 			foreach ( $attribute as $attr_name => $attr ) {
 				$attribute_data = array(
 					'product_id' => $product->ID,
@@ -284,7 +287,7 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	protected static function migrate_custom_attributes( $product_id, $attribute_id, $attribute_name, $attribute_values ) {
 		$attribute_values = explode( '|', $attribute_values );
-		$default_attributes = get_post_meta( $product_id, '_default_attributes' );
+		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
 		$count = 1;
 		foreach ( $attribute_values as $attr_value ) {
 			$attr_value_data = array(
