@@ -63,11 +63,15 @@ class WC_Product_Tables_Migrate_Data {
 
 				$wpdb->insert( $wpdb->prefix . 'wc_product_downloads', $new_download );
 
-				//TODO: verify if we need to change the function that checks download permissions
+				// TODO: verify if we need to change the function that checks download permissions
 				$wpdb->update(
 					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
-					array( 'download_id' => $wpdb->insert_id ),
-					array( 'download_id' => $download_key )
+					array(
+						'download_id' => $wpdb->insert_id,
+					),
+					array(
+						'download_id' => $download_key,
+					)
 				);
 
 				$priority++;
@@ -114,10 +118,12 @@ class WC_Product_Tables_Migrate_Data {
 						// global attribute
 						$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
 						$is_global = true;
-						$attr_terms = get_terms( array(
-							'taxonomy' => $attr_name,
-							'object_ids' => $product->ID,
-						) );
+						$attr_terms = get_terms(
+							array(
+								'taxonomy' => $attr_name,
+								'object_ids' => $product->ID,
+							)
+						);
 					}
 					$wpdb->insert( $wpdb->prefix . 'wc_product_attributes', $attribute_data );
 					$attr_id = $wpdb->insert_id;
@@ -126,10 +132,10 @@ class WC_Product_Tables_Migrate_Data {
 						foreach ( $attr_terms as $term ) {
 							$term_data = array(
 								'product_id' => $product->ID,
-				  				'product_attribute_id' => $attr_id,
-				  				'value' => $term->name,
-				  				'priority' => $count,
-								'is_default' => 0
+								'product_attribute_id' => $attr_id,
+								'value' => $term->name,
+								'priority' => $count,
+								'is_default' => 0,
 							);
 							foreach ( $default_attributes as $default_attr ) {
 								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] == $term->slug ) {
@@ -162,9 +168,12 @@ class WC_Product_Tables_Migrate_Data {
 
 					// Variation attribute values, lets check if the parent product has any child products ie. variations
 					if ( 'product' == $product->post_type ) {
-						$variable_products = $wpdb->get_results( $wpdb->prepare( "
-							SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d
-						", $product->ID ) );
+						$variable_products = $wpdb->get_results(
+							$wpdb->prepare(
+								"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND parent_id = %d",
+								$product->ID
+							)
+						);
 
 						if ( $variable_products ) {
 							foreach ( $variable_products as $variable_product ) {
@@ -189,7 +198,7 @@ class WC_Product_Tables_Migrate_Data {
 	 * Migrate product relationship from the old data structure to the new data structure.
 	 * Product relationships can be grouped products, upsells or cross-sells.
 	 *
-	 * @param int $product_id Product ID.
+	 * @param int    $product_id Product ID.
 	 * @param string $relationship_type 'grouped', 'upsell' or 'crosssell'.
 	 * @param string $old_meta_key Old meta key.
 	 */

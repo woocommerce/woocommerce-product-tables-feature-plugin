@@ -45,13 +45,15 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		// Delete from database missing values.
 		foreach ( $missing as $object_id ) {
-			$wpdb->delete( $wpdb->prefix . 'wc_product_relationships', array(
-				'object_id'  => $object_id,
-				'product_id' => $product->get_id(),
-			), array(
-				'%d',
-				'%d',
-			) );
+			$wpdb->delete(
+				$wpdb->prefix . 'wc_product_relationships', array(
+					'object_id'  => $object_id,
+					'product_id' => $product->get_id(),
+				), array(
+					'%d',
+					'%d',
+				)
+			);
 		}
 
 		// Insert or update relationship.
@@ -80,7 +82,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 * Store data into our custom product data table.
 	 *
 	 * @param WC_Product $product The product object.
-	 * @param bool $force Force update. Used during create.
+	 * @param bool       $force Force update. Used during create.
 	 */
 	protected function update_product_data( &$product, $force = false ) {
 		global $wpdb;
@@ -170,21 +172,27 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 				$product->set_date_created( current_time( 'timestamp', true ) );
 			}
 
-			$id = wp_insert_post( apply_filters( 'woocommerce_new_product_data', array(
-				'post_type'      => 'product',
-				'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
-				'post_author'    => get_current_user_id(),
-				'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
-				'post_content'   => $product->get_description(),
-				'post_excerpt'   => $product->get_short_description(),
-				'post_parent'    => $product->get_parent_id(),
-				'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
-				'ping_status'    => 'closed',
-				'menu_order'     => $product->get_menu_order(),
-				'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
-				'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
-				'post_name'      => $product->get_slug( 'edit' ),
-			) ), true );
+			$id = wp_insert_post(
+				apply_filters(
+					'woocommerce_new_product_data',
+					array(
+						'post_type'      => 'product',
+						'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
+						'post_author'    => get_current_user_id(),
+						'post_title'     => $product->get_name() ? $product->get_name() : __( 'Product', 'woocommerce' ),
+						'post_content'   => $product->get_description(),
+						'post_excerpt'   => $product->get_short_description(),
+						'post_parent'    => $product->get_parent_id(),
+						'comment_status' => $product->get_reviews_allowed() ? 'open' : 'closed',
+						'ping_status'    => 'closed',
+						'menu_order'     => $product->get_menu_order(),
+						'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
+						'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
+						'post_name'      => $product->get_slug( 'edit' ),
+					)
+				),
+				true
+			);
 
 			if ( empty( $id ) || is_wp_error( $id ) ) {
 				throw new Exception( 'db_error' );
@@ -229,18 +237,20 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		$id = $product->get_id();
 
-		$product->set_props( array(
-			'name'              => $post_object->post_title,
-			'slug'              => $post_object->post_name,
-			'date_created'      => 0 < $post_object->post_date_gmt ? wc_string_to_timestamp( $post_object->post_date_gmt ) : null,
-			'date_modified'     => 0 < $post_object->post_modified_gmt ? wc_string_to_timestamp( $post_object->post_modified_gmt ) : null,
-			'status'            => $post_object->post_status,
-			'description'       => $post_object->post_content,
-			'short_description' => $post_object->post_excerpt,
-			'parent_id'         => $post_object->post_parent,
-			'menu_order'        => $post_object->menu_order,
-			'reviews_allowed'   => 'open' === $post_object->comment_status,
-		) );
+		$product->set_props(
+			array(
+				'name'              => $post_object->post_title,
+				'slug'              => $post_object->post_name,
+				'date_created'      => 0 < $post_object->post_date_gmt ? wc_string_to_timestamp( $post_object->post_date_gmt ) : null,
+				'date_modified'     => 0 < $post_object->post_modified_gmt ? wc_string_to_timestamp( $post_object->post_modified_gmt ) : null,
+				'status'            => $post_object->post_status,
+				'description'       => $post_object->post_content,
+				'short_description' => $post_object->post_excerpt,
+				'parent_id'         => $post_object->post_parent,
+				'menu_order'        => $post_object->menu_order,
+				'reviews_allowed'   => 'open' === $post_object->comment_status,
+			)
+		);
 
 		$this->read_product_data( $product );
 		$this->read_attributes( $product );
@@ -294,10 +304,23 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			 * or an update purely from CRUD.
 			 */
 			if ( doing_action( 'save_post' ) ) {
-				$GLOBALS['wpdb']->update( $GLOBALS['wpdb']->posts, $post_data, array( 'ID' => $product->get_id() ) );
+				$GLOBALS['wpdb']->update(
+					$GLOBALS['wpdb']->posts,
+					$post_data,
+					array(
+						'ID' => $product->get_id(),
+					)
+				);
 				clean_post_cache( $product->get_id() );
 			} else {
-				wp_update_post( array_merge( array( 'ID' => $product->get_id() ), $post_data ) );
+				wp_update_post(
+					array_merge(
+						array(
+							'ID' => $product->get_id(),
+						),
+						$post_data
+					)
+				);
 			}
 			$product->read_meta_data( true ); // Refresh internal meta data, in case things were hooked into `save_post` or another WP hook.
 		}
@@ -330,9 +353,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$id        = $product->get_id();
 		$post_type = $product->is_type( 'variation' ) ? 'product_variation' : 'product';
 
-		$args = wp_parse_args( $args, array(
-			'force_delete' => false,
-		) );
+		$args = wp_parse_args(
+			$args, array(
+				'force_delete' => false,
+			)
+		);
 
 		if ( ! $id ) {
 			return;
@@ -340,7 +365,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		if ( $args['force_delete'] ) {
 			wp_delete_post( $id );
-			$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $id ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_products",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {

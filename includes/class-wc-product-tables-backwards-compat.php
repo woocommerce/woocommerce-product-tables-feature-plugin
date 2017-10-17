@@ -2,6 +2,7 @@
 
 /**
  * Backwards compatibility layer for metadata access.
+ *
  * @todo WP_Query meta query support? (IMO no. They should be using CRUD search helpers)
  */
 class WC_Product_Tables_Backwards_Compatibility {
@@ -21,10 +22,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Get product data from the custom tables instead of the post meta table.
 	 *
-	 * @param null $result
-	 * @param int $post_id
+	 * @param null   $result
+	 * @param int    $post_id
 	 * @param string $meta_key
-	 * @param bool $single
+	 * @param bool   $single
 	 * @return mixed $result
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
@@ -52,11 +53,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Add product data to the custom tables instead of the post meta table.
 	 *
-	 * @param null $result
-	 * @param int $post_id
+	 * @param null   $result
+	 * @param int    $post_id
 	 * @param string $meta_key
-	 * @param mixed $meta_value
-	 * @param bool $unique
+	 * @param mixed  $meta_value
+	 * @param bool   $unique
 	 * @return null/bool $result
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
@@ -83,11 +84,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Update product data in the custom tables instead of the post meta table.
 	 *
-	 * @param null $result
-	 * @param int $post_id
+	 * @param null   $result
+	 * @param int    $post_id
 	 * @param string $meta_key
-	 * @param mixed $meta_value
-	 * @param mixed $prev_value
+	 * @param mixed  $meta_value
+	 * @param mixed  $prev_value
 	 * @return null/bool $result
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
@@ -101,7 +102,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$mapped_query = $mapping[ $meta_key ]['update'];
 
 		// @todo: $prev_value support.
-
 		$result = $wpdb->query( $wpdb->prepare( $mapped_query, $post_id, $meta_value ) );
 
 		return (bool) $result;
@@ -110,11 +110,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Delete product data from the custom tables instead of the post meta table.
 	 *
-	 * @param null $result
-	 * @param int $post_id
+	 * @param null   $result
+	 * @param int    $post_id
 	 * @param string $meta_key
-	 * @param mixed $meta_value
-	 * @param bool $delete_all
+	 * @param mixed  $meta_value
+	 * @param bool   $delete_all
 	 * @return null/bool $result
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $meta_value, $delete_all ) {
@@ -129,7 +129,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		// @todo $meta_value support
 		// @todo $delete_all support
-
 		$result = $wpdb->query( $wpdb->prepare( $mapped_query, $post_id ) );
 
 		return $result;
@@ -171,7 +170,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'delete' => "UPDATE {$prefix}wc_products SET weight = NULL WHERE product_id = %d",
 			),
 
-/*
+		/*
 			'_sale_price_dates_from', // Product table
 			'_sale_price_dates_to', // Product table
 			'total_sales', // Product table
@@ -198,7 +197,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'_thumbnail_id', // Product table
 			'_product_image_gallery', // Product relationship table
 			'_visibility', // Now a term. @todo figure a good way to handle this.
-*/
+		*/
 		);
 	}
 }

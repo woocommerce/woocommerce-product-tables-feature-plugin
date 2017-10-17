@@ -9,7 +9,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) || class_exists( 'WC_Product_Tables_Bootstrap' ) ) {
-	//return;
+	// return;
 }
 
 /**
