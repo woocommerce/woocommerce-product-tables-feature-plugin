@@ -307,5 +307,3 @@ class WC_Product_Tables_Migrate_Data {
 		}
 	}
 }
-
-new WC_Product_Tables_Migrate_Data();
