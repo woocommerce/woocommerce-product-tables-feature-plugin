@@ -163,7 +163,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		}
 
 		foreach ( $this->relationships as $type => $prop ) {
-			if ( $force || array_key_exists( $prop, $changes ) ) {
+			if ( array_key_exists( $prop, $changes ) ) {
 				$this->update_relationship( $product, $type );
 			}
 		}
