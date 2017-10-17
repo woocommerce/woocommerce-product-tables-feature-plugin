@@ -106,73 +106,7 @@ class WC_Product_Tables_Migrate_Data {
 				$priority++;
 			}
 
-			$default_attributes = get_post_meta( $product->ID, '_default_attributes' );
-			foreach ( get_post_meta( $product->ID, '_product_attributes' ) as $attribute ) {
-				foreach ( $attribute as $attr_name => $attr ) {
-					$attribute_data = array(
-						'product_id' => $product->ID,
-						'name' => $attr['name'],
-						'is_visible' => $attr['is_visible'],
-						'is_variations' => $attr['is_variation'],
-					);
-					$is_global = false;
-					if ( false !== strpos( $attr_name, 'pa_' ) ) {
-						// Global attribute.
-						$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
-						$is_global = true;
-						$attr_terms = get_terms(
-							array(
-								'taxonomy' => $attr_name,
-								'object_ids' => $product->ID,
-							)
-						);
-					}
-					$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
-					if ( $is_global ) {
-						$count = 1;
-						foreach ( $attr_terms as $term ) {
-							$term_data = array(
-								'product_id' => $product->ID,
-								'product_attribute_id' => $attr_id,
-								'value' => $term->name,
-								'priority' => $count,
-								'is_default' => 0,
-							);
-							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] ) && $default_attributes[ $attr_name ] === $term->slug ) {
-									$term_data['is_default'] = 1;
-								}
-							}
-							self::insert( 'wc_product_attribute_values', $term_data );
-							$count++;
-						}
-					} else {
-						$attribute_values = explode( '|', $attr['value'] );
-						$count = 1;
-						foreach ( $attribute_values as $attr_value ) {
-							$attr_value_data = array(
-								'product_id' => $product->ID,
-								'product_attribute_id' => $attr_id,
-								'value' => trim( $attr_value ),
-								'priority' => $count,
-								'is_default' => 0,
-							);
-							foreach ( $default_attributes as $default_attr ) {
-								if ( isset( $default_attributes[ $attr_name ] ) && trim( $attr_value ) === $default_attributes[ $attr_name ] ) {
-									$attr_value_data['is_default'] = 1;
-								}
-							}
-							self::insert( 'wc_product_attribute_values', $attr_value_data );
-							$count++;
-						}
-					}
-
-					// Variation attribute values, lets check if the parent product has any child products ie. variations.
-					if ( 'product' === $product->post_type ) {
-						self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
-					}
-				}
-			}
+			self::migrate_attributes( $product );
 		}
 	}
 
@@ -252,9 +186,108 @@ class WC_Product_Tables_Migrate_Data {
 						'value' => $variation_value,
 						'product_attribute_id' => $attribute_id,
 					);
-					$self::insert( 'wc_product_variation_attribute_values', $variation_data );
+					self::insert( 'wc_product_variation_attribute_values', $variation_data );
 				}
 			}
+		}
+	}
+
+	/**
+	 * Migrate attributes for product
+	 *
+	 * @param WP_Post $product Product of type WP_Post from DB.
+	 */
+	public static function migrate_attributes( $product ) {
+		foreach ( get_post_meta( $product->ID, '_product_attributes' ) as $attribute ) {
+			foreach ( $attribute as $attr_name => $attr ) {
+				$attribute_data = array(
+					'product_id' => $product->ID,
+					'name' => $attr['name'],
+					'is_visible' => $attr['is_visible'],
+					'is_variations' => $attr['is_variation'],
+				);
+				$is_global = false;
+				if ( false !== strpos( $attr_name, 'pa_' ) ) {
+					// Global attribute.
+					$attribute_data['taxonomy_id'] = get_term_by( 'name', $attr_name )->term_taxonomy_id;
+					$is_global = true;
+				}
+				$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
+				if ( $is_global ) {
+					self::migrate_global_attributes( $product->ID, $attr_id, $attr_name );
+				} else {
+					self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr_values );
+				}
+
+				// Variation attribute values, lets check if the parent product has any child products ie. variations.
+				if ( 'product' === $product->post_type ) {
+					self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Migrate global attributes
+	 *
+	 * @param int    $product_id Product ID.
+	 * @param int    $attribute_id Attribute ID.
+	 * @param string $attribute_name Attribute name.
+	 */
+	protected static function migrate_global_attributes( $product_id, $attribute_id, $attribute_name ) {
+		$attr_terms = get_terms(
+			array(
+				'taxonomy' => $attribute_name,
+				'object_ids' => $product_id,
+			)
+		);
+		$default_attributes = get_post_meta( $product_id, '_default_attributes' );
+		$count = 1;
+		foreach ( $attr_terms as $term ) {
+			$term_data = array(
+				'product_id' => $product->ID,
+				'product_attribute_id' => $attr_id,
+				'value' => $term->name,
+				'priority' => $count,
+				'is_default' => 0,
+			);
+			foreach ( $default_attributes as $default_attr ) {
+				if ( isset( $default_attr[ $attr_name ] ) && $default_attr[ $attr_name ] === $term->slug ) {
+					$term_data['is_default'] = 1;
+				}
+			}
+			self::insert( 'wc_product_attribute_values', $term_data );
+			$count++;
+		}
+	}
+
+	/**
+	 *  Migrate custom attributes
+	 *
+	 * @param int    $product_id Product ID.
+	 * @param int    $attribute_id Attribute ID.
+	 * @param string $attribute_name Attribute name.
+	 * @param array  $attribute_values Attribute values.
+	 */
+	protected static function migrate_custom_attributes( $product_id, $attribute_id, $attribute_name, $attribute_values ) {
+		$attribute_values = explode( '|', $attribute_values );
+		$default_attributes = get_post_meta( $product_id, '_default_attributes' );
+		$count = 1;
+		foreach ( $attribute_values as $attr_value ) {
+			$attr_value_data = array(
+				'product_id' => $product_id,
+				'product_attribute_id' => $attribute_id,
+				'value' => trim( $attr_value ),
+				'priority' => $count,
+				'is_default' => 0,
+			);
+			foreach ( $default_attributes as $default_attr ) {
+				if ( isset( $default_attr[ $attribute_name ] ) && trim( $attr_value ) === $default_attr[ $attribute_name ] ) {
+					$attr_value_data['is_default'] = 1;
+				}
+			}
+			self::insert( 'wc_product_attribute_values', $attr_value_data );
+			$count++;
 		}
 	}
 }
