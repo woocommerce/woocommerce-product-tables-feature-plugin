@@ -859,8 +859,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					$options = get_terms( array(
 						'include' => implode( ',', $attr_values ),
 					) );
-					print_r( $attr_values );
-					// print_r( $options );.
 				} else {
 					$options = $attr_values;
 				}
