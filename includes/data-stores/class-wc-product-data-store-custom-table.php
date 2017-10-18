@@ -856,9 +856,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 						continue;
 					}
 					$id      = $attr->taxonomy_id;
-					$options = get_terms( array(
+					$options = wp_list_pluck( get_terms( array(
 						'include' => implode( ',', $attr_values ),
-					) );
+					) ), 'name' );
 				} else {
 					$options = $attr_values;
 				}
