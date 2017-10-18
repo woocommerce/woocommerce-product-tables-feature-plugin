@@ -68,7 +68,7 @@ class WC_Product_Tables_Install {
 			  `name` varchar(1000) NOT NULL,
 			  `is_visible` tinyint(1) NOT NULL,
 			  `is_variation` tinyint(1) NOT NULL,
-			  `priority` int(11) NOT NULL default 1
+			  `priority` int(11) NOT NULL default 1,
 			  `taxonomy_id` bigint(20) NOT NULL,
 			  PRIMARY KEY  (`attribute_id`)
 			) $collate;
