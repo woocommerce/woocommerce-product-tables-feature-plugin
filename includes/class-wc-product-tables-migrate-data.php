@@ -67,9 +67,16 @@ class WC_Product_Tables_Migrate_Data {
 
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
+
+			if ( 'product_varation' === $product->post_type ) {
+				$product_type = 'variation';
+			} else {
+				$product_type = wp_get_post_terms( $product->ID, 'product_type' )[0]->slug;
+			}
+
 			$new_data = array(
 				'product_id' => $product->ID,
-				'type' => wp_get_post_terms( $product->ID, 'product_type' )[0]->slug,
+				'type' => $product_type,
 			);
 
 			foreach ( self::$meta_keys['product'] as $meta_key ) {
