@@ -847,17 +847,20 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$attributes = array();
 			foreach ( $product_attributes as $attr ) {
 				$id = $attr->attribute_id;
+				$attr_values = $wpdb->get_col( $wpdb->prepare( "
+					SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
+				", $attr->attribute_id ) );
 				// Check if is a taxonomy attribute.
 				if ( isset( $attr->taxonomy_id ) && 0 < $attr->taxonomy_id ) {
 					if ( ! taxonomy_exists( $attr->name ) ) {
 						continue;
 					}
 					$id      = $attr->taxonomy_id;
-					$options = wc_get_object_terms( $product->get_id(), $attr->name, 'term_id' );
+					$options = get_terms( array(
+						'include' => implode( ',', $attr_values ),
+					) );
 				} else {
-					$options = $wpdb->get_col( $wpdb->prepare( "
-						SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
-					", $attr->attribute_id ) );
+					$options = $attr_values;
 				}
 				$attribute = new WC_Product_Attribute();
 				$attribute->set_id( $id );
