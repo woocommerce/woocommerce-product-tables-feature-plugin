@@ -233,6 +233,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$props['rating_counts'] = $rating_counts;
 		}
 
+		$props['manage_stock'] = isset( $props['stock_quantity'] ) && ! is_null( $props['stock_quantity'] );
+
 		$meta_to_props = array(
 			'_backorders'         => 'backorders',
 			'_sold_individually'  => 'sold_individually',
@@ -827,6 +829,46 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET average_rating = %f WHERE product_id = %d;", $product->get_average_rating( 'edit' ), $product->get_id() ) ); // WPCS: db call ok, cache ok.
 		self::update_visibility( $product, true );
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
+	}
+
+	/**
+	 * Read attributes
+	 *
+	 * @param WC_Product $product Product Object.
+	 */
+	public function read_attributes( &$product ) {
+		global $wpdb;
+		$product_attributes = $wpdb->get_results( $wpdb->prepare( "
+			SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
+		", $product->get_id() ) );
+
+		if ( ! empty( $product_attributes ) ) {
+			$attributes = array();
+			foreach ( $product_attributes as $attr ) {
+				$id = $attr->attribute_id;
+				// Check if is a taxonomy attribute.
+				if ( isset( $attr->taxonomy_id ) && 0 < $attr->taxonomy_id ) {
+					if ( ! taxonomy_exists( $attr->name ) ) {
+						continue;
+					}
+					$id      = $attr->taxonomy_id;
+					$options = wc_get_object_terms( $product->get_id(), $attr->name, 'term_id' );
+				} else {
+					$options = $wpdb->get_col( $wpdb->prepare( "
+						SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
+					", $attr->attribute_id ) );
+				}
+				$attribute = new WC_Product_Attribute();
+				$attribute->set_id( $id );
+				$attribute->set_name( $attr->name );
+				$attribute->set_options( $options );
+				// $attribute->set_position( $meta_value['position'] );
+				$attribute->set_visible( $attr->is_visible );
+				$attribute->set_variation( $attr->is_variation );
+				$attributes[] = $attribute;
+			}
+			$product->set_attributes( $attributes );
+		}
 	}
 
 	// @todo read_attributes, update_attributes, find_matching_product_variation, read_downloads, update_downloads
