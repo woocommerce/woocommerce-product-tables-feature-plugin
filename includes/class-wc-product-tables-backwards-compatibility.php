@@ -291,10 +291,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 		// Delete from database missing values.
 		foreach ( $missing as $object_id ) {
 			$wpdb->delete(
-				$wpdb->prefix . 'wc_product_relationships', array(
+				$wpdb->prefix . 'wc_product_relationships',
+				array(
 					'object_id'  => $object_id,
 					'product_id' => $args['product_id'],
-				), array(
+				),
+				array(
 					'%d',
 					'%d',
 				)
@@ -427,6 +429,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
+		// Set stock_quantity to 0 if managing stock.
 		$args['column'] = 'stock_quantity';
 		if ( $args['value'] ) {
 			$args['value'] = 0;
@@ -434,9 +437,197 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return $this->update_in_product_table( $args );
 		}
 
+		// Set stock_quantity to NULL if not managing stock.
 		$args['value'] = 'NULL';
 		$args['format'] = '';
 		return $this->update_in_product_table( $args );
+	}
+
+	/**
+	 * Get from the downloads table.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type string $column     Column to get.
+	 * }
+	 * @return array
+	 */
+	public function get_from_downloads_table( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'column' => '',
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! $args['column'] ) {
+			return array();
+		}
+
+		$data = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_product_downloads WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
+		return $data;
+	}
+
+	/**
+	 * Update the downloads table.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type string $column     Column to update.
+	 *     @type string $format     Format of column data.
+	 *     @type mixed  $value      New value to put in column.
+	 * }
+	 * @return bool
+	 */
+	public function update_downloads_table( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'column' => '',
+			'format' => '',
+			'value' => '',
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! $args['column'] ) {
+			return array();
+		}
+
+		$format = $args['format'] ? array( $args['format'] ) : null;
+
+		return (bool) $wpdb->update(
+			$wpdb->prefix . 'wc_product_downloads',
+			array(
+				$args['column'] => $args['value'],
+			),
+			array(
+				'product_id' => $args['product_id'],
+			),
+			$format
+		); // WPCS: db call ok, cache ok.
+	}
+
+	/**
+	 * Get downloadable files in legacy meta format from downloads table.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_downloadable_files( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT download_id, name, url from {$wpdb->prefix}wc_product_downloads WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
+		$mapped_results = array();
+		foreach ( $query_results as $result ) {
+			$mapped_results[ $result['download_id'] ] = array(
+				'id' => $result['download_id'],
+				'name' => $result['name'],
+				'file' => $result['url'],
+				'previous_hash' => '',
+			);
+		}
+
+		return $mapped_results;
+	}
+
+	/**
+	 * Update downloadable files from legacy meta format .
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type array  $value Array of legacy meta format downloads info.
+	 * }
+	 * @return array
+	 */
+	public function update_downloadable_files( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'value' => array(),
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$new_values = $args['value'];
+		$new_ids = array_keys( $new_values );
+
+		// @todo caching
+		$existing_file_data = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `limit`, `expires` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) );  // WPCS: db call ok, cache ok.
+		$existing_file_data_by_key = array();
+		foreach ( $existing_file_data as $data ) {
+			$existing_file_data_by_key[ $data['download_id'] ] = $data;
+		}
+		$old_ids = wp_list_pluck( $existing_file_data, 'download_id' );
+		$missing = array_diff( $old_ids, $new_ids );
+
+		// Delete from database missing values.
+		foreach ( $missing as $download_id ) {
+			$wpdb->delete(
+				$wpdb->prefix . 'wc_product_downloads',
+				array(
+					'download_id' => $download_id,
+				),
+				array(
+					'%d',
+				)
+			); // WPCS: db call ok, cache ok.
+		}
+
+		// Insert or update relationship.
+		$priority = 1;
+		foreach ( $new_values as $id => $download_info ) {
+			$download = array(
+				'download_id' => $id,
+				'product_id' => $args['product_id'],
+				'name' => isset( $download_info['name'] ) ? $download_info['name'] : '',
+				'url' => isset( $download_info['file'] ) ? $download_info['file'] : '',
+				'limit' => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : 'NULL',
+				'expires' => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : 'NULL',
+				'priority' => $priority,
+			);
+
+			$wpdb->replace(
+				"{$wpdb->prefix}wc_product_downloads",
+				$download,
+				array(
+					'%d',
+					'%d',
+					'%s',
+					'%s',
+					'%d',
+					'%d',
+				)
+			); // WPCS: db call ok, cache ok.
+
+			++$priority;
+		}
+
+		return true;
 	}
 
 	/**
@@ -1134,8 +1325,92 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 
 			/**
+			 * In downloads table.
+			 */
+			'_download_limit' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_downloads_table' ),
+					'args' => array(
+						'column' => 'limit',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'limit',
+						'format' => '%d',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'limit',
+						'format' => '%d',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'limit',
+						'format' => '%d',
+						'value' => -1,
+					),
+				),
+			),
+			'_download_expiry' => array(
+				'get' => array(
+					'function' => array( $this, 'get_from_downloads_table' ),
+					'args' => array(
+						'column' => 'expires',
+					),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'expires',
+						'format' => '%d',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'expires',
+						'format' => '%d',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_downloads_table' ),
+					'args' => array(
+						'column' => 'expires',
+						'format' => '%d',
+						'value' => -1,
+					),
+				),
+			),
+
+			/**
 			 * Super custom.
 			 */
+			'_downloadable_files' => array(
+				'get' => array(
+					'function' => array( $this, 'get_downloadable_files' ),
+					'args' => array(),
+				),
+				'add' => array(
+					'function' => array( $this, 'update_downloadable_files' ),
+					'args' => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_downloadable_files' ),
+					'args' => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_downloadable_files' ),
+					'args' => array(
+						'value' => array(),
+					),
+				),
+			),
 			'_variation_description' => array(
 				'get' => array(
 					'function' => array( $this, 'get_variation_description' ),
@@ -1182,12 +1457,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			@todo
 			'_default_attributes', // Attributes table(s)
 			'_product_attributes', // Attributes table(s)
-			'_download_limit', // Product downloads table
-			'_download_expiry', // Product downloads table
-			'_featured', // Now a term.
 			'_downloadable_files', // Product downloads table
-			'_variation_description', // Now post excerpt @todo figure out a good way to handle this
-			'_visibility', // Now a term.
 		*/
 	}
 }

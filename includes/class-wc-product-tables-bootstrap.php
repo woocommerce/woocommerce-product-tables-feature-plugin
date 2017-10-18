@@ -22,7 +22,7 @@ class WC_Product_Tables_Bootstrap {
 	 */
 	public function __construct() {
 		$this->includes();
-		add_filter( 'woocommerce_product_data_store', array( $this, 'replace_core_data_store' ) );
+		add_filter( 'woocommerce_data_stores', array( $this, 'replace_core_data_stores' ) );
 	}
 
 	/**
@@ -41,11 +41,21 @@ class WC_Product_Tables_Bootstrap {
 	/**
 	 * Replace the core data store for products.
 	 *
-	 * @return string
+	 * @param array $stores List of data stores.
+	 * @return array
 	 */
-	public function replace_core_data_store() {
+	public function replace_core_data_stores( $stores ) {
 		include_once dirname( __FILE__ ) . '/data-stores/class-wc-product-data-store-custom-table.php';
-		return 'WC_Product_Data_Store_Custom_Table';
+		include_once dirname( __FILE__ ) . '/data-stores/class-wc-product-grouped-data-store-custom-table.php';
+		include_once dirname( __FILE__ ) . '/data-stores/class-wc-product-variable-data-store-custom-table.php';
+		include_once dirname( __FILE__ ) . '/data-stores/class-wc-product-variation-data-store-custom-table.php';
+
+		$stores['product']   = 'WC_Product_Data_Store_Custom_Table';
+		$stores['grouped']   = 'WC_Product_Grouped_Data_Store_Custom_Table';
+		$stores['variable']  = 'WC_Product_Variable_Data_Store_Custom_Table';
+		$stores['variation'] = 'WC_Product_Variation_Data_Store_Custom_Table';
+
+		return $stores;
 	}
 }
 

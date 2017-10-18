@@ -39,7 +39,7 @@ class WC_Product_Tables_Install {
 		$tables = "
 			CREATE TABLE {$wpdb->prefix}wc_products (
 			  `product_id` bigint(20) NOT NULL,
-			  `sku` varchar(100) NOT NULL default '',
+			  `sku` varchar(100) NULL default '',
 			  `image_id` bigint(20) NULL default 0,
 			  `height` double NULL default NULL,
 			  `width` double NULL default NULL,

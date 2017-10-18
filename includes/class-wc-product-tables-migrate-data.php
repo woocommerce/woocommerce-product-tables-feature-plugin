@@ -311,7 +311,7 @@ class WC_Product_Tables_Migrate_Data {
 			$term_data = array(
 				'product_id' => $product_id,
 				'product_attribute_id' => $attribute_id,
-				'value' => $term->name,
+				'value' => $term->term_id,
 				'priority' => $count,
 				'is_default' => 0,
 			);
