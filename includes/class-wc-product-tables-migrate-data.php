@@ -80,7 +80,7 @@ class WC_Product_Tables_Migrate_Data {
 					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 				}
 
-				$field_name = str_replace( '_', '', $meta_key );
+				$field_name = ltrim( $meta_key, '_' );
 				$new_data[ $field_name ] = $meta_value;
 			}
 
