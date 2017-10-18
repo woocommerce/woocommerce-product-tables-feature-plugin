@@ -17,11 +17,24 @@ class WC_Product_Tables_Cli {
 	/**
 	 * Migrate WooCommerce products from old data structure to the new data structure used by this plugin.
 	 *
+	 * ## OPTIONS
+	 *
+	 * [--clean-old-data]
+	 * : Pass this flag if old data should be removed after the migration
+	 *
+	 * @param array $args WP-CLI default args.
+	 * @param array $assoc_args WP-CLI default associative args.
 	 * @subcommand migrate-data
 	 */
-	public function migrate_data() {
+	public function migrate_data( $args, $assoc_args ) {
+		$clean_old_data = false;
+
+		if ( isset( $assoc_args['clean-old-data'] ) && $assoc_args['clean-old-data'] ) {
+			$clean_old_data = true;
+		}
+
 		$this->recreate_tables();
-		WC_Product_Tables_Migrate_Data::migrate();
+		WC_Product_Tables_Migrate_Data::migrate( $clean_old_data );
 	}
 
 	/**

@@ -12,9 +12,53 @@
 class WC_Product_Tables_Migrate_Data {
 
 	/**
-	 * Main function that runs the whole migration.
+	 * A list of post metas that will be migrated to the new table structure.
+	 *
+	 * @var array
 	 */
-	public static function migrate() {
+	protected static $meta_keys = array(
+		// List of post meta keys that will be migrated to fields in the new wp_wc_products table.
+		'product' => array(
+			'_sku',
+			'_image_id',
+			'_height',
+			'_width',
+			'_length',
+			'_weight',
+			'_stock_quantity',
+			'_virtual',
+			'_downloadable',
+			'_tax_class',
+			'_tax_status',
+			'total_sales',
+			'_price',
+			'_regular_price',
+			'_sale_price',
+			'_date_on_sale_from',
+			'_date_on_sale_to',
+			'_average_rating',
+			'_stock_status',
+		),
+		// List of post meta keys that will be migrated to different tables created by this plugin.
+		'custom' => array(
+			'_downloadable_files',
+			'_download_limit',
+			'_download_expiry',
+			'_children',
+			'_upsell_ids',
+			'_crosssell_ids',
+			'_product_image_gallery',
+			'_product_attributes',
+			'_default_attributes',
+		),
+	);
+
+	/**
+	 * Main function that runs the whole migration.
+	 *
+	 * @param bool $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
+	 */
+	public static function migrate( $clean_old_data = false ) {
 		global $wpdb;
 
 		define( 'WC_PRODUCT_TABLES_MIGRATING', true );
@@ -25,27 +69,20 @@ class WC_Product_Tables_Migrate_Data {
 			$metas = get_post_meta( $product->ID );
 			$new_data = array(
 				'product_id' => $product->ID,
-				'sku' => isset( $metas['_sku'] ) ? $metas['_sku'][0] : null,
-				'image_id' => isset( $metas['_thumbnail_id'] ) ? $metas['_thumbnail_id'][0] : null,
-				'height' => isset( $metas['_height'] ) ? $metas['_height'][0] : null,
-				'width' => isset( $metas['_width'] ) ? $metas['_width'][0] : null,
-				'length' => isset( $metas['_lenght'] ) ? $metas['_lenght'][0] : null,
-				'weight' => isset( $metas['_weight'] ) ? $metas['_weight'][0] : null,
-				'stock_quantity' => isset( $metas['_stock'] ) ? $metas['_stock'][0] : null,
 				'type' => wp_get_post_terms( $product->ID, 'product_type' )[0]->slug,
-				'virtual' => isset( $metas['_virtual'] ) ? $metas['_virtual'][0] : null,
-				'downloadable' => isset( $metas['_downloadable'] ) ? $metas['_downloadable'][0] : null,
-				'tax_class' => isset( $metas['_tax_class'] ) ? $metas['_tax_class'][0] : null,
-				'tax_status' => isset( $metas['_tax_status'] ) ? $metas['_tax_status'][0] : null,
-				'total_sales' => isset( $metas['total_sales'] ) ? $metas['total_sales'][0] : null,
-				'price' => isset( $metas['_price'] ) ? rsort( $metas['_price'] )[0] : null, // Sort from low to high picking lowest.
-				'regular_price' => isset( $metas['_regular_price'] ) ? $metas['_regular_price'][0] : null,
-				'sale_price' => isset( $metas['_sale_price'] ) ? $metas['_sale_price'][0] : null,
-				'date_on_sale_from' => isset( $metas['_date_on_sale'] ) ? $metas['_date_on_sale'][0] : null,
-				'date_on_sale_to' => isset( $metas['_date_on_sale_to'] ) ? $metas['_date_on_sale_to'][0] : null,
-				'average_rating' => isset( $metas['_average_rating'] ) ? $metas['_average_rating'][0] : null,
-				'stock_status' => isset( $metas['_stock_status'] ) ? $metas['_stock_status'][0] : null,
 			);
+
+			foreach ( self::$meta_keys['product'] as $meta_key ) {
+				if ( '_price' === $meta_key ) {
+					// Sort from low to high picking lowest.
+					$meta_value = isset( $metas['_price'] ) ? rsort( $metas['_price'] )[0] : null;
+				} else {
+					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
+				}
+
+				$field_name = str_replace( '_', '', $meta_key );
+				$new_data[ $field_name ] = $meta_value;
+			}
 
 			self::insert( 'wc_products', $new_data );
 
@@ -115,6 +152,10 @@ class WC_Product_Tables_Migrate_Data {
 			}
 
 			self::migrate_attributes( $product );
+
+			if ( $clean_old_data ) {
+				self::clean_old_data( $product->ID );
+			}
 		}
 	}
 
@@ -310,6 +351,20 @@ class WC_Product_Tables_Migrate_Data {
 			}
 			self::insert( 'wc_product_attribute_values', $attr_value_data );
 			$count++;
+		}
+	}
+
+	/**
+	 * Remove product metas that are not used by the new data structure implemented by this plugin.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return void
+	 */
+	protected static function clean_old_data( $product_id ) {
+		$meta_keys = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
+
+		foreach ( $meta_keys as $meta_key ) {
+			delete_post_meta( $product_id, $meta_key );
 		}
 	}
 }
