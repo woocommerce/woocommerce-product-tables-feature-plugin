@@ -308,10 +308,11 @@ class WC_Product_Tables_Migrate_Data {
 		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
 		$count = 1;
 		foreach ( $attr_terms as $term ) {
+			print_r( $term );
 			$term_data = array(
 				'product_id' => $product_id,
 				'product_attribute_id' => $attribute_id,
-				'value' => $term->id,
+				'value' => $term->term_id,
 				'priority' => $count,
 				'is_default' => 0,
 			);
