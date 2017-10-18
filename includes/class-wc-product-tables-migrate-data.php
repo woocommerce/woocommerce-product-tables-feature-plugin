@@ -253,7 +253,7 @@ class WC_Product_Tables_Migrate_Data {
 	/**
 	 * Migrate attributes for product
 	 *
-	 * @param WP_Post $product Product of type WP_Post from DB.
+	 * @param stdClass $product Standard object containing product ID and product type (post_type).
 	 */
 	public static function migrate_attributes( &$product ) {
 		$product_attributes = get_post_meta( $product->ID, '_product_attributes', true );
