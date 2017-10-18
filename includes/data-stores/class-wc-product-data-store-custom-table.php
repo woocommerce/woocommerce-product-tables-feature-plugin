@@ -210,6 +210,26 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
+	 * Get product downloads data rows from the DB whilst utilising cache.
+	 *
+	 * @param int $product_id Product ID to grab from the database.
+	 * @return array
+	 */
+	protected function get_product_downloads_rows_from_db( $product_id ) {
+		global $wpdb;
+
+		$data = wp_cache_get( 'woocommerce_product_downloads_' . $product_id, 'product' );
+
+		if ( empty( $data ) ) {
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file`, `limit`, `expires`, `priority` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_downloads_' . $product_id, $data, 'product' );
+		}
+
+		return (array) $data;
+	}
+
+	/**
 	 * Read product data. Can be overridden by child classes to load other props.
 	 *
 	 * @param WC_Product $product Product object.
@@ -829,5 +849,106 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
 	}
 
-	// @todo read_attributes, read_downloads, update_attributes, update_downloads, find_matching_product_variation, search_products, get_product_type get_wp_query_args, query
+	/**
+	 * Read downloads from post meta.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product instance.
+	 */
+	protected function read_downloads( &$product ) {
+		$existing_downloads = $this->get_product_downloads_rows_from_db( $product->get_id() );
+
+		if ( $existing_downloads ) {
+			$downloads = array();
+			foreach ( $existing_downloads as $data ) {
+				// @todo Should delete downloads that does not have any name or file?
+				if ( empty( $data->name ) || empty( $data->file ) ) {
+					continue;
+				}
+
+				$download = new WC_Product_Download();
+				$download->set_id( $data->download_id );
+				$download->set_name( $data->name ? $data->name : wc_get_filename_from_url( $data->file ) );
+				$download->set_file( apply_filters( 'woocommerce_file_download_path', $data->file, $product, $data->download_id ) );
+				$downloads[] = $download;
+			}
+
+			$product->set_downloads( $downloads );
+		}
+	}
+
+	/**
+	 * Update downloads.
+	 *
+	 * @since  3.0.0
+	 * @param  WC_Product $product Product instance.
+	 * @param  bool       $force   Force update. Used during create.
+	 * @return bool                If updated or not.
+	 */
+	protected function update_downloads( &$product, $force = false ) {
+		global $wpdb;
+
+		$changes = $product->get_changes();
+
+		if ( $force || array_key_exists( 'downloads', $changes ) ) {
+			$downloads = $product->get_downloads();
+
+			if ( $product->is_type( 'variation' ) ) {
+				do_action( 'woocommerce_process_product_file_download_paths', $product->get_parent_id(), $product->get_id(), $downloads );
+			} else {
+				do_action( 'woocommerce_process_product_file_download_paths', $product->get_id(), 0, $downloads );
+			}
+
+			if ( $downloads ) {
+				$existing_downloads = array_filter( array_map( 'absint', wp_list_pluck( $this->get_product_downloads_rows_from_db( $product->get_id() ), 'download_id' ) ) );
+				$updated            = array();
+
+				foreach ( array_values( $downloads ) as $key => $data ) {
+					$download_id = 'tmp_' === substr( $data['id'], 0, 4 ) ? 0 : intval( $data['id'] );
+
+					// @todo Need to handle limit and expiry in WC_Product_Download.
+					$download = array(
+						'download_id' => $download_id,
+						'product_id'  => $product->get_id(),
+						'name'        => $data['name'],
+						'file'        => $data['file'],
+						'limit'       => null,
+						'expires'     => null,
+						'priority'    => $key,
+					);
+
+					$wpdb->replace(
+						"{$wpdb->prefix}wc_product_downloads",
+						$download,
+						array(
+							'%d',
+							'%d',
+							'%s',
+							'%s',
+							'%s',
+							'%d',
+						)
+					); // WPCS: db call ok, cache ok.
+
+					// Save list of updated IDs.
+					if ( 0 !== $download_id ) {
+						$updated[] = $download_id;
+					}
+				}
+
+				$missing = array_diff( $existing_downloads, $updated );
+				if ( $missing ) {
+					$wpdb->query( "DELETE FROM {$wpdb->prefix}wc_product_downloads WHERE `download_id` IN ( '" . implode( "','", $missing ) . "' )" ); // WPCS: db call ok, cache ok, unprepared SQL ok.
+				}
+			} else {
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d", $product->get_id() ) ); // WPCS: db call ok, cache ok.
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	// @todo read_attributes, update_attributes, find_matching_product_variation, search_products, get_product_type get_wp_query_args, query
 }

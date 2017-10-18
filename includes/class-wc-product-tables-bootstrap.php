@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WC_Product_Tables_Bootstrap
+ * WC_Product_Tables_Bootstrap.
  */
 class WC_Product_Tables_Bootstrap {
 
@@ -35,6 +35,10 @@ class WC_Product_Tables_Bootstrap {
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once 'class-wc-product-tables-cli.php';
+		}
+
+		if ( is_admin() ) {
+			require_once 'admin/meta-boxes/class-wc-custom-meta-box-product-data.php';
 		}
 	}
 
