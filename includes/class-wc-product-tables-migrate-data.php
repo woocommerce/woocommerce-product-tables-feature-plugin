@@ -165,7 +165,7 @@ class WC_Product_Tables_Migrate_Data {
 	public static function get_products() {
 		global $wpdb;
 		return $wpdb->get_results( "
-			SELECT * FROM {$wpdb->posts}
+			SELECT ID, post_type FROM {$wpdb->posts}
 			WHERE post_type IN ('product', 'product_variation')
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
