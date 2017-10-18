@@ -260,14 +260,13 @@ class WC_Product_Tables_Migrate_Data {
 		if ( empty( $product_attributes ) ) {
 			return;
 		}
-		$priority = 1;
 		foreach ( $product_attributes as $attr_name => $attr ) {
 			$attribute_data = array(
 				'product_id' => $product->ID,
 				'name' => $attr['name'],
 				'is_visible' => $attr['is_visible'],
 				'is_variation' => $attr['is_variation'],
-				'priority' => $priority,
+				'priority' => $attr['position'],
 			);
 			$is_global = false;
 			if ( false !== strpos( $attr_name, 'pa_' ) ) {
@@ -289,7 +288,6 @@ class WC_Product_Tables_Migrate_Data {
 			if ( 'product' === $product->post_type ) {
 				self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
 			}
-			$priority++;
 		}
 	}
 
