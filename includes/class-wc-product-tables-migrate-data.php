@@ -80,7 +80,7 @@ class WC_Product_Tables_Migrate_Data {
 					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 				}
 
-				$field_name = str_replace( '_', '', $meta_key );
+				$field_name = ltrim( $meta_key, '_' );
 				$new_data[ $field_name ] = $meta_value;
 			}
 
@@ -266,6 +266,7 @@ class WC_Product_Tables_Migrate_Data {
 				'name' => $attr['name'],
 				'is_visible' => $attr['is_visible'],
 				'is_variation' => $attr['is_variation'],
+				'priority' => $attr['position'],
 			);
 			$is_global = false;
 			if ( false !== strpos( $attr_name, 'pa_' ) ) {
@@ -310,7 +311,7 @@ class WC_Product_Tables_Migrate_Data {
 			$term_data = array(
 				'product_id' => $product_id,
 				'product_attribute_id' => $attribute_id,
-				'value' => $term->name,
+				'value' => $term->term_id,
 				'priority' => $count,
 				'is_default' => 0,
 			);

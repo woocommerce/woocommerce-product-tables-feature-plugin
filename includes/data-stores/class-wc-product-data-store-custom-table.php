@@ -165,6 +165,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		foreach ( $this->relationships as $type => $prop ) {
 			if ( array_key_exists( $prop, $changes ) ) {
 				$this->update_relationship( $product, $type );
+				$this->updated_props[] = $type;
 			}
 		}
 	}
@@ -846,23 +847,26 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			$attributes = array();
 			foreach ( $product_attributes as $attr ) {
 				$id = $attr->attribute_id;
+				$attr_values = $wpdb->get_col( $wpdb->prepare( "
+					SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
+				", $attr->attribute_id ) );
 				// Check if is a taxonomy attribute.
 				if ( isset( $attr->taxonomy_id ) && 0 < $attr->taxonomy_id ) {
 					if ( ! taxonomy_exists( $attr->name ) ) {
 						continue;
 					}
 					$id      = $attr->taxonomy_id;
-					$options = wc_get_object_terms( $product->get_id(), $attr->name, 'term_id' );
+					$options = wp_list_pluck( get_terms( array(
+						'include' => implode( ',', $attr_values ),
+					) ), 'name' );
 				} else {
-					$options = $wpdb->get_col( $wpdb->prepare( "
-						SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
-					", $attr->attribute_id ) );
+					$options = $attr_values;
 				}
 				$attribute = new WC_Product_Attribute();
 				$attribute->set_id( $id );
 				$attribute->set_name( $attr->name );
 				$attribute->set_options( $options );
-				// $attribute->set_position( $meta_value['position'] );
+				$attribute->set_position( $attr->priority );
 				$attribute->set_visible( $attr->is_visible );
 				$attribute->set_variation( $attr->is_variation );
 				$attributes[] = $attribute;
