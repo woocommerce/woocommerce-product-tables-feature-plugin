@@ -863,7 +863,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 				$attribute->set_id( $id );
 				$attribute->set_name( $attr->name );
 				$attribute->set_options( $options );
-				// $attribute->set_position( $meta_value['position'] );
+				$attribute->set_position( $attr->priority );
 				$attribute->set_visible( $attr->is_visible );
 				$attribute->set_variation( $attr->is_variation );
 				$attributes[] = $attribute;
