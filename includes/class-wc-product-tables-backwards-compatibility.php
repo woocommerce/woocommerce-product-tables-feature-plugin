@@ -216,7 +216,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$format = $args['format'] ? array( $args['format'] ) : null;
 
-		return (bool) $wpdb->update(
+		$update_success = (bool) $wpdb->update(
 			$wpdb->prefix . 'wc_products',
 			array(
 				$args['column'] => $args['value'],
@@ -226,6 +226,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			$format
 		); // WPCS: db call ok, cache ok.
+
+		if ( $update_success ) {
+			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+		}
+
+		return $update_success;
 	}
 
 	/**
