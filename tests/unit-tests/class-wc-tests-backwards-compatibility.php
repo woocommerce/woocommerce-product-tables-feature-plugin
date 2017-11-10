@@ -17,7 +17,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 	 *
 	 * @since 1.0.0
 	 * @param int    $id Post id.
-	 * @param string    $key Meta key.
+	 * @param string $key Meta key.
 	 */
 	protected function get_from_meta_table( $id, $key ) {
 		global $wpdb;
