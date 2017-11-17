@@ -63,14 +63,14 @@ class WC_Product_Tables_Install {
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attributes (
-			  `attribute_id` bigint(20) NOT NULL AUTO_INCREMENT,
+			  `product_attribute_id` bigint(20) NOT NULL AUTO_INCREMENT,
 			  `product_id` bigint(20) NOT NULL,
 			  `name` varchar(1000) NOT NULL,
 			  `is_visible` tinyint(1) NOT NULL,
 			  `is_variation` tinyint(1) NOT NULL,
 			  `priority` int(11) NOT NULL default 1,
-			  `taxonomy_id` bigint(20) NOT NULL,
-			  PRIMARY KEY  (`attribute_id`)
+			  `attribute_id` bigint(20) NOT NULL,
+			  PRIMARY KEY  (`product_attribute_id`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attribute_values (

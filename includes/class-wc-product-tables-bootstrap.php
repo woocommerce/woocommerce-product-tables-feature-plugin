@@ -29,16 +29,18 @@ class WC_Product_Tables_Bootstrap {
 	 * Include classes
 	 */
 	public function includes() {
-		require_once 'class-wc-product-tables-backwards-compatibility.php';
-		require_once 'class-wc-product-tables-install.php';
-		require_once 'class-wc-product-tables-migrate-data.php';
+		include_once 'class-wc-product-tables-backwards-compatibility.php';
+		include_once 'class-wc-product-tables-install.php';
+		include_once 'class-wc-product-tables-migrate-data.php';
+		include_once 'compatibility/hacks.php';
+		include_once 'compatibility/class-wc-product-attribute.php';
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			require_once 'class-wc-product-tables-cli.php';
+			include_once 'class-wc-product-tables-cli.php';
 		}
 
 		if ( is_admin() ) {
-			require_once 'admin/meta-boxes/class-wc-custom-meta-box-product-data.php';
+			include_once 'admin/meta-boxes/class-wc-custom-meta-box-product-data.php';
 		}
 	}
 

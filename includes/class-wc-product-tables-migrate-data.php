@@ -281,7 +281,7 @@ class WC_Product_Tables_Migrate_Data {
 				$attribute_data['taxonomy_id'] = get_terms( array(
 					'taxonomy' => $attr_name,
 					'object_ids' => $product->ID,
-				) )[0]->term_taxonomy_id;
+				) )[0]->term_taxonomy_id; // @todo Is this correct? taxonomy_id is not a term. Renaming these in schema also.
 				$is_global = true;
 			}
 			$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
