@@ -98,7 +98,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	protected function update_product_data( &$product ) {
 		global $wpdb;
 
-		$data    = array();
+		$data    = array(
+			'type' => $product->get_type( 'edit' ),
+		);
 		$changes = $product->get_changes();
 		$insert  = false;
 		$row     = $this->get_product_row_from_db( $product->get_id( 'edit' ) );
@@ -554,7 +556,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 */
 	public function get_product_type( $product_id ) {
 		$data = $this->get_product_row_from_db( $product_id );
-		return ! empty( $data->product_type ) ? $data->product_type : 'simple';
+		return ! empty( $data['type'] ) ? $data['type'] : 'simple';
 	}
 
 	/**
