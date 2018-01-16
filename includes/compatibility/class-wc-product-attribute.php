@@ -97,14 +97,11 @@ class WC_Product_Attribute implements ArrayAccess {
 	 * @param array $value Array of values or term ids.
 	 */
 	public function set_options( $value ) {
+		if ( $this->is_taxonomy() ) {
+			$value = array_map( 'absint', $value ); // Format term IDs to int.
+		}
 		$this->data['options'] = $value;
 	}
-
-
-
-
-
-
 
 	/**
 	 * Return if this attribute is a taxonomy.
@@ -352,6 +349,16 @@ class WC_Product_Attribute implements ArrayAccess {
 				}
 				break;
 		}
+	}
+
+	/**
+	 * Offset unset.
+	 *
+	 * @param string $offset Offset.
+	 * @param mixed  $value Value.
+	 */
+	public function offsetUnset( $offset ) {
+		unset( $this->data[ $offset ] );
 	}
 
 	/**
