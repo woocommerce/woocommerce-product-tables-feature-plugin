@@ -252,7 +252,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				SELECT product_id
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-				WHERE posts.parent_id = %d
+				WHERE posts.post_parent = %d
 				AND products.weight > 0
 			";
 
@@ -285,7 +285,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				SELECT product_id
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-				WHERE posts.parent_id = %d
+				WHERE posts.post_parent = %d
 				AND (
 					products.length > 0
 					OR products.width > 0
@@ -322,7 +322,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				SELECT product_id
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-				WHERE posts.parent_id = %d
+				WHERE posts.post_parent = %d
 				AND products.stock_status = 'instock'
 			", $product->get_id() ) ) ? 1 : 0; // WPCS: db call ok, cache ok.
 

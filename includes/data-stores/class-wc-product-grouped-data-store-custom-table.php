@@ -53,7 +53,7 @@ class WC_Product_Grouped_Data_Store_Custom_Table extends WC_Product_Data_Store_C
 				SELECT price
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-				WHERE posts.parent_id = %d
+				WHERE posts.post_parent = %d
 				order by price ASC
 				",
 				$product->get_id()
