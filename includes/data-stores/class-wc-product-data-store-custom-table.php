@@ -262,7 +262,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'_backorders'         => 'backorders',
 			'_sold_individually'  => 'sold_individually',
 			'_purchase_note'      => 'purchase_note',
-			'_default_attributes' => 'default_attributes',
 			'_download_limit'     => 'download_limit',
 			'_download_expiry'    => 'download_expiry',
 		);
@@ -568,14 +567,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	 */
 	protected function update_post_meta( &$product, $force = false ) {
 		$meta_key_to_props = array(
-			'_backorders'         => 'backorders',
-			'_sold_individually'  => 'sold_individually',
-			'_purchase_note'      => 'purchase_note',
-			'_default_attributes' => 'default_attributes',
-			'_download_limit'     => 'download_limit',
-			'_download_expiry'    => 'download_expiry',
-			'_wc_rating_count'       => 'rating_counts',
-			'_wc_review_count'       => 'review_count',
+			'_backorders'        => 'backorders',
+			'_sold_individually' => 'sold_individually',
+			'_purchase_note'     => 'purchase_note',
+			'_download_limit'    => 'download_limit',
+			'_download_expiry'   => 'download_expiry',
+			'_wc_rating_count'   => 'rating_counts',
+			'_wc_review_count'   => 'review_count',
 		);
 
 		// Make sure to take extra data (like product url or text for external products) into account.
@@ -855,49 +853,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
-	 * Read attributes
-	 *
-	 * @param WC_Product $product Product Object.
-	 */
-	public function read_attributes( &$product ) {
-		global $wpdb;
-		$product_attributes = $wpdb->get_results( $wpdb->prepare( "
-			SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
-		", $product->get_id() ) );
-
-		if ( ! empty( $product_attributes ) ) {
-			$attributes = array();
-			foreach ( $product_attributes as $attr ) {
-				$id = $attr->attribute_id;
-				$attr_values = $wpdb->get_col( $wpdb->prepare( "
-					SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
-				", $attr->attribute_id ) );
-				// Check if is a taxonomy attribute.
-				if ( isset( $attr->taxonomy_id ) && 0 < $attr->taxonomy_id ) {
-					if ( ! taxonomy_exists( $attr->name ) ) {
-						continue;
-					}
-					$id      = $attr->taxonomy_id;
-					$options = wp_list_pluck( get_terms( array(
-						'include' => implode( ',', $attr_values ),
-					) ), 'name' );
-				} else {
-					$options = $attr_values;
-				}
-				$attribute = new WC_Product_Attribute();
-				$attribute->set_id( $id );
-				$attribute->set_name( $attr->name );
-				$attribute->set_options( $options );
-				$attribute->set_position( $attr->priority );
-				$attribute->set_visible( $attr->is_visible );
-				$attribute->set_variation( $attr->is_variation );
-				$attributes[] = $attribute;
-			}
-			$product->set_attributes( $attributes );
-		}
-	}
-
-	/**
 	 * Read downloads from post meta.
 	 *
 	 * @since 3.0.0
@@ -998,5 +953,203 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		return false;
 	}
 
-	// @todo read_attributes, update_attributes, find_matching_product_variation
+	// @todo find_matching_product_variation
+	/**
+	 * Read attributes
+	 *
+	 * @param WC_Product $product Product Object.
+	 */
+	public function read_attributes( &$product ) {
+		global $wpdb;
+		$product_attributes = $wpdb->get_results( $wpdb->prepare( "
+			SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
+		", $product->get_id() ) ); // WPCS: db call ok, cache ok.
+
+		if ( ! empty( $product_attributes ) ) {
+			$attributes = array();
+			foreach ( $product_attributes as $attr ) {
+				$attribute = new WC_Product_Attribute();
+				$attribute->set_attribute_id( $attr->attribute_id ); // This is the attribute taxonomy ID, or 0 for local attributes.
+				$attribute->set_product_attribute_id( $attr->product_attribute_id ); // This is the product_attribute_id which auto-increments.
+				$attribute->set_name( $attr->name );
+				$attribute->set_position( $attr->priority );
+				$attribute->set_visible( $attr->is_visible );
+				$attribute->set_variation( $attr->is_variation );
+
+				$attr_values = array_filter( $wpdb->get_col( $wpdb->prepare( "
+					SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
+				", $attr->product_attribute_id ) ) ); // WPCS: db call ok, cache ok.
+
+				$attribute->set_options( $attr_values );
+
+				$attributes[] = $attribute;
+			}
+			$product->set_attributes( $attributes );
+		}
+	}
+
+	/**
+	 * Update attributes.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param bool       $force Force update. Used during create.
+	 */
+	protected function update_attributes( &$product, $force = false ) {
+		global $wpdb;
+
+		$changes = $product->get_changes();
+
+		if ( $force || array_key_exists( 'attributes', $changes ) || array_key_exists( 'default_attributes', $changes ) ) {
+			$attributes          = $product->get_attributes();
+			$default_attributes  = $product->get_default_attributes();
+			$existing_attributes = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
+				SELECT product_attribute_id, attribute_id FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
+			", $product->get_id( 'edit' ) ) ), 'attribute_id', 'product_attribute_id' ); // WPCS: db call ok, cache ok.
+			$updated_attributes  = array();
+
+			if ( $attributes ) {
+				foreach ( $attributes as $attribute_key => $attribute ) {
+					if ( is_null( $attribute ) ) {
+						continue;
+					}
+
+					$attribute_values = $attribute->is_taxonomy() ? wp_list_pluck( $attribute->get_terms(), 'term_id' ) : $attribute->get_options();
+
+					if ( ! $attribute_values ) {
+						continue;
+					}
+
+					$product_attribute_id = $attribute->get_product_attribute_id();
+					$attribute_data       = array(
+						'product_id'   => $product->get_id( 'edit' ),
+						'name'         => $attribute->get_name(),
+						'is_visible'   => $attribute->get_visible() ? 1 : 0,
+						'is_variation' => $attribute->get_variation() ? 1 : 0,
+						'priority'     => $attribute->get_position(),
+						'attribute_id' => $attribute->get_attribute_id(),
+					);
+
+					if ( $attribute->get_product_attribute_id() ) {
+						$wpdb->update(
+							"{$wpdb->prefix}wc_product_attributes",
+							$attribute_data,
+							array(
+								'product_attribute_id' => $product_attribute_id,
+							),
+							array(
+								'%d',
+								'%s',
+								'%d',
+								'%d',
+								'%d',
+								'%d',
+							),
+							array(
+								'%d',
+							)
+						); // WPCS: db call ok, cache ok.
+					} else {
+						$wpdb->insert(
+							"{$wpdb->prefix}wc_product_attributes",
+							$attribute_data,
+							array(
+								'%d',
+								'%s',
+								'%d',
+								'%d',
+								'%d',
+								'%d',
+							)
+						); // WPCS: db call ok, cache ok.
+
+						$product_attribute_id = $wpdb->insert_id;
+					}
+
+					// Get existing values.
+					$existing_attribute_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
+						SELECT attribute_value_id, value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
+					", $product_attribute_id ) ), 'value', 'attribute_value_id' ); // WPCS: db call ok, cache ok.
+
+					// Delete non-existing values.
+					$attributes_values_to_delete = array_diff( $existing_attribute_values, $attribute_values );
+
+					if ( $attributes_values_to_delete ) {
+						$wpdb->query( "DELETE FROM {$wpdb->prefix}wc_product_attribute_values WHERE attribute_value_id IN (" . implode( ',', array_map( 'esc_sql', array_keys( $attributes_values_to_delete ) ) ) . ')' ); // WPCS: db call ok, cache ok, unprepared SQL ok.
+					}
+
+					// Update remaining values.
+					$count = 0;
+
+					foreach ( $attribute_values as $attribute_value ) {
+						$attribute_value_id = array_search( $attribute_value, $existing_attribute_values, true );
+						$attribute_value_data = array(
+							'product_id'           => $product->get_id(),
+							'product_attribute_id' => $product_attribute_id,
+							'value'                => $attribute_value,
+							'priority'             => $count ++,
+							'is_default'           => isset( $default_attributes[ $product_attribute_id ] ) && $default_attributes[ $product_attribute_id ] === $attribute_value ? 1 : 0,
+						);
+
+						if ( $attribute_value_id ) {
+							$wpdb->update(
+								"{$wpdb->prefix}wc_product_attribute_values",
+								$attribute_value_data,
+								array(
+									'attribute_value_id' => $attribute_value_id,
+								),
+								array(
+									'%d',
+									'%d',
+									'%s',
+									'%d',
+									'%d',
+								),
+								array(
+									'%d',
+								)
+							); // WPCS: db call ok, cache ok.
+						} else {
+							$wpdb->insert(
+								"{$wpdb->prefix}wc_product_attribute_values",
+								$attribute_value_data,
+								array(
+									'%d',
+									'%d',
+									'%s',
+									'%d',
+									'%d',
+								)
+							); // WPCS: db call ok, cache ok.
+						}
+					}
+
+					// Update WP based terms.
+					if ( $attribute->is_taxonomy() ) {
+						wp_set_object_terms( $product->get_id(), wp_list_pluck( $attribute->get_terms(), 'term_id' ), $attribute->get_name() );
+					}
+
+					$updated_attributes[] = $product_attribute_id;
+				}
+			}
+
+			$attributes_to_delete = array_diff_key( $existing_attributes, array_flip( $updated_attributes ) );
+
+			if ( $attributes_to_delete ) {
+				$wpdb->query( "DELETE FROM {$wpdb->prefix}wc_product_attributes WHERE product_attribute_id IN (" . implode( ',', array_map( 'esc_sql', array_keys( $attributes_to_delete ) ) ) . ')' ); // WPCS: db call ok, cache ok, unprepared SQL ok.
+
+				foreach ( $attributes_to_delete as $product_attribute_id => $attribute_id ) {
+					$taxonomy = wc_attribute_taxonomy_name_by_id( $attribute_id );
+
+					if ( taxonomy_exists( $taxonomy ) ) {
+						// Handle attributes that have been unset.
+						wp_set_object_terms( $product->get_id(), array(), $taxonomy );
+					}
+				}
+			}
+
+			$this->read_attributes( $product );
+
+			delete_transient( 'wc_layered_nav_counts' );
+		}
+	}
 }
