@@ -535,13 +535,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT download_id, name, url from {$wpdb->prefix}wc_product_downloads WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
+		$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
 		$mapped_results = array();
 		foreach ( $query_results as $result ) {
 			$mapped_results[ $result['download_id'] ] = array(
-				'id' => $result['download_id'],
-				'name' => $result['name'],
-				'file' => $result['url'],
+				'id'            => $result['download_id'],
+				'name'          => $result['name'],
+				'file'          => $result['file'],
 				'previous_hash' => '',
 			);
 		}

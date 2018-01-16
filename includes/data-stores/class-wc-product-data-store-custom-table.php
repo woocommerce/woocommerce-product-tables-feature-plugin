@@ -1085,7 +1085,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 							'product_attribute_id' => $product_attribute_id,
 							'value'                => $attribute_value,
 							'priority'             => $count ++,
-							'is_default'           => 0, // @todo
+							'is_default'           => isset( $default_attributes[ $product_attribute_id ] ) && $default_attributes[ $product_attribute_id ] === $attribute_value ? 1 : 0,
 						);
 
 						if ( $attribute_value_id ) {
