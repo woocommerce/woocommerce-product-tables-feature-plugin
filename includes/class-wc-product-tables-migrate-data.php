@@ -269,26 +269,27 @@ class WC_Product_Tables_Migrate_Data {
 		}
 		foreach ( $product_attributes as $attr_name => $attr ) {
 			$attribute_data = array(
-				'product_id' => $product->ID,
-				'name' => $attr['name'],
-				'is_visible' => $attr['is_visible'],
+				'product_id'   => $product->ID,
+				'name'         => $attr['name'],
+				'is_visible'   => $attr['is_visible'],
 				'is_variation' => $attr['is_variation'],
-				'priority' => $attr['position'],
+				'priority'     => $attr['position'],
 			);
 			$is_global = false;
 			if ( false !== strpos( $attr_name, 'pa_' ) ) {
 				// Global attribute.
-				$attribute_data['taxonomy_id'] = get_terms( array(
-					'taxonomy' => $attr_name,
-					'object_ids' => $product->ID,
-				) )[0]->term_taxonomy_id; // @todo Is this correct? taxonomy_id is not a term. Renaming these in schema also.
-				$is_global = true;
+				$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
+
+				if ( $attribute_id ) {
+					$attribute_data['attribute_id'] = $attribute_id;
+					$is_global                      = true;
+				}
 			}
-			$attr_id = self::insert( 'wc_product_attributes', $attribute_data );
+			$product_attribute_id = self::insert( 'wc_product_attributes', $attribute_data );
 			if ( $is_global ) {
-				self::migrate_global_attributes( $product->ID, $attr_id, $attr_name );
+				self::migrate_global_attributes( $product->ID, $product_attribute_id, $attr_name );
 			} else {
-				self::migrate_custom_attributes( $product->ID, $attr_id, $attr_name, $attr['value'] );
+				self::migrate_custom_attributes( $product->ID, $product_attribute_id, $attr_name, $attr['value'] );
 			}
 
 			// Variation attribute values, lets check if the parent product has any child products ie. variations.
@@ -301,14 +302,14 @@ class WC_Product_Tables_Migrate_Data {
 	/**
 	 * Migrate global attributes
 	 *
-	 * @param int    $product_id Product ID.
-	 * @param int    $attribute_id Attribute ID.
-	 * @param string $attribute_name Attribute name.
+	 * @param int    $product_id           Product ID.
+	 * @param int    $product_attribute_id Attribute ID.
+	 * @param string $attribute_name       Attribute name.
 	 */
-	protected static function migrate_global_attributes( $product_id, $attribute_id, $attribute_name ) {
+	protected static function migrate_global_attributes( $product_id, $product_attribute_id, $attribute_name ) {
 		$attr_terms = get_terms(
 			array(
-				'taxonomy' => $attribute_name,
+				'taxonomy'   => $attribute_name,
 				'object_ids' => $product_id,
 			)
 		);
@@ -316,11 +317,11 @@ class WC_Product_Tables_Migrate_Data {
 		$count = 1;
 		foreach ( $attr_terms as $term ) {
 			$term_data = array(
-				'product_id' => $product_id,
-				'product_attribute_id' => $attribute_id,
-				'value' => $term->term_id,
-				'priority' => $count,
-				'is_default' => 0,
+				'product_id'           => $product_id,
+				'product_attribute_id' => $product_attribute_id,
+				'value'                => $term->term_id,
+				'priority'             => $count,
+				'is_default'           => 0,
 			);
 			foreach ( $default_attributes as $default_attr ) {
 				if ( isset( $default_attr[ $attribute_name ] ) && $default_attr[ $attribute_name ] === $term->slug ) {
@@ -335,22 +336,22 @@ class WC_Product_Tables_Migrate_Data {
 	/**
 	 *  Migrate custom attributes
 	 *
-	 * @param int    $product_id Product ID.
-	 * @param int    $attribute_id Attribute ID.
-	 * @param string $attribute_name Attribute name.
-	 * @param string $attribute_values Attribute values.
+	 * @param int    $product_id           Product ID.
+	 * @param int    $product_attribute_id Attribute ID.
+	 * @param string $attribute_name       Attribute name.
+	 * @param string $attribute_values     Attribute values.
 	 */
-	protected static function migrate_custom_attributes( $product_id, $attribute_id, $attribute_name, $attribute_values ) {
+	protected static function migrate_custom_attributes( $product_id, $product_attribute_id, $attribute_name, $attribute_values ) {
 		$attribute_values = explode( '|', $attribute_values );
 		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
 		$count = 1;
 		foreach ( $attribute_values as $attr_value ) {
 			$attr_value_data = array(
-				'product_id' => $product_id,
-				'product_attribute_id' => $attribute_id,
-				'value' => trim( $attr_value ),
-				'priority' => $count,
-				'is_default' => 0,
+				'product_id'           => $product_id,
+				'product_attribute_id' => $product_attribute_id,
+				'value'                => trim( $attr_value ),
+				'priority'             => $count,
+				'is_default'           => 0,
 			);
 			foreach ( $default_attributes as $default_attr ) {
 				if ( isset( $default_attr[ $attribute_name ] ) && trim( $attr_value ) === $default_attr[ $attribute_name ] ) {
