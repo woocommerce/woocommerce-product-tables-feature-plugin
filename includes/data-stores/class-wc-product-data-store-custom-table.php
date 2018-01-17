@@ -18,6 +18,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
 
 	/**
+	 * Data stored in meta keys, but not considered "meta".
+	 *
+	 * @since 3.0.0
+	 * @var array
+	 */
+	protected $internal_meta_keys = array(
+		'_sold_individually',
+		'_purchase_note',
+		'_wc_rating_count',
+		'_wc_review_count',
+		'_product_version',
+		'_wp_old_slug',
+		'_edit_last',
+		'_edit_lock',
+	);
+
+	/**
+	 * If we have already saved our extra data, don't do automatic / default handling.
+	 *
+	 * @var bool
+	 */
+	protected $extra_data_saved = false;
+
+	/**
+	 * Stores updated props.
+	 *
+	 * @var array
+	 */
+	protected $updated_props = array();
+
+	/**
 	 * Relationships.
 	 *
 	 * @since 4.0.0
@@ -1011,13 +1042,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		switch ( $operation ) {
 			case 'increase':
-				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = stock + %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock_quantity = stock_quantity + %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
 				break;
 			case 'decrease':
-				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = stock - %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock_quantity = stock_quantity - %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
 				break;
 			default:
-				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock = %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
+				$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET stock_quantity = %f WHERE product_id = %d;", $stock_quantity, $product_id_with_stock ) ); // WPCS: db call ok, cache ok.
 				break;
 		}
 
@@ -1290,6 +1321,81 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$attributes[] = $attribute;
 			}
 			$product->set_attributes( $attributes );
+		}
+	}
+
+	/**
+	 * For all stored terms in all taxonomies, save them to the DB.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param bool       $force Force update. Used during create.
+	 * @since 3.0.0
+	 */
+	protected function update_terms( &$product, $force = false ) {
+		$changes = $product->get_changes();
+
+		if ( $force || array_key_exists( 'category_ids', $changes ) ) {
+			$categories = $product->get_category_ids( 'edit' );
+
+			if ( empty( $categories ) && get_option( 'default_product_cat', 0 ) ) {
+				$categories = array( get_option( 'default_product_cat', 0 ) );
+			}
+
+			wp_set_post_terms( $product->get_id(), $categories, 'product_cat', false );
+		}
+		if ( $force || array_key_exists( 'tag_ids', $changes ) ) {
+			wp_set_post_terms( $product->get_id(), $product->get_tag_ids( 'edit' ), 'product_tag', false );
+		}
+		if ( $force || array_key_exists( 'shipping_class_id', $changes ) ) {
+			wp_set_post_terms( $product->get_id(), array( $product->get_shipping_class_id( 'edit' ) ), 'product_shipping_class', false );
+		}
+	}
+
+	/**
+	 * Update visibility terms based on props.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param bool       $force Force update. Used during create.
+	 */
+	protected function update_visibility( &$product, $force = false ) {
+		$changes = $product->get_changes();
+
+		if ( $force || array_intersect( array( 'featured', 'stock_status', 'average_rating', 'catalog_visibility' ), array_keys( $changes ) ) ) {
+			$terms = array();
+
+			if ( $product->get_featured() ) {
+				$terms[] = 'featured';
+			}
+
+			if ( 'outofstock' === $product->get_stock_status() ) {
+				$terms[] = 'outofstock';
+			}
+
+			$rating = min( 5, round( $product->get_average_rating(), 0 ) );
+
+			if ( $rating > 0 ) {
+				$terms[] = 'rated-' . $rating;
+			}
+
+			switch ( $product->get_catalog_visibility() ) {
+				case 'hidden':
+					$terms[] = 'exclude-from-search';
+					$terms[] = 'exclude-from-catalog';
+					break;
+				case 'catalog':
+					$terms[] = 'exclude-from-search';
+					break;
+				case 'search':
+					$terms[] = 'exclude-from-catalog';
+					break;
+			}
+
+			if ( ! is_wp_error( wp_set_post_terms( $product->get_id(), $terms, 'product_visibility', false ) ) ) {
+				delete_transient( 'wc_featured_products' );
+				do_action( 'woocommerce_product_set_visibility', $product->get_id(), $product->get_catalog_visibility() );
+			}
 		}
 	}
 
@@ -1779,8 +1885,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 				if ( in_array( $value, array( 'IS NOT NULL', 'IS NULL' ), true ) ) {
 					$where .= " AND products.{$name} {$value} ";
+				} elseif ( is_array( $value ) ) {
+					$where .= " AND products.{$name} IN ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
 				} else {
-					$where .= $wpdb->prepare( " AND products.{$name} = %s ", $value );
+					$where .= $wpdb->prepare( " AND products.{$name}=%s ", $value );
 				}
 			}
 		}
