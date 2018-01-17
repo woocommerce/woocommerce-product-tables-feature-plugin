@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * WC_Product_Data_Store_Custom_Table class.
  */
-class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
+class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_Object_Data_Store_Interface, WC_Product_Data_Store_Interface {
 
 	/**
 	 * Relationships.
@@ -706,6 +706,42 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
+	 * Returns a list of product IDs ( id as key => parent as value) that are
+	 * featured. Uses get_posts instead of wc_get_products since we want
+	 * some extra meta queries and ALL products (posts_per_page = -1).
+	 *
+	 * @return array
+	 * @since 3.0.0
+	 */
+	public function get_featured_product_ids() {
+		$product_visibility_term_ids = wc_get_product_visibility_term_ids();
+
+		return get_posts(
+			array(
+				'post_type'      => array( 'product', 'product_variation' ),
+				'posts_per_page' => -1,
+				'post_status'    => 'publish',
+				// phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_tax_query
+				'tax_query'      => array(
+					'relation' => 'AND',
+					array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'term_taxonomy_id',
+						'terms'    => array( $product_visibility_term_ids['featured'] ),
+					),
+					array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'term_taxonomy_id',
+						'terms'    => array( $product_visibility_term_ids['exclude-from-catalog'] ),
+						'operator' => 'NOT IN',
+					),
+				),
+				'fields'         => 'id=>parent',
+			)
+		);
+	}
+
+	/**
 	 * Check if product sku is found for any other product IDs.
 	 *
 	 * @since 3.0.0
@@ -788,6 +824,181 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	}
 
 	/**
+	 * Find a matching (enabled) variation within a variable product.
+	 *
+	 * @since  3.0.0
+	 * @param  WC_Product $product Variable product.
+	 * @param  array      $match_attributes Array of attributes we want to try to match.
+	 * @return int Matching variation ID or 0.
+	 */
+	public function find_matching_product_variation( $product, $match_attributes = array() ) {
+		$query_args = array(
+			'post_parent' => $product->get_id(),
+			'post_type'   => 'product_variation',
+			'orderby'     => 'menu_order',
+			'order'       => 'ASC',
+			'fields'      => 'ids',
+			'post_status' => 'publish',
+			'numberposts' => 1,
+			'meta_query'  => array(), // phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_meta_query
+		);
+
+		// Allow large queries in case user has many variations or attributes.
+		$GLOBALS['wpdb']->query( 'SET SESSION SQL_BIG_SELECTS=1' );
+
+		foreach ( $product->get_attributes() as $attribute ) {
+			if ( ! $attribute->get_variation() ) {
+				continue;
+			}
+
+			$attribute_field_name = 'attribute_' . sanitize_title( $attribute->get_name() );
+
+			if ( ! isset( $match_attributes[ $attribute_field_name ] ) ) {
+				return 0;
+			}
+
+			// Note not wc_clean here to prevent removal of entities.
+			$value = $match_attributes[ $attribute_field_name ];
+
+			$query_args['meta_query'][] = array(
+				'relation' => 'OR',
+				array(
+					'key'     => $attribute_field_name,
+					'value'   => array( '', $value ),
+					'compare' => 'IN',
+				),
+				array(
+					'key'     => $attribute_field_name,
+					'compare' => 'NOT EXISTS',
+				),
+			);
+		}
+
+		$variations = get_posts( $query_args );
+
+		if ( $variations && ! is_wp_error( $variations ) ) {
+			return current( $variations );
+		} elseif ( version_compare( get_post_meta( $product->get_id(), '_product_version', true ), '2.4.0', '<' ) ) {
+			/**
+			 * Pre 2.4 handling where 'slugs' were saved instead of the full text attribute.
+			 * Fallback is here because there are cases where data will be 'synced' but the product version will remain the same.
+			 */
+			return ( array_map( 'sanitize_title', $match_attributes ) === $match_attributes ) ? 0 : $this->find_matching_product_variation( $product, array_map( 'sanitize_title', $match_attributes ) );
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Make sure all variations have a sort order set so they can be reordered correctly.
+	 *
+	 * @param int $parent_id Product ID.
+	 */
+	public function sort_all_product_variations( $parent_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.VIP.DirectDatabaseQuery.DirectQuery
+		$ids   = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_parent = %d AND post_status = 'publish' ORDER BY menu_order ASC, ID ASC",
+				$parent_id
+			)
+		);
+		$index = 1;
+
+		foreach ( $ids as $id ) {
+			// phpcs:ignore WordPress.VIP.DirectDatabaseQuery.DirectQuery
+			$wpdb->update( $wpdb->posts, array( 'menu_order' => ( $index++ ) ), array( 'ID' => absint( $id ) ) );
+		}
+	}
+
+		/**
+	 * Return a list of related products (using data like categories and IDs).
+	 *
+	 * @since 3.0.0
+	 * @param array $cats_array  List of categories IDs.
+	 * @param array $tags_array  List of tags IDs.
+	 * @param array $exclude_ids Excluded IDs.
+	 * @param int   $limit       Limit of results.
+	 * @param int   $product_id  Product ID.
+	 * @return array
+	 */
+	public function get_related_products( $cats_array, $tags_array, $exclude_ids, $limit, $product_id ) {
+		global $wpdb;
+
+		$args = array(
+			'categories'  => $cats_array,
+			'tags'        => $tags_array,
+			'exclude_ids' => $exclude_ids,
+			'limit'       => $limit + 10,
+		);
+
+		$related_product_query = (array) apply_filters( 'woocommerce_product_related_posts_query', $this->get_related_products_query( $cats_array, $tags_array, $exclude_ids, $limit + 10 ), $product_id, $args );
+
+		// phpcs:ignore WordPress.VIP.DirectDatabaseQuery.DirectQuery, WordPress.WP.PreparedSQL.NotPrepared
+		return $wpdb->get_col( implode( ' ', $related_product_query ) );
+	}
+
+	/**
+	 * Builds the related posts query.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param array $cats_array  List of categories IDs.
+	 * @param array $tags_array  List of tags IDs.
+	 * @param array $exclude_ids Excluded IDs.
+	 * @param int   $limit       Limit of results.
+	 *
+	 * @return array
+	 */
+	public function get_related_products_query( $cats_array, $tags_array, $exclude_ids, $limit ) {
+		global $wpdb;
+
+		$include_term_ids            = array_merge( $cats_array, $tags_array );
+		$exclude_term_ids            = array();
+		$product_visibility_term_ids = wc_get_product_visibility_term_ids();
+
+		if ( $product_visibility_term_ids['exclude-from-catalog'] ) {
+			$exclude_term_ids[] = $product_visibility_term_ids['exclude-from-catalog'];
+		}
+
+		if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) && $product_visibility_term_ids['outofstock'] ) {
+			$exclude_term_ids[] = $product_visibility_term_ids['outofstock'];
+		}
+
+		$query = array(
+			'fields' => "
+				SELECT DISTINCT ID FROM {$wpdb->posts} p
+			",
+			'join'   => '',
+			'where'  => "
+				WHERE 1=1
+				AND p.post_status = 'publish'
+				AND p.post_type = 'product'
+
+			",
+			'limits' => '
+				LIMIT ' . absint( $limit ) . '
+			',
+		);
+
+		if ( count( $exclude_term_ids ) ) {
+			$query['join']  .= " LEFT JOIN ( SELECT object_id FROM {$wpdb->term_relationships} WHERE term_taxonomy_id IN ( " . implode( ',', array_map( 'absint', $exclude_term_ids ) ) . ' ) ) AS exclude_join ON exclude_join.object_id = p.ID';
+			$query['where'] .= ' AND exclude_join.object_id IS NULL';
+		}
+
+		if ( count( $include_term_ids ) ) {
+			$query['join'] .= " INNER JOIN ( SELECT object_id FROM {$wpdb->term_relationships} INNER JOIN {$wpdb->term_taxonomy} using( term_taxonomy_id ) WHERE term_id IN ( " . implode( ',', array_map( 'absint', $include_term_ids ) ) . ' ) ) AS include_join ON include_join.object_id = p.ID';
+		}
+
+		if ( count( $exclude_ids ) ) {
+			$query['where'] .= ' AND p.ID NOT IN ( ' . implode( ',', array_map( 'absint', $exclude_ids ) ) . ' )';
+		}
+
+		return $query;
+	}
+
+	/**
 	 * Update a product's stock amount directly.
 	 *
 	 * @since  3.0.0 this supports set, increase and decrease.
@@ -850,6 +1061,54 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wc_products SET average_rating = %f WHERE product_id = %d;", $product->get_average_rating( 'edit' ), $product->get_id() ) ); // WPCS: db call ok, cache ok.
 		self::update_visibility( $product, true );
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
+	}
+
+		/**
+	 * Update a products review count meta.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function update_review_count( $product ) {
+		update_post_meta( $product->get_id(), '_wc_review_count', $product->get_review_count( 'edit' ) );
+	}
+
+	/**
+	 * Update a products rating counts.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function update_rating_counts( $product ) {
+		update_post_meta( $product->get_id(), '_wc_rating_count', $product->get_rating_counts( 'edit' ) );
+	}
+
+	/**
+	 * Get shipping class ID by slug.
+	 *
+	 * @since 3.0.0
+	 * @param string $slug Product shipping class slug.
+	 * @return int|false
+	 */
+	public function get_shipping_class_id_by_slug( $slug ) {
+		$shipping_class_term = get_term_by( 'slug', $slug, 'product_shipping_class' );
+		if ( $shipping_class_term ) {
+			return $shipping_class_term->term_id;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Returns an array of products.
+	 *
+	 * @param  array $args Args to pass to WC_Product_Query().
+	 * @return array|object
+	 * @see wc_get_products
+	 */
+	public function get_products( $args = array() ) {
+		$query = new WC_Product_Query( $args );
+		return $query->get_products();
 	}
 
 	/**
@@ -953,7 +1212,53 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 		return false;
 	}
 
-	// @todo find_matching_product_variation
+	/**
+	 * Read extra data associated with the product, like button text or product URL for external products.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
+	 */
+	protected function read_extra_data( &$product ) {
+		foreach ( $product->get_extra_data_keys() as $key ) {
+			$function = 'set_' . $key;
+			if ( is_callable( array( $product, $function ) ) ) {
+				$product->{$function}( get_post_meta( $product->get_id(), '_' . $key, true ) );
+			}
+		}
+	}
+
+	/**
+	 * Convert visibility terms to props.
+	 * Catalog visibility valid values are 'visible', 'catalog', 'search', and 'hidden'.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
+	 */
+	protected function read_visibility( &$product ) {
+		$terms           = get_the_terms( $product->get_id(), 'product_visibility' );
+		$term_names      = is_array( $terms ) ? wp_list_pluck( $terms, 'name' ) : array();
+		$featured        = in_array( 'featured', $term_names, true );
+		$exclude_search  = in_array( 'exclude-from-search', $term_names, true );
+		$exclude_catalog = in_array( 'exclude-from-catalog', $term_names, true );
+
+		if ( $exclude_search && $exclude_catalog ) {
+			$catalog_visibility = 'hidden';
+		} elseif ( $exclude_search ) {
+			$catalog_visibility = 'catalog';
+		} elseif ( $exclude_catalog ) {
+			$catalog_visibility = 'search';
+		} else {
+			$catalog_visibility = 'visible';
+		}
+
+		$product->set_props(
+			array(
+				'featured'           => $featured,
+				'catalog_visibility' => $catalog_visibility,
+			)
+		);
+	}
+
 	/**
 	 * Read attributes
 	 *
@@ -1236,16 +1541,16 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 
 		// Map query vars to ones that get_wp_query_args or WP_Query recognize.
 		$key_mapping = array(
-			'status'         => 'post_status',
-			'page'           => 'paged',
-			'include'        => 'post__in',
-			'stock'          => 'stock_quantity',
-			'review_count'   => 'wc_review_count',
+			'status'       => 'post_status',
+			'page'         => 'paged',
+			'include'      => 'post__in',
+			'stock'        => 'stock_quantity',
+			'review_count' => 'wc_review_count',
 		);
 		foreach ( $key_mapping as $query_key => $db_key ) {
 			if ( isset( $query_vars[ $query_key ] ) ) {
 				$query_vars[ $db_key ] = $query_vars[ $query_key ];
-				unset( $query_vars[ $query_key ] );
+				unset( $wp_query_args[ $query_key ] );
 			}
 		}
 
@@ -1285,6 +1590,16 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			'downloadable',
 			'stock_quantity',
 			'average_rating',
+			'stock_status',
+			'height',
+			'width',
+			'length',
+			'weight',
+			'tax_class',
+			'tax_status',
+			'price',
+			'regular_price',
+			'sale_price',
 		);
 		foreach ( $product_table_queries as $product_table_query ) {
 			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
@@ -1297,8 +1612,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 						$wp_query_args['wc_products_query'][ $product_table_query ] = $query_vars[ $product_table_query ];
 						break;
 				}
-				unset( $query_vars[ $product_table_query ] );
+				unset( $wp_query_args[ $product_table_query ] );
 			}
+		}
+
+		// Handle product types.
+		if ( 'variation' === $query_vars['type'] ) {
+			$wp_query_args['post_type'] = 'product_variation';
+		} elseif ( is_array( $query_vars['type'] ) && in_array( 'variation', $query_vars['type'], true ) ) {
+			$wp_query_args['post_type'] = array( 'product_variation', 'product' );
+		} else {
+			$wp_query_args['post_type'] = 'product';
 		}
 
 		// Manage stock/stock queries.
@@ -1358,7 +1682,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					'operator' => 'NOT IN',
 				);
 			}
-			unset( $query_vars['featured'] );
+			unset( $wp_query_args['featured'] );
 		}
 
 		if ( isset( $query_vars['visibility'] ) && '' !== $query_vars['visibility'] ) {
@@ -1396,18 +1720,30 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					);
 					break;
 			}
-			unset( $query_vars['visibility'] );
+			unset( $wp_query_args['visibility'] );
 		}
 
 		// Handle reviews allowed.
 		if ( isset( $query_vars['reviews_allowed'] ) && is_bool( $query_vars['reviews_allowed'] ) ) {
 			$wp_query_args['comment_status'] = $query_vars['reviews_allowed'] ? 'open' : 'closed';
-			unset( $query_vars['reviews_allowed'] );
+			unset( $wp_query_args['reviews_allowed'] );
 		}
 
 		// Handle paginate.
 		if ( empty( $query_vars['paginate'] ) ) {
 			$wp_query_args['no_found_rows'] = true;
+		}
+
+		if ( empty( $wp_query_args['date_query'] ) ) {
+			unset( $wp_query_args['date_query'] );
+		}
+
+		if ( empty( $wp_query_args['meta_query'] ) ) {
+			unset( $wp_query_args['meta_query'] );
+		}
+
+		if ( empty( $wp_query_args['wc_products_query'] ) ) {
+			unset( $wp_query_args['wc_products_query'] );
 		}
 
 		return apply_filters( 'woocommerce_product_data_store_cpt_get_products_query', $wp_query_args, $query_vars, $this );
@@ -1422,7 +1758,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	public function products_join( $join ) {
 		global $wpdb;
 
-		$join .= " LEFT JOIN {$wpdb->prefix}wc_products products ON posts.ID = products.product_id ";
+		$join .= " LEFT JOIN {$wpdb->prefix}wc_products products ON {$wpdb->posts}.ID = products.product_id ";
 
 		return $join;
 	}
@@ -1437,10 +1773,15 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 	public function products_where( $where, $query ) {
 		global $wpdb;
 
-		if ( ! empty( $query['wc_products_query'] ) ) {
-			foreach ( $query['wc_products_query'] as $name => $value ) {
+		if ( ! empty( $query->query_vars['wc_products_query'] ) ) {
+			foreach ( $query->query_vars['wc_products_query'] as $name => $value ) {
 				$name = sanitize_key( $name );
-				$where .= $wpdb->prepare( " AND products.`{$name}` = %s ", $value );
+
+				if ( in_array( $value, array( 'IS NOT NULL', 'IS NULL' ), true ) ) {
+					$where .= " AND products.{$name} {$value} ";
+				} else {
+					$where .= $wpdb->prepare( " AND products.{$name} = %s ", $value );
+				}
 			}
 		}
 
@@ -1470,7 +1811,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			add_filter( 'posts_where', array( $this, 'products_where' ), 10, 2 );
 			$query = new WP_Query( $args );
 			remove_filter( 'posts_join', array( $this, 'products_join' ), 10 );
-			remove_filter( 'posts_where', array( $this, 'products_where' ), 2 );
+			remove_filter( 'posts_where', array( $this, 'products_where' ), 10, 2 );
 		}
 
 		if ( isset( $query_vars['return'] ) && 'objects' === $query_vars['return'] && ! empty( $query->posts ) ) {

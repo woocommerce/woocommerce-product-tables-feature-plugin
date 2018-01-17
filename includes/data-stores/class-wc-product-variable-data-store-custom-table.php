@@ -87,7 +87,54 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 *
 	 * @param WC_Product $product Product object.
 	 */
-	protected function read_variation_attributes( &$product ) {}
+	protected function read_variation_attributes( &$product ) {
+		global $wpdb;
+
+		$variation_attributes = array();
+		$attributes           = $product->get_attributes();
+		$child_ids            = $product->get_children();
+		$cache_key            = WC_Cache_Helper::get_cache_prefix( 'products' ) . 'product_variation_attributes_' . $product->get_id();
+		$cache_group          = 'products';
+		$cached_data          = wp_cache_get( $cache_key, $cache_group );
+
+		if ( false !== $cached_data ) {
+			return $cached_data;
+		}
+
+		if ( ! empty( $child_ids ) && ! empty( $attributes ) ) {
+			foreach ( $attributes as $attribute ) {
+				if ( ! $attribute->get_variation() ) {
+					continue;
+				}
+
+				// Get possible values for this attribute, for only visible variations.
+				$values = array_unique( $wpdb->get_col( $wpdb->prepare(
+					"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_attribute_id = %d AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
+					$attribute->get_attribute_id()
+				) ) );
+
+				// Empty value indicates that all options for given attribute are available.
+				if ( in_array( '', $values ) || empty( $values ) ) {
+					$values = $attribute->get_slugs();
+				} elseif ( ! $attribute->is_taxonomy() ) {
+					$text_attributes          = $attribute->get_options();
+					$assigned_text_attributes = $values;
+					$values                   = array();
+
+					foreach ( $text_attributes as $text_attribute ) {
+						if ( in_array( $text_attribute, $assigned_text_attributes ) ) {
+							$values[] = $text_attribute;
+						}
+					}
+				}
+				$variation_attributes[ $attribute->get_name() ] = array_unique( $values );
+			}
+		}
+
+		wp_cache_set( $cache_key, $variation_attributes, $cache_group );
+
+		return $variation_attributes;
+	}
 
 	/**
 	 * Get an array of all sale and regular prices from all variations. This is used for example when displaying the price range at variable product level or seeing if the variable product is on sale. @todo
@@ -341,6 +388,5 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 * sync_stock_status
 	 * delete_variations
 	 * untrash_variations
-	 * read_variation_attributes
 	 */
 }
