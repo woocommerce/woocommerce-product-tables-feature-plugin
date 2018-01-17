@@ -1152,4 +1152,342 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 			delete_transient( 'wc_layered_nav_counts' );
 		}
 	}
+
+	/**
+	 * Search product data for a term and return ids. @todo
+	 *
+	 * @param  string $term Search term.
+	 * @param  string $type Type of product.
+	 * @param  bool   $include_variations Include variations in search or not.
+	 * @return array of ids
+	 */
+	public function search_products( $term, $type = '', $include_variations = false ) {
+		global $wpdb;
+
+		$like_term     = '%' . $wpdb->esc_like( $term ) . '%';
+		$post_types    = $include_variations ? array( 'product', 'product_variation' ) : array( 'product' );
+		$post_statuses = current_user_can( 'edit_private_products' ) ? array( 'private', 'publish' ) : array( 'publish' );
+		$type_join     = '';
+		$type_where    = '';
+
+		if ( $type ) {
+			if ( in_array( $type, array( 'virtual', 'downloadable' ), true ) ) {
+				$type_join  = " LEFT JOIN {$wpdb->postmeta} postmeta_type ON posts.ID = postmeta_type.post_id ";
+				$type_where = " AND ( postmeta_type.meta_key = '_{$type}' AND postmeta_type.meta_value = 'yes' ) ";
+			}
+		}
+
+		// phpcs:ignore WordPress.VIP.DirectDatabaseQuery.DirectQuery
+		$product_ids = $wpdb->get_col(
+			// phpcs:disable
+			$wpdb->prepare(
+				"SELECT DISTINCT posts.ID FROM {$wpdb->posts} posts
+				LEFT JOIN {$wpdb->postmeta} postmeta ON posts.ID = postmeta.post_id
+				$type_join
+				WHERE (
+					posts.post_title LIKE %s
+					OR posts.post_content LIKE %s
+					OR (
+						postmeta.meta_key = '_sku' AND postmeta.meta_value LIKE %s
+					)
+				)
+				AND posts.post_type IN ('" . implode( "','", $post_types ) . "')
+				AND posts.post_status IN ('" . implode( "','", $post_statuses ) . "')
+				$type_where
+				ORDER BY posts.post_parent ASC, posts.post_title ASC",
+				$like_term,
+				$like_term,
+				$like_term
+			)
+			// phpcs:enable
+		);
+
+		if ( is_numeric( $term ) ) {
+			$post_id   = absint( $term );
+			$post_type = get_post_type( $post_id );
+
+			if ( 'product_variation' === $post_type && $include_variations ) {
+				$product_ids[] = $post_id;
+			} elseif ( 'product' === $post_type ) {
+				$product_ids[] = $post_id;
+			}
+
+			$product_ids[] = wp_get_post_parent_id( $post_id );
+		}
+
+		return wp_parse_id_list( $product_ids );
+	}
+
+	/**
+	 * Get valid WP_Query args from a WC_Product_Query's query variables.
+	 *
+	 * @param array $query_vars Query vars from a WC_Product_Query.
+	 * @return array
+	 */
+	protected function get_wp_query_args( $query_vars ) {
+		$wp_query_args = wp_parse_args(
+			parent::get_wp_query_args( $query_vars ),
+			array(
+				'date_query'        => array(),
+				'meta_query'        => array(), // @codingStandardsIgnoreLine.
+				'wc_products_query' => array(), // Custom table queries will be stored here and turned into queries later.
+			)
+		);
+
+		// Map query vars to ones that get_wp_query_args or WP_Query recognize.
+		$key_mapping = array(
+			'status'         => 'post_status',
+			'page'           => 'paged',
+			'include'        => 'post__in',
+			'stock'          => 'stock_quantity',
+			'review_count'   => 'wc_review_count',
+		);
+		foreach ( $key_mapping as $query_key => $db_key ) {
+			if ( isset( $query_vars[ $query_key ] ) ) {
+				$query_vars[ $db_key ] = $query_vars[ $query_key ];
+				unset( $query_vars[ $query_key ] );
+			}
+		}
+
+		// Handle date queries.
+		$date_queries = array(
+			'date_created'      => 'post_date',
+			'date_modified'     => 'post_modified',
+			'date_on_sale_from' => 'products.date_on_sale_from',
+			'date_on_sale_to'   => 'products.date_on_sale_to',
+		);
+		foreach ( $date_queries as $query_var_key => $db_key ) {
+			if ( isset( $query_vars[ $query_var_key ] ) && '' !== $query_vars[ $query_var_key ] ) {
+				$wp_query_args = $this->parse_date_for_wp_query( $query_vars[ $query_var_key ], $db_key, $wp_query_args );
+			}
+		}
+
+		// Map boolean queries that are stored as 'yes'/'no' in the DB to 'yes' or 'no'.
+		$boolean_queries = array(
+			'sold_individually',
+		);
+		foreach ( $boolean_queries as $boolean_query ) {
+			if ( isset( $query_vars[ $boolean_query ] ) && '' !== $query_vars[ $boolean_query ] ) {
+				$query_vars[ $boolean_query ] = $query_vars[ $boolean_query ] ? 'yes' : 'no';
+			}
+		}
+
+		/**
+		 * Custom table maping - Map fields in the wc_products table.
+		 */
+		$product_table_queries = array(
+			'sku',
+			'type',
+			'virtual',
+			'downloadable',
+			'total_sales',
+			'virtual',
+			'downloadable',
+			'stock_quantity',
+			'average_rating',
+		);
+		foreach ( $product_table_queries as $product_table_query ) {
+			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
+				switch ( $product_table_query ) {
+					case 'virtual':
+					case 'downloadable':
+						$wp_query_args['wc_products_query'][ $product_table_query ] = $query_vars[ $product_table_query ] ? 1 : 0;
+						break;
+					default:
+						$wp_query_args['wc_products_query'][ $product_table_query ] = $query_vars[ $product_table_query ];
+						break;
+				}
+				unset( $query_vars[ $product_table_query ] );
+			}
+		}
+
+		// Manage stock/stock queries.
+		if ( isset( $query_vars['manage_stock'] ) && '' !== $query_vars['manage_stock'] ) {
+			if ( ! isset( $wp_query_args['wc_products_query']['stock_quantity'] ) ) {
+				$wp_query_args['wc_products_query']['stock_quantity'] = $query_vars['manage_stock'] ? 'IS NOT NULL' : 'IS NULL';
+			}
+		}
+
+		/**
+		 * TAXONOMIES - convert query vars to tax_query syntax.
+		 */
+		if ( ! empty( $query_vars['category'] ) ) {
+			$wp_query_args['tax_query'][] = array(
+				'taxonomy' => 'product_cat',
+				'field'    => 'slug',
+				'terms'    => $query_vars['category'],
+			);
+		}
+
+		if ( ! empty( $query_vars['tag'] ) ) {
+			unset( $wp_query_args['tag'] );
+			$wp_query_args['tax_query'][] = array(
+				'taxonomy' => 'product_tag',
+				'field'    => 'slug',
+				'terms'    => $query_vars['tag'],
+			);
+		}
+
+		if ( ! empty( $query_vars['shipping_class'] ) ) {
+			$wp_query_args['tax_query'][] = array(
+				'taxonomy' => 'product_shipping_class',
+				'field'    => 'slug',
+				'terms'    => $query_vars['shipping_class'],
+			);
+		}
+
+		if ( isset( $query_vars['featured'] ) && '' !== $query_vars['featured'] ) {
+			$product_visibility_term_ids = wc_get_product_visibility_term_ids();
+			if ( $query_vars['featured'] ) {
+				$wp_query_args['tax_query'][] = array(
+					'taxonomy' => 'product_visibility',
+					'field'    => 'term_taxonomy_id',
+					'terms'    => array( $product_visibility_term_ids['featured'] ),
+				);
+				$wp_query_args['tax_query'][] = array(
+					'taxonomy' => 'product_visibility',
+					'field'    => 'term_taxonomy_id',
+					'terms'    => array( $product_visibility_term_ids['exclude-from-catalog'] ),
+					'operator' => 'NOT IN',
+				);
+			} else {
+				$wp_query_args['tax_query'][] = array(
+					'taxonomy' => 'product_visibility',
+					'field'    => 'term_taxonomy_id',
+					'terms'    => array( $product_visibility_term_ids['featured'] ),
+					'operator' => 'NOT IN',
+				);
+			}
+			unset( $query_vars['featured'] );
+		}
+
+		if ( isset( $query_vars['visibility'] ) && '' !== $query_vars['visibility'] ) {
+			switch ( $query_vars['visibility'] ) {
+				case 'search':
+					$wp_query_args['tax_query'][] = array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'slug',
+						'terms'    => array( 'exclude-from-search' ),
+						'operator' => 'NOT IN',
+					);
+					break;
+				case 'catalog':
+					$wp_query_args['tax_query'][] = array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'slug',
+						'terms'    => array( 'exclude-from-catalog' ),
+						'operator' => 'NOT IN',
+					);
+					break;
+				case 'visible':
+					$wp_query_args['tax_query'][] = array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'slug',
+						'terms'    => array( 'exclude-from-catalog', 'exclude-from-search' ),
+						'operator' => 'NOT IN',
+					);
+					break;
+				case 'hidden':
+					$wp_query_args['tax_query'][] = array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'slug',
+						'terms'    => array( 'exclude-from-catalog', 'exclude-from-search' ),
+						'operator' => 'AND',
+					);
+					break;
+			}
+			unset( $query_vars['visibility'] );
+		}
+
+		// Handle reviews allowed.
+		if ( isset( $query_vars['reviews_allowed'] ) && is_bool( $query_vars['reviews_allowed'] ) ) {
+			$wp_query_args['comment_status'] = $query_vars['reviews_allowed'] ? 'open' : 'closed';
+			unset( $query_vars['reviews_allowed'] );
+		}
+
+		// Handle paginate.
+		if ( empty( $query_vars['paginate'] ) ) {
+			$wp_query_args['no_found_rows'] = true;
+		}
+
+		return apply_filters( 'woocommerce_product_data_store_cpt_get_products_query', $wp_query_args, $query_vars, $this );
+	}
+
+	/**
+	 * Join our custom products table to the posts table.
+	 *
+	 * @param string $join Join string.
+	 * @return string
+	 */
+	public function products_join( $join ) {
+		global $wpdb;
+
+		$join .= " LEFT JOIN {$wpdb->prefix}wc_products products ON posts.ID = products.product_id ";
+
+		return $join;
+	}
+
+	/**
+	 * Add where clauses for our custom table.
+	 *
+	 * @param string   $where Where query.
+	 * @param WP_Query $query Query object.
+	 * @return string
+	 */
+	public function products_where( $where, $query ) {
+		global $wpdb;
+
+		if ( ! empty( $query['wc_products_query'] ) ) {
+			foreach ( $query['wc_products_query'] as $name => $value ) {
+				$name = sanitize_key( $name );
+				$where .= $wpdb->prepare( " AND products.`{$name}` = %s ", $value );
+			}
+		}
+
+		return $where;
+	}
+
+	/**
+	 * Query for Products matching specific criteria.
+	 *
+	 * @since 3.2.0
+	 *
+	 * @param array $query_vars Query vars from a WC_Product_Query.
+	 *
+	 * @return array|object
+	 */
+	public function query( $query_vars ) {
+		$args = $this->get_wp_query_args( $query_vars );
+
+		if ( ! empty( $args['errors'] ) ) {
+			$query = (object) array(
+				'posts'         => array(),
+				'found_posts'   => 0,
+				'max_num_pages' => 0,
+			);
+		} else {
+			add_filter( 'posts_join', array( $this, 'products_join' ), 10 );
+			add_filter( 'posts_where', array( $this, 'products_where' ), 10, 2 );
+			$query = new WP_Query( $args );
+			remove_filter( 'posts_join', array( $this, 'products_join' ), 10 );
+			remove_filter( 'posts_where', array( $this, 'products_where' ), 2 );
+		}
+
+		if ( isset( $query_vars['return'] ) && 'objects' === $query_vars['return'] && ! empty( $query->posts ) ) {
+			// Prime caches before grabbing objects.
+			update_post_caches( $query->posts, array( 'product', 'product_variation' ) );
+		}
+
+		$products = ( isset( $query_vars['return'] ) && 'ids' === $query_vars['return'] ) ? $query->posts : array_filter( array_map( 'wc_get_product', $query->posts ) );
+
+		if ( isset( $query_vars['paginate'] ) && $query_vars['paginate'] ) {
+			return (object) array(
+				'products'      => $products,
+				'total'         => $query->found_posts,
+				'max_num_pages' => $query->max_num_pages,
+			);
+		}
+
+		return $products;
+	}
 }

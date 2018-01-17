@@ -344,7 +344,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function get_variation_description( $args ) {
-		$default = array(
+		$defaults = array(
 			'product_id' => 0,
 		);
 		$args = wp_parse_args( $args, $defaults );
