@@ -116,7 +116,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
 				'post_author'    => get_current_user_id(),
 				'post_title'     => $product->get_name( 'edit' ),
-				'post_content'   => '',
+				'post_content'   => $product->get_description( 'edit' ),
 				'post_parent'    => $product->get_parent_id(),
 				'comment_status' => 'closed',
 				'ping_status'    => 'closed',
@@ -180,11 +180,12 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		$changes = $product->get_changes();
 
 		// Only update the post when the post data changes.
-		if ( array_intersect( array( 'name', 'parent_id', 'status', 'menu_order', 'date_created', 'date_modified' ), array_keys( $changes ) ) ) {
+		if ( array_intersect( array( 'name', 'parent_id', 'status', 'menu_order', 'date_created', 'date_modified', 'description' ), array_keys( $changes ) ) ) {
 			$post_data = array(
 				'post_title'        => $product->get_name( 'edit' ),
 				'post_parent'       => $product->get_parent_id( 'edit' ),
 				'comment_status'    => 'closed',
+				'post_content'      => $product->get_description( 'edit' ),
 				'post_status'       => $product->get_status( 'edit' ) ? $product->get_status( 'edit' ) : 'publish',
 				'menu_order'        => $product->get_menu_order( 'edit' ),
 				'post_date'         => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
@@ -518,17 +519,5 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				}
 			}
 		}
-	}
-
-	/**
-	 * Helper method that updates all the post meta for a product based on it's settings in the WC_Product class.
-	 *
-	 * @since 3.0.0
-	 * @param WC_Product
-	 * @param bool Force update. Used during create.
-	 * @todo this method won't be needed but we need to move `_variation_description` to post content or excerpt.
-	 */
-	public function update_post_meta( &$product, $force = false ) {
-		parent::update_post_meta( $product, $force );
 	}
 }
