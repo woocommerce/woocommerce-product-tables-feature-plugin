@@ -71,7 +71,6 @@ class WC_Product_Tables_Install {
 			  `priority` int(11) NOT NULL default 1,
 			  `attribute_id` bigint(20) NOT NULL,
 			  PRIMARY KEY  (`product_attribute_id`)
-			  UNIQUE (`name`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attribute_values (
