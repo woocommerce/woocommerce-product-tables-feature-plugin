@@ -549,9 +549,26 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 					'product_id' => $id,
 				)
 			); // WPCS: db call ok, cache ok.
-
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_product_relationships",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_product_downloads",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_product_variation_attribute_values",
+				array(
+					'product_id' => $id,
+				)
+			); // WPCS: db call ok, cache ok.
+			$wpdb->delete(
+				"{$wpdb->prefix}wc_product_attribute_values",
 				array(
 					'product_id' => $id,
 				)
@@ -1693,7 +1710,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'virtual',
 			'downloadable',
 			'total_sales',
-			'virtual',
 			'downloadable',
 			'stock_quantity',
 			'average_rating',
@@ -1712,12 +1728,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
 				$query = array(
 					'value'   => $query_vars[ $product_table_query ],
+					'format'  => '%s',
 					'compare' => is_array( $query_vars[ $product_table_query ] ) ? 'IN' : '=',
 				);
 				switch ( $product_table_query ) {
 					case 'virtual':
 					case 'downloadable':
-						$query['value'] = $query_vars[ $product_table_query ] ? 1 : 0;
+						$query['value']  = $query_vars[ $product_table_query ] ? 1 : 0;
+						$query['format'] = '%d';
 						break;
 					case 'sku':
 						$query['compare'] = 'LIKE';
@@ -1890,13 +1908,21 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		if ( ! empty( $query->query_vars['wc_products_query'] ) ) {
 			foreach ( $query->query_vars['wc_products_query'] as $name => $query ) {
-				$name              = sanitize_key( $name );
-				$value             = $query['value'];
-				$compare           = $query['compare'];
+				$name    = sanitize_key( $name );
+				$value   = $query['value'];
+				$compare = $query['compare'];
+				$format  = $query['format'];
+
 				$compare_operators = array( '=', '!=', '>', '>=', '<', '<=', 'IS NULL', 'IS NOT NULL', 'LIKE', 'IN', 'NOT IN' );
 
 				if ( ! in_array( $compare, $compare_operators, true ) ) {
 					$compare = '=';
+				}
+
+				$allowed_formats = array( '%s', '%f', '%d' );
+
+				if ( ! in_array( $format, $allowed_formats, true ) ) {
+					$format = '%s';
 				}
 
 				switch ( $compare ) {
@@ -1909,10 +1935,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						$where .= " AND products.{$name} {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
 						break;
 					case 'LIKE':
-						$where .= $wpdb->prepare( " AND products.{$name} LIKE %s ", '%' . $wpdb->esc_like( $value ) . '%' );
+						$where .= $wpdb->prepare( " AND products.{$name} LIKE {$format} ", '%' . $wpdb->esc_like( $value ) . '%' );
 						break;
 					default:
-						$where .= $wpdb->prepare( " AND products.{$name}{$compare}%s ", $value );
+						$where .= $wpdb->prepare( " AND products.{$name}{$compare}{$format} ", $value );
 				}
 			}
 		}
