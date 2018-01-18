@@ -1332,7 +1332,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 
 			/**
-			 * In downloads table.
+			 * In downloads table. @todo Products and data stores are not handling this correctly. Was previously meta.
 			 */
 			'_download_limit' => array(
 				'get' => array(

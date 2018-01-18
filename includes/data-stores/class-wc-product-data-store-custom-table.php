@@ -294,8 +294,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'_backorders'         => 'backorders',
 			'_sold_individually'  => 'sold_individually',
 			'_purchase_note'      => 'purchase_note',
-			'_download_limit'     => 'download_limit',
-			'_download_expiry'    => 'download_expiry',
 		);
 
 		foreach ( $meta_to_props as $meta_key => $prop ) {
@@ -550,38 +548,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			return;
 		}
 
-		if ( $args['force_delete'] ) {
-			var_dump($wpdb->delete(
-				"{$wpdb->prefix}wc_products",
-				array(
-					'product_id' => $id,
-				)
-			)); // WPCS: db call ok, cache ok.
-			$wpdb->delete(
-				"{$wpdb->prefix}wc_product_relationships",
-				array(
-					'product_id' => $id,
-				)
-			); // WPCS: db call ok, cache ok.
-			$wpdb->delete(
-				"{$wpdb->prefix}wc_product_downloads",
-				array(
-					'product_id' => $id,
-				)
-			); // WPCS: db call ok, cache ok.
-			$wpdb->delete(
-				"{$wpdb->prefix}wc_product_variation_attribute_values",
-				array(
-					'product_id' => $id,
-				)
-			); // WPCS: db call ok, cache ok.
-			$wpdb->delete(
-				"{$wpdb->prefix}wc_product_attribute_values",
-				array(
-					'product_id' => $id,
-				)
-			); // WPCS: db call ok, cache ok.
+		$this->clear_caches( $product );
 
+		if ( $args['force_delete'] ) {
+			$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $id ), array( '%d' ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete( "{$wpdb->prefix}wc_product_relationships", array( 'product_id' => $id ), array( '%d' ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete( "{$wpdb->prefix}wc_product_downloads", array( 'product_id' => $id ), array( '%d' ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete( "{$wpdb->prefix}wc_product_variation_attribute_values", array( 'product_id' => $id ), array( '%d' ) ); // WPCS: db call ok, cache ok.
+			$wpdb->delete( "{$wpdb->prefix}wc_product_attribute_values", array( 'product_id' => $id ), array( '%d' ) ); // WPCS: db call ok, cache ok.
 			wp_delete_post( $id );
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
@@ -600,6 +574,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	protected function clear_caches( &$product ) {
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_relationships_' . $product->get_id(), 'product' );
+		wp_cache_delete( 'woocommerce_product_downloads_' . $product->get_id(), 'product' );
 		wc_delete_product_transients( $product->get_id() );
 	}
 
@@ -627,8 +602,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'_backorders'        => 'backorders',
 			'_sold_individually' => 'sold_individually',
 			'_purchase_note'     => 'purchase_note',
-			'_download_limit'    => 'download_limit',
-			'_download_expiry'   => 'download_expiry',
 			'_wc_rating_count'   => 'rating_counts',
 			'_wc_review_count'   => 'review_count',
 		);
