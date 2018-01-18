@@ -24,6 +24,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @var array
 	 */
 	protected $internal_meta_keys = array(
+		'_backorders',
 		'_sold_individually',
 		'_purchase_note',
 		'_wc_rating_count',
@@ -347,6 +348,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$product->set_date_created( current_time( 'timestamp', true ) );
 			}
 
+			// Handle manage_stock prop which is changing in this schema. @todo Depreate in core?
+			if ( $product->get_manage_stock( 'edit' ) && ! $product->get_stock_quantity( 'edit' ) ) {
+				$product->set_stock_quantity( 0 );
+			}
+
 			$id = wp_insert_post(
 				apply_filters(
 					'woocommerce_new_product_data',
@@ -446,6 +452,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$product->save_meta_data();
 		$changes = $product->get_changes();
 
+		// Handle manage_stock prop which is changing in this schema. @todo Depreate in core?
+		if ( array_key_exists( 'manage_stock', $changes ) && ! $product->get_stock_quantity( 'edit' ) ) {
+			$product->set_stock_quantity( 0 );
+		}
+
 		// Only update the post when the post data changes.
 		if ( array_intersect( array( 'description', 'short_description', 'name', 'parent_id', 'reviews_allowed', 'status', 'menu_order', 'date_created', 'date_modified', 'slug' ), array_keys( $changes ) ) ) {
 			$post_data = array(
@@ -540,15 +551,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		}
 
 		if ( $args['force_delete'] ) {
-			wp_delete_post( $id );
-
-			// @todo repeat for all new tables.
-			$wpdb->delete(
+			var_dump($wpdb->delete(
 				"{$wpdb->prefix}wc_products",
 				array(
 					'product_id' => $id,
 				)
-			); // WPCS: db call ok, cache ok.
+			)); // WPCS: db call ok, cache ok.
 			$wpdb->delete(
 				"{$wpdb->prefix}wc_product_relationships",
 				array(
@@ -574,6 +582,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				)
 			); // WPCS: db call ok, cache ok.
 
+			wp_delete_post( $id );
 			$product->set_id( 0 );
 			do_action( 'woocommerce_delete_' . $post_type, $id );
 		} else {
@@ -1653,16 +1662,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @return array
 	 */
 	protected function get_wp_query_args( $query_vars ) {
-		// Allow parent class to process the query vars and set defaults.
-		$wp_query_args = wp_parse_args(
-			parent::get_wp_query_args( $query_vars ),
-			array(
-				'date_query'        => array(),
-				'meta_query'        => array(), // @codingStandardsIgnoreLine.
-				'wc_products_query' => array(), // Custom table queries will be stored here and turned into queries later.
-			)
-		);
-
 		// Map query vars to ones that get_wp_query_args or WP_Query recognize.
 		$key_mapping = array(
 			'status'       => 'post_status',
@@ -1673,8 +1672,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		);
 		foreach ( $key_mapping as $query_key => $db_key ) {
 			if ( isset( $query_vars[ $query_key ] ) ) {
-				$wp_query_args[ $db_key ] = $query_vars[ $query_key ];
-				unset( $wp_query_args[ $query_key ] );
+				$query_vars[ $db_key ] = $query_vars[ $query_key ];
+				unset( $query_vars[ $query_key ] );
 			}
 		}
 
@@ -1682,12 +1681,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$date_queries = array(
 			'date_created'      => 'post_date',
 			'date_modified'     => 'post_modified',
-			'date_on_sale_from' => 'products.date_on_sale_from',
-			'date_on_sale_to'   => 'products.date_on_sale_to',
 		);
 		foreach ( $date_queries as $query_var_key => $db_key ) {
 			if ( isset( $query_vars[ $query_var_key ] ) && '' !== $query_vars[ $query_var_key ] ) {
-				$wp_query_args = $this->parse_date_for_wp_query( $query_vars[ $query_var_key ], $db_key, $wp_query_args );
+				$query_vars = $this->parse_date_for_wp_query( $query_vars[ $query_var_key ], $db_key, $query_vars );
 			}
 		}
 
@@ -1700,6 +1697,16 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$query_vars[ $boolean_query ] = $query_vars[ $boolean_query ] ? 'yes' : 'no';
 			}
 		}
+
+		// Allow parent class to process the query vars and set defaults.
+		$wp_query_args = wp_parse_args(
+			parent::get_wp_query_args( $query_vars ),
+			array(
+				'date_query'        => array(),
+				'meta_query'        => array(), // @codingStandardsIgnoreLine.
+				'wc_products_query' => array(), // Custom table queries will be stored here and turned into queries later.
+			)
+		);
 
 		/**
 		 * Custom table maping - Map fields in the wc_products table.
@@ -1723,6 +1730,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'price',
 			'regular_price',
 			'sale_price',
+			'date_on_sale_from',
+			'date_on_sale_to',
 		);
 		foreach ( $product_table_queries as $product_table_query ) {
 			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
@@ -1736,6 +1745,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 					case 'downloadable':
 						$query['value']  = $query_vars[ $product_table_query ] ? 1 : 0;
 						$query['format'] = '%d';
+						break;
+					case 'date_on_sale_from':
+					case 'date_on_sale_to':
+						$query['value'] = $this->parse_date_for_wp_query( $query_vars[ $product_table_query ], $product_table_query, $wp_query_args );
 						break;
 					case 'sku':
 						$query['compare'] = 'LIKE';
@@ -1759,7 +1772,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		if ( isset( $query_vars['manage_stock'] ) && '' !== $query_vars['manage_stock'] ) {
 			if ( ! isset( $wp_query_args['wc_products_query']['stock_quantity'] ) ) {
 				$wp_query_args['wc_products_query']['stock_quantity'] = array(
-					'value'   => '',
 					'compare' => $query_vars['manage_stock'] ? 'IS NOT NULL' : 'IS NULL',
 				);
 			}
@@ -1909,9 +1921,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		if ( ! empty( $query->query_vars['wc_products_query'] ) ) {
 			foreach ( $query->query_vars['wc_products_query'] as $name => $query ) {
 				$name    = sanitize_key( $name );
-				$value   = $query['value'];
-				$compare = $query['compare'];
-				$format  = $query['format'];
+				$value   = isset( $query['value'] ) ? $query['value'] : '';
+				$compare = isset( $query['compare'] ) ? $query['compare'] : '=';
+				$format  = isset( $query['format'] ) ? $query['format'] : '%s';
 
 				$compare_operators = array( '=', '!=', '>', '>=', '<', '<=', 'IS NULL', 'IS NOT NULL', 'LIKE', 'IN', 'NOT IN' );
 
@@ -1928,17 +1940,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				switch ( $compare ) {
 					case 'IS NULL':
 					case 'IS NOT NULL':
-						$where .= " AND products.{$name} {$value} ";
+						$where .= " AND products.`{$name}` {$compare} ";
 						break;
 					case 'IN':
 					case 'NOT IN':
-						$where .= " AND products.{$name} {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
+						$where .= " AND products.`{$name}` {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
 						break;
 					case 'LIKE':
-						$where .= $wpdb->prepare( " AND products.{$name} LIKE {$format} ", '%' . $wpdb->esc_like( $value ) . '%' );
+						$where .= $wpdb->prepare( " AND products.`{$name}` LIKE {$format} ", '%' . $wpdb->esc_like( $value ) . '%' );
 						break;
 					default:
-						$where .= $wpdb->prepare( " AND products.{$name}{$compare}{$format} ", $value );
+						$where .= $wpdb->prepare( " AND products.`{$name}`{$compare}{$format} ", $value );
 				}
 			}
 		}
