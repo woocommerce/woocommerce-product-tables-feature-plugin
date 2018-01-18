@@ -52,9 +52,18 @@ class WCPT_Unit_Tests_Bootstrap {
 	}
 
 	/**
-	 * Install WooCommerce after the test environment and WC have been loaded.
+	 * Install WooCommerce after the test environment and WC have been loaded. @todo new tables will need removing in core when merged.
 	 */
 	public function install() {
+		global $wpdb;
+
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_products" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_product_attributes" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_product_attribute_values" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_product_downloads" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_product_relationships" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_product_variation_attribute_values" );
+
 		WC_Product_Tables_Install::activate();
 	}
 

@@ -1636,6 +1636,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @return array
 	 */
 	protected function get_wp_query_args( $query_vars ) {
+		// Allow parent class to process the query vars and set defaults.
 		$wp_query_args = wp_parse_args(
 			parent::get_wp_query_args( $query_vars ),
 			array(
@@ -1655,7 +1656,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		);
 		foreach ( $key_mapping as $query_key => $db_key ) {
 			if ( isset( $query_vars[ $query_key ] ) ) {
-				$query_vars[ $db_key ] = $query_vars[ $query_key ];
+				$wp_query_args[ $db_key ] = $query_vars[ $query_key ];
 				unset( $wp_query_args[ $query_key ] );
 			}
 		}
@@ -1709,15 +1710,20 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		);
 		foreach ( $product_table_queries as $product_table_query ) {
 			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
+				$query = array(
+					'value'   => $query_vars[ $product_table_query ],
+					'compare' => is_array( $query_vars[ $product_table_query ] ) ? 'IN' : '=',
+				);
 				switch ( $product_table_query ) {
 					case 'virtual':
 					case 'downloadable':
-						$wp_query_args['wc_products_query'][ $product_table_query ] = $query_vars[ $product_table_query ] ? 1 : 0;
+						$query['value'] = $query_vars[ $product_table_query ] ? 1 : 0;
 						break;
-					default:
-						$wp_query_args['wc_products_query'][ $product_table_query ] = $query_vars[ $product_table_query ];
+					case 'sku':
+						$query['compare'] = 'LIKE';
 						break;
 				}
+				$wp_query_args['wc_products_query'][ $product_table_query ] = $query;
 				unset( $wp_query_args[ $product_table_query ] );
 			}
 		}
@@ -1734,7 +1740,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		// Manage stock/stock queries.
 		if ( isset( $query_vars['manage_stock'] ) && '' !== $query_vars['manage_stock'] ) {
 			if ( ! isset( $wp_query_args['wc_products_query']['stock_quantity'] ) ) {
-				$wp_query_args['wc_products_query']['stock_quantity'] = $query_vars['manage_stock'] ? 'IS NOT NULL' : 'IS NULL';
+				$wp_query_args['wc_products_query']['stock_quantity'] = array(
+					'value'   => '',
+					'compare' => $query_vars['manage_stock'] ? 'IS NOT NULL' : 'IS NULL',
+				);
 			}
 		}
 
@@ -1880,15 +1889,30 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		global $wpdb;
 
 		if ( ! empty( $query->query_vars['wc_products_query'] ) ) {
-			foreach ( $query->query_vars['wc_products_query'] as $name => $value ) {
-				$name = sanitize_key( $name );
+			foreach ( $query->query_vars['wc_products_query'] as $name => $query ) {
+				$name              = sanitize_key( $name );
+				$value             = $query['value'];
+				$compare           = $query['compare'];
+				$compare_operators = array( '=', '!=', '>', '>=', '<', '<=', 'IS NULL', 'IS NOT NULL', 'LIKE', 'IN', 'NOT IN' );
 
-				if ( in_array( $value, array( 'IS NOT NULL', 'IS NULL' ), true ) ) {
-					$where .= " AND products.{$name} {$value} ";
-				} elseif ( is_array( $value ) ) {
-					$where .= " AND products.{$name} IN ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
-				} else {
-					$where .= $wpdb->prepare( " AND products.{$name}=%s ", $value );
+				if ( ! in_array( $compare, $compare_operators, true ) ) {
+					$compare = '=';
+				}
+
+				switch ( $compare ) {
+					case 'IS NULL':
+					case 'IS NOT NULL':
+						$where .= " AND products.{$name} {$value} ";
+						break;
+					case 'IN':
+					case 'NOT IN':
+						$where .= " AND products.{$name} {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
+						break;
+					case 'LIKE':
+						$where .= $wpdb->prepare( " AND products.{$name} LIKE %s ", '%' . $wpdb->esc_like( $value ) . '%' );
+						break;
+					default:
+						$where .= $wpdb->prepare( " AND products.{$name}{$compare}%s ", $value );
 				}
 			}
 		}
