@@ -88,6 +88,86 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	}
 
 	/**
+	 * Read product data. Can be overridden by child classes to load other props.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
+	 */
+	protected function read_product_data( &$product ) {
+		$id            = $product->get_id();
+		$props         = $this->get_product_row_from_db( $product->get_id() );
+		$review_count  = get_post_meta( $id, '_wc_review_count', true );
+		$rating_counts = get_post_meta( $id, '_wc_rating_count', true );
+
+		if ( '' === $review_count ) {
+			WC_Comments::get_review_count_for_product( $product );
+		} else {
+			$props['review_count'] = $review_count;
+		}
+
+		if ( '' === $rating_counts ) {
+			WC_Comments::get_rating_counts_for_product( $product );
+		} else {
+			$props['rating_counts'] = $rating_counts;
+		}
+
+		$props['manage_stock'] = isset( $props['stock_quantity'] ) && ! is_null( $props['stock_quantity'] );
+
+		$meta_to_props = array(
+			'_backorders'         => 'backorders',
+			'_sold_individually'  => 'sold_individually',
+			'_purchase_note'      => 'purchase_note',
+			'_download_limit'     => 'download_limit',
+			'_download_expiry'    => 'download_expiry',
+		);
+
+		foreach ( $meta_to_props as $meta_key => $prop ) {
+			$props[ $prop ] = get_post_meta( $id, $meta_key, true );
+		}
+
+		$taxonomies_to_props = array(
+			'product_cat'            => 'category_ids',
+			'product_tag'            => 'tag_ids',
+			'product_shipping_class' => 'shipping_class_id',
+		);
+
+		foreach ( $taxonomies_to_props as $taxonomy => $prop ) {
+			$props[ $prop ] = $this->get_term_ids( $product, $taxonomy );
+
+			if ( 'shipping_class_id' === $prop ) {
+				$props[ $prop ] = current( $props[ $prop ] );
+			}
+		}
+
+		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
+
+		foreach ( $this->relationships as $type => $prop ) {
+			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
+				return ! empty( $relationship->type ) && $relationship->type === $type;
+			});
+			$values = array_values( wp_list_pluck( $relationships, 'object_id' ) );
+			$props[ $prop ] = $values;
+		}
+
+		$product->set_props( $props );
+
+		if ( $product->is_on_sale( 'edit' ) ) {
+			$product->set_price( $product->get_sale_price( 'edit' ) );
+		} else {
+			$product->set_price( $product->get_regular_price( 'edit' ) );
+		}
+
+		// Read parent data.
+		$parent = wc_get_product( $product->get_parent_id() );
+		$product->set_parent_data( array_merge( $parent->get_data(), array( 'title' => $parent->get_title() ) ) );
+
+		// Pull data from the parent when there is no user-facing way to set props.
+		$product->set_sold_individually( $parent->get_sold_individually() );
+		$product->set_tax_status( $parent->get_tax_status() );
+		$product->set_cross_sell_ids( $parent->get_cross_sell_ids() );
+	}
+
+	/**
 	 * Create a new product variation.
 	 *
 	 * @param WC_Product $product Product object.
