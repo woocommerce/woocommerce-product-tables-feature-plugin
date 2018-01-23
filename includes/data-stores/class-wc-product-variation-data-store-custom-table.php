@@ -253,7 +253,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				$attribute_name = $this->get_product_attribute_name_from_id( $product, $attr->product_attribute_id );
 
 				if ( $attribute_name ) {
-					$attributes[ $attribute_name ] = $attr->value;
+					$attributes[ sanitize_title( $attribute_name ) ] = $attr->value;
 				}
 			}
 			$product->set_attributes( $attributes );
@@ -438,6 +438,18 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	}
 
 	/**
+	 * Get a product attributes ID from the unique attribute name in slug format.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param string     $attribute_slug Name of attribute to lookup.
+	 * @return int
+	 */
+	protected function get_product_attribute_id_from_slug( &$product, $attribute_slug = '' ) {
+		$attributes = array_map( 'sanitize_title', $this->get_parent_product_attribute_names( $product ) );
+		return absint( array_search( $attribute_slug, $attributes, true ) );
+	}
+
+	/**
 	 * Get product attributes from the parent.
 	 *
 	 * @param WC_Product $product Product object.
@@ -472,16 +484,20 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		if ( $force || array_key_exists( 'attributes', $changes ) ) {
 			$attributes          = $product->get_attributes();
-			$existing_attributes = array_map( 'absint', wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
+			$existing_attributes = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
 				SELECT product_attribute_id, value FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d
-			", $product->get_id() ) ), 'value', 'product_attribute_id' ) ); // WPCS: db call ok, cache ok.
+			", $product->get_id() ) ), 'value', 'product_attribute_id' ); // WPCS: db call ok, cache ok.
 
 			if ( $attributes ) {
 				$updated_attribute_ids = array();
 
 				foreach ( $attributes as $attribute_key => $attribute_value ) {
-					// Variation objects store name=>value pairs, so do a lookup on the attribute ID from the name.
-					$product_attribute_id = $this->get_product_attribute_id_from_name( $product, $attribute_key );
+					/**
+					 * Variation objects store name(slug)=>value pairs, so do a lookup on the attribute ID from the name.
+					 * @todo when this moves to core I suggest we refactor the slug=>value pair storage and use IDs. This may
+					 * be a breaking change. For now we can workaround it with lookups.
+					 */
+					$product_attribute_id = $this->get_product_attribute_id_from_slug( $product, $attribute_key );
 
 					if ( ! $product_attribute_id ) {
 						continue;
