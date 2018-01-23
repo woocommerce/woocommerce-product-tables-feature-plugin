@@ -159,12 +159,15 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		// Read parent data.
 		$parent = wc_get_product( $product->get_parent_id() );
-		$product->set_parent_data( array_merge( $parent->get_data(), array( 'title' => $parent->get_title() ) ) );
 
-		// Pull data from the parent when there is no user-facing way to set props.
-		$product->set_sold_individually( $parent->get_sold_individually() );
-		$product->set_tax_status( $parent->get_tax_status() );
-		$product->set_cross_sell_ids( $parent->get_cross_sell_ids() );
+		if ( $parent ) {
+			$product->set_parent_data( array_merge( $parent->get_data(), array( 'title' => $parent->get_title() ) ) );
+
+			// Pull data from the parent when there is no user-facing way to set props.
+			$product->set_sold_individually( $parent->get_sold_individually() );
+			$product->set_tax_status( $parent->get_tax_status() );
+			$product->set_cross_sell_ids( $parent->get_cross_sell_ids() );
+		}
 	}
 
 	/**
