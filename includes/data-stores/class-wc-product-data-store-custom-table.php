@@ -1029,7 +1029,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 						'attribute_id' => $attribute->get_attribute_id(),
 					);
 
-					if ( $attribute->get_product_attribute_id() ) {
+					if ( $product_attribute_id ) {
 						$wpdb->update(
 							"{$wpdb->prefix}wc_product_attributes",
 							$attribute_data,
@@ -1066,9 +1066,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					}
 
 					// Get existing values.
-					$existing_attribute_values = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
-						SELECT attribute_value_id, value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
-					", $product_attribute_id ) ), 'value', 'attribute_value_id' ); // WPCS: db call ok, cache ok.
+					$existing_attribute_values = array_map( 'absint', wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
+						SELECT attribute_value_id, value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d AND product_id = %d
+					", $product_attribute_id, $product->get_id() ) ), 'value', 'attribute_value_id' ) ); // WPCS: db call ok, cache ok.
 
 					// Delete non-existing values.
 					$attributes_values_to_delete = array_diff( $existing_attribute_values, $attribute_values );
@@ -1081,7 +1081,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Product_Data_Store_CPT imple
 					$count = 0;
 
 					foreach ( $attribute_values as $attribute_value ) {
-						$attribute_value_id = array_search( $attribute_value, $existing_attribute_values, true );
+						$attribute_value_id   = array_search( $attribute_value, $existing_attribute_values, true );
 						$attribute_value_data = array(
 							'product_id'           => $product->get_id(),
 							'product_attribute_id' => $product_attribute_id,

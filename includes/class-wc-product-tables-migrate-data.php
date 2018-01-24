@@ -8,6 +8,8 @@
 
 /**
  * Class WC_Product_Tables_Migrate_Data
+ *
+ * @todo migrate _variation_description meta to post_content
  */
 class WC_Product_Tables_Migrate_Data {
 
