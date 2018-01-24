@@ -828,8 +828,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			SELECT products.product_id
 			FROM {$wpdb->prefix}wc_products as products
 			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE products.`sale_price_dates_from` > 0
-			AND products.`sale_price_dates_from` < %s
+			WHERE products.`date_on_sale_from` > 0
+			AND products.`date_on_sale_from` < %s
 			AND products.`price` != products.`sale_price`
 		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
 	}
@@ -847,8 +847,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			SELECT products.product_id
 			FROM {$wpdb->prefix}wc_products as products
 			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE products.`sale_price_dates_to` > 0
-			AND products.`sale_price_dates_to` < %s
+			WHERE products.`date_on_sale_to` > 0
+			AND products.`date_on_sale_to` < %s
 			AND products.`price` != products.`regular_price`
 		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
 	}

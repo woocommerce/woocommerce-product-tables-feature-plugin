@@ -83,7 +83,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	}
 
 	/**
-	 * Loads an array of attributes used for variations, as well as their possible values. @todo
+	 * Loads an array of attributes used for variations, as well as their possible values.
 	 *
 	 * @param WC_Product $product Product object.
 	 */
@@ -107,10 +107,12 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					continue;
 				}
 
-				// Get possible values for this attribute, for only visible variations.
-				$values = array_unique( $wpdb->get_col( $wpdb->prepare(
-					"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_attribute_id = %d AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
-					$attribute->get_attribute_id()
+				$product_attribute_id = $attribute->get_product_attribute_id();
+				$values               = array_unique( $wpdb->get_col( $wpdb->prepare( "
+					SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
+					WHERE product_attribute_id=%d
+					AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
+					$product_attribute_id
 				) ) );
 
 				// Empty value indicates that all options for given attribute are available.
