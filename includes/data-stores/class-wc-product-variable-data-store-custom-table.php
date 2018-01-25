@@ -103,7 +103,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 		if ( ! empty( $child_ids ) && ! empty( $attributes ) ) {
 			foreach ( $attributes as $attribute ) {
-				if ( empty( $attribute['is_variation'] ) ) {
+				if ( ! $attribute->get_variation() ) {
 					continue;
 				}
 
@@ -117,10 +117,9 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 				// Empty value indicates that all options for given attribute are available.
 				if ( in_array( '', $values ) || empty( $values ) ) {
-					$values = $attribute['is_taxonomy'] ? wc_get_object_terms( $product->get_id(), $attribute['name'], 'slug' ) : wc_get_text_attributes( $attribute['value'] );
-					// Get custom attributes (non taxonomy) as defined.
-				} elseif ( ! $attribute['is_taxonomy'] ) {
-					$text_attributes          = wc_get_text_attributes( $attribute['value'] );
+					$values = $attribute->get_slugs();
+				} elseif ( ! $attribute->is_taxonomy() ) {
+					$text_attributes          = $attribute->get_options();
 					$assigned_text_attributes = $values;
 					$values                   = array();
 
@@ -130,14 +129,13 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						}
 					}
 				}
-				$variation_attributes[ $attribute['name'] ] = array_unique( $values );
+				$variation_attributes[ $attribute->get_name() ] = array_unique( $values );
 			}
 		}
 
 		wp_cache_set( $cache_key, $variation_attributes, $cache_group );
 
 		return $variation_attributes;
-
 	}
 
 	/**

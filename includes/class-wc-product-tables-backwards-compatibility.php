@@ -345,7 +345,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function get_variation_description( $args ) {
-		$default = array(
+		$defaults = array(
 			'product_id' => 0,
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -1332,7 +1332,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 
 			/**
-			 * In downloads table.
+			 * In downloads table. @todo Products and data stores are not handling this correctly. Was previously meta.
 			 */
 			'_download_limit' => array(
 				'get' => array(
