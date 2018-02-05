@@ -71,7 +71,6 @@ class WC_Custom_Meta_Box_Product_Data {
 					$download->set_limit( $limits[ $i ] );
 					$download->set_expiry( $expires[ $i ] );
 					$downloads[] = $download;
-					error_log( print_r( $downloads, true ) );
 				}
 			}
 		}
