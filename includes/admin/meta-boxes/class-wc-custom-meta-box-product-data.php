@@ -68,8 +68,8 @@ class WC_Custom_Meta_Box_Product_Data {
 					$download->set_id( ! empty( $ids[ $i ] ) ? $ids[ $i ] : 'tmp_' . $i );
 					$download->set_name( wc_clean( $names[ $i ] ) );
 					$download->set_file( wp_unslash( trim( $files[ $i ] ) ) );
-					// @todo handle limits on WC_Product_Download.
-					// @todo handle expires on WC_Product_Download.
+					$download->set_limit( $limits[ $i ] );
+					$download->set_expiry( $expires[ $i ] );
 					$downloads[] = $download;
 				}
 			}
