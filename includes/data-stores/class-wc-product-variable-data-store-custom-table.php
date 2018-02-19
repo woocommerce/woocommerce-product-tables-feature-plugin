@@ -45,7 +45,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	}
 
 	/**
-	 * Loads variation child IDs. @todo woocommerce_variable_children_args bw compat
+	 * Loads variation child IDs.
 	 *
 	 * @param  WC_Product $product Product object.
 	 * @param  bool       $force_read True to bypass the transient.
@@ -56,30 +56,58 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		$children                = get_transient( $children_transient_name );
 
 		if ( empty( $children ) || ! is_array( $children ) || ! isset( $children['all'] ) || ! isset( $children['visible'] ) || $force_read ) {
-			$products = wc_get_products( array(
+
+			$all_args = array(
 				'parent'  => $product->get_id(),
 				'type'    => 'variation',
 				'orderby' => 'menu_order',
+				'order'   => 'ASC',
 				'limit'   => -1,
 				'return'  => 'ids',
-			) );
+				'status' => array( 'publish', 'private' ),
+				'numberposts' => -1,
+			);
+			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
-			$children['all']     = $products;
-			$children['visible'] = $products;
-
+			$visible_only_args                = $all_args;
+			$visible_only_args['post_status'] = 'publish';
 			if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
-				$children['visible'] = wc_get_products( array(
-					'parent'       => $product->get_id(),
-					'type'         => 'variation',
-					'orderby'      => 'menu_order',
-					'limit'        => -1,
-					'stock_status' => 'instock',
-					'return'       => 'ids',
-				) );
+				$visible_only_args['stock_status'] = 'instock';
 			}
+			$visible_only_args = apply_filters( 'woocommerce_variable_children_args', $visible_only_args, $product, true );
+
+			$children['all'] = wc_get_products( $this->map_legacy_product_args( $all_args ) );
+			$children['visible'] = wc_get_products( $this->map_legacy_product_args( $visible_only_args ) );
+
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
 		return $children;
+	}
+
+	/**
+	 * Map legacy WP_Query args to new wc_get_product args.
+	 *
+	 * @param array $args Arguments
+	 * @return array
+	 */
+	protected function map_legacy_product_args( $args ) {
+		$legacy_map = array(
+			'post_parent'    => 'parent',
+			'post_type'      => 'type',
+			'post_status'    => 'status',
+			'fields'         => 'return',
+			'posts_per_page' => 'limit',
+			'paged'          => 'page',
+			'numberposts'    => 'limit',
+		);
+
+		foreach ( $legacy_map as $from => $to ) {
+			if ( isset( $args[ $from ] ) ) {
+				$args[ $to ] = $args[ $from ];
+			}
+		}
+
+		return $args;
 	}
 
 	/**
