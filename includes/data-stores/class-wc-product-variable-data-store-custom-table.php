@@ -435,11 +435,35 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		}
 	}
 
+	/**
+	 * Stock managed at the parent level - update children being managed by this product.
+	 * This sync function syncs downwards (from parent to child) when the variable product is saved.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
+	 */
+	public function sync_managed_variation_stock_status( &$product ) {
+		global $wpdb;
+
+		if ( $product->get_manage_stock() ) {
+			$status           = $product->get_stock_status();
+			$children         = $product->get_children();
+			$wpdb->query(
+				"
+					UPDATE {$wpdb->prefix}wc_products as products
+					SET stock_status = %s
+					WHERE product_id IN ( " . implode( ',', $children ) . " )
+				"
+			);
+			$children = $this->read_children( $product, true );
+			$product->set_children( $children['all'] );
+			$product->set_visible_children( $children['visible'] );
+		}
+	}
+
 	/*
 	 * @todo
 	 *
-	 * sync_variation_names
-	 * sync_managed_variation_stock_status
 	 * sync_price
 	 * sync_stock_status
 	 * delete_variations
