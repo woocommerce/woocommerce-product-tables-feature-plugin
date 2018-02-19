@@ -487,11 +487,26 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		}
 	}
 
+	/**
+	 * Sync variable product stock status with children.
+	 * Change does not persist unless saved by caller.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function sync_stock_status( &$product ) {
+		if ( $product->child_is_in_stock() ) {
+			$product->set_stock_status( 'instock' );
+		} elseif ( $product->child_is_on_backorder() ) {
+			$product->set_stock_status( 'onbackorder' );
+		} else {
+			$product->set_stock_status( 'outofstock' );
+		}
+	}
+
 	/*
 	 * @todo
 	 *
-	 * sync_price
-	 * sync_stock_status
 	 * delete_variations
 	 * untrash_variations
 	 */
