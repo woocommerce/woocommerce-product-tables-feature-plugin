@@ -409,6 +409,32 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		return (bool) $child_is_in_stock;
 	}
 
+	/**
+	 * Syncs all variation names if the parent name is changed.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param string     $previous_name Variation previous name.
+	 * @param string     $new_name Variation new name.
+	 * @since 3.0.0
+	 */
+	public function sync_variation_names( &$product, $previous_name = '', $new_name = '' ) {
+		if ( $new_name !== $previous_name ) {
+			global $wpdb;
+
+			$wpdb->query( $wpdb->prepare(
+				"
+					UPDATE {$wpdb->posts}
+					SET post_title = REPLACE( post_title, %s, %s )
+					WHERE post_type = 'product_variation'
+					AND post_parent = %d
+				",
+				$previous_name ? $previous_name : 'AUTO-DRAFT',
+				$new_name,
+				$product->get_id()
+			) );
+		}
+	}
+
 	/*
 	 * @todo
 	 *
