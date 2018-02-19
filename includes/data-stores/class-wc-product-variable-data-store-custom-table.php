@@ -461,6 +461,31 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		}
 	}
 
+	/**
+	 * Sync variable product price with children.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function sync_price( &$product ) {
+		global $wpdb;
+
+		$children = $product->get_visible_children();
+		$prices   = $children ? array_unique( $wpdb->get_col( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( " . implode( ',', array_map( 'absint', $children ) ) . ' )' ) ) : array();
+
+		if ( $prices ) {
+			$wpdb->query( $wpdb->prepare(
+				"
+					UPDATE {$wpdb->prefix}wc_products
+					SET price = %d
+					WHERE product_id = %d
+				",
+				min( $prices ),
+				$product->get_Id()
+			) );
+		}
+	}
+
 	/*
 	 * @todo
 	 *
