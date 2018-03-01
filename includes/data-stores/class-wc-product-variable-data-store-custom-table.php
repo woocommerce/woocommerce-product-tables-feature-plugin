@@ -504,10 +504,59 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		}
 	}
 
-	/*
-	 * @todo
+	/**
+	 * Delete variations of a product.
 	 *
-	 * delete_variations
-	 * untrash_variations
+	 * @since 3.0.0
+	 * @param int  $product_id Product ID.
+	 * @param bool $force_delete False to trash.
 	 */
+	public function delete_variations( $product_id, $force_delete = false ) {
+		if ( ! is_numeric( $product_id ) || 0 >= $product_id ) {
+			return;
+		}
+
+		$variation_ids = wp_parse_id_list( get_posts( array(
+			'post_parent' => $product_id,
+			'post_type'   => 'product_variation',
+			'fields'      => 'ids',
+			'post_status' => array( 'any', 'trash', 'auto-draft' ),
+			'numberposts' => -1,
+		) ) );
+
+		if ( ! empty( $variation_ids ) ) {
+			foreach ( $variation_ids as $variation_id ) {
+				if ( $force_delete ) {
+					wp_delete_post( $variation_id, true );
+				} else {
+					wp_trash_post( $variation_id );
+				}
+			}
+		}
+
+		delete_transient( 'wc_product_children_' . $product_id );
+	}
+
+	/**
+	 * Untrash variations.
+	 *
+	 * @param int $product_id Product ID.
+	 */
+	public function untrash_variations( $product_id ) {
+		$variation_ids = wp_parse_id_list( get_posts( array(
+			'post_parent' => $product_id,
+			'post_type'   => 'product_variation',
+			'fields'      => 'ids',
+			'post_status' => 'trash',
+			'numberposts' => -1,
+		) ) );
+
+		if ( ! empty( $variation_ids ) ) {
+			foreach ( $variation_ids as $variation_id ) {
+				wp_untrash_post( $variation_id );
+			}
+		}
+
+		delete_transient( 'wc_product_children_' . $product_id );
+	}
 }
