@@ -5,7 +5,7 @@
   "type": "wordpress-plugin",
   "license": "GPL-2.0+",
   "require-dev": {
-    "wp-coding-standards/wpcs": "0.13.1",
+    "wp-coding-standards/wpcs": "0.14.1",
     "woocommerce/woocommerce-git-hooks": "1.0.2"
   },
   "scripts": {
