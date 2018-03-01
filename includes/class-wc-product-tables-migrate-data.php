@@ -296,7 +296,7 @@ class WC_Product_Tables_Migrate_Data {
 
 			// Variation attribute values, lets check if the parent product has any child products ie. variations.
 			if ( 'product' === $product->post_type ) {
-				self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
+				self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
 			}
 		}
 	}
