@@ -512,6 +512,8 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 * @param bool $force_delete False to trash.
 	 */
 	public function delete_variations( $product_id, $force_delete = false ) {
+		global $wpdb;
+
 		if ( ! is_numeric( $product_id ) || 0 >= $product_id ) {
 			return;
 		}
@@ -530,6 +532,12 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					wp_delete_post( $variation_id, true );
 				} else {
 					wp_trash_post( $variation_id );
+				}
+			}
+
+			if ( $force_delete ) {
+				foreach ( $variation_ids as $variation_id ) {
+					$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $variation_id ), array( '%d' ) );
 				}
 			}
 		}
