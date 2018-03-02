@@ -5,6 +5,9 @@
 
 	<description>WooCommerce dev PHP_CodeSniffer ruleset.</description>
 
+	<!-- Excluded paths -->
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+
 	<rule ref="WordPress">
 		<exclude name="WordPress.VIP.DirectDatabaseQuery" />
 		<exclude name="WordPress.VIP.RestrictedFunctions" />
