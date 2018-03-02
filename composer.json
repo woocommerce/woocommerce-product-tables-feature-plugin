@@ -6,7 +6,7 @@
   "license": "GPL-2.0+",
   "require-dev": {
     "wp-coding-standards/wpcs": "0.14.1",
-    "woocommerce/woocommerce-git-hooks": "1.0.2"
+    "woocommerce/woocommerce-git-hooks": "1.0.5"
   },
   "scripts": {
     "pre-update-cmd": [
