@@ -83,8 +83,13 @@ class WC_Product_Tables_Migrate_Data {
 
 			foreach ( self::$meta_keys['product'] as $meta_key ) {
 				if ( '_price' === $meta_key ) {
-					// Sort from low to high picking lowest.
-					$meta_value = isset( $metas['_price'] ) ? rsort( $metas['_price'] )[0] : null;
+					if ( isset( $metas['_price'] ) ) {
+						// Sort from low to high picking lowest.
+						rsort( $metas['_price'] );
+						$meta_value = $metas['_price'][0];
+					} else {
+						$meta_value = null;
+					}
 				} else {
 					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 				}
