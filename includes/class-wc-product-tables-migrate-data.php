@@ -104,7 +104,7 @@ class WC_Product_Tables_Migrate_Data {
 				$new_download = array(
 					'product_id' => $product->ID,
 					'name' => $downloadable_file['name'],
-					'url' => $downloadable_file['file'],
+					'file' => $downloadable_file['file'],
 					'limit' => isset( $metas['_download_limit'] ) ? $metas['_download_limit'][0] : null,
 					'expires' => isset( $metas['_download_expiry'] ) ? $metas['_download_expiry'][0] : null,
 					'priority' => $priority,
@@ -296,7 +296,7 @@ class WC_Product_Tables_Migrate_Data {
 
 			// Variation attribute values, lets check if the parent product has any child products ie. variations.
 			if ( 'product' === $product->post_type ) {
-				self::migrate_variation_attribute_values( $product->ID, $attr_id, $attr_name );
+				self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
 			}
 		}
 	}
