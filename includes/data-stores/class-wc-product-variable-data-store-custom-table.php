@@ -535,7 +535,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				}
 			}
 
-			if ( $force_delete ) {
+			if ( $force_delete && ! empty( $variation_ids ) ) {
 				foreach ( $variation_ids as $variation_id ) {
 					$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $variation_id ), array( '%d' ) );
 				}
