@@ -42,7 +42,7 @@ class WC_Product_Tables_Migrate_Data {
 			'_stock_status',
 		),
 		// List of post meta keys that will be migrated to different tables created by this plugin.
-		'custom' => array(
+		'custom'  => array(
 			'_downloadable_files',
 			'_download_limit',
 			'_download_expiry',
@@ -78,7 +78,7 @@ class WC_Product_Tables_Migrate_Data {
 
 			$new_data = array(
 				'product_id' => $product->ID,
-				'type' => $product_type,
+				'type'       => $product_type,
 			);
 
 			foreach ( self::$meta_keys['product'] as $meta_key ) {
@@ -89,7 +89,7 @@ class WC_Product_Tables_Migrate_Data {
 					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 				}
 
-				$field_name = ltrim( $meta_key, '_' );
+				$field_name              = ltrim( $meta_key, '_' );
 				$new_data[ $field_name ] = $meta_value;
 			}
 
@@ -101,13 +101,13 @@ class WC_Product_Tables_Migrate_Data {
 			$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
 
 			foreach ( $downloadable_files as $download_key => $downloadable_file ) {
-				$new_download = array(
+				$new_download    = array(
 					'product_id' => $product->ID,
-					'name' => $downloadable_file['name'],
-					'url' => $downloadable_file['file'],
-					'limit' => isset( $metas['_download_limit'] ) ? $metas['_download_limit'][0] : null,
-					'expires' => isset( $metas['_download_expiry'] ) ? $metas['_download_expiry'][0] : null,
-					'priority' => $priority,
+					'name'       => $downloadable_file['name'],
+					'url'        => $downloadable_file['file'],
+					'limit'      => isset( $metas['_download_limit'] ) ? $metas['_download_limit'][0] : null,
+					'expires'    => isset( $metas['_download_expiry'] ) ? $metas['_download_expiry'][0] : null,
+					'priority'   => $priority,
 				);
 				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
@@ -148,10 +148,10 @@ class WC_Product_Tables_Migrate_Data {
 
 				foreach ( $image_ids as $image_id ) {
 					$relationship = array(
-						'type' => 'image',
+						'type'       => 'image',
 						'product_id' => $product->ID,
-						'object_id' => $image_id,
-						'priority' => $priority,
+						'object_id'  => $image_id,
+						'priority'   => $priority,
 					);
 
 					self::insert( 'wc_product_relationships', $relationship );
@@ -173,13 +173,13 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	public static function get_products() {
 		global $wpdb;
-		return $wpdb->get_results( "
-			SELECT ID, post_type FROM {$wpdb->posts}
+		return $wpdb->get_results(
+			"SELECT ID, post_type FROM {$wpdb->posts}
 			WHERE post_type IN ('product', 'product_variation')
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
-			)
-		" );
+			)"
+		);
 	}
 
 	/**
@@ -216,10 +216,10 @@ class WC_Product_Tables_Migrate_Data {
 				continue;
 			}
 			$relationship = array(
-				'type' => $relationship_type,
+				'type'       => $relationship_type,
 				'product_id' => $product_id,
-				'object_id' => $child,
-				'priority' => $priority,
+				'object_id'  => $child,
+				'priority'   => $priority,
 			);
 
 			$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
@@ -249,8 +249,8 @@ class WC_Product_Tables_Migrate_Data {
 				$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attribute_name, true );
 				if ( $variation_value ) {
 					$variation_data = array(
-						'product_id' => $variable_product->ID,
-						'value' => $variation_value,
+						'product_id'           => $variable_product->ID,
+						'value'                => $variation_value,
 						'product_attribute_id' => $attribute_id,
 					);
 					self::insert( 'wc_product_variation_attribute_values', $variation_data );
@@ -277,7 +277,7 @@ class WC_Product_Tables_Migrate_Data {
 				'is_variation' => $attr['is_variation'],
 				'priority'     => $attr['position'],
 			);
-			$is_global = false;
+			$is_global      = false;
 			if ( false !== strpos( $attr_name, 'pa_' ) ) {
 				// Global attribute.
 				$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
@@ -309,14 +309,14 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param string $attribute_name       Attribute name.
 	 */
 	protected static function migrate_global_attributes( $product_id, $product_attribute_id, $attribute_name ) {
-		$attr_terms = get_terms(
+		$attr_terms         = get_terms(
 			array(
 				'taxonomy'   => $attribute_name,
 				'object_ids' => $product_id,
 			)
 		);
 		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
-		$count = 1;
+		$count              = 1;
 		foreach ( $attr_terms as $term ) {
 			$term_data = array(
 				'product_id'           => $product_id,
@@ -344,9 +344,9 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param string $attribute_values     Attribute values.
 	 */
 	protected static function migrate_custom_attributes( $product_id, $product_attribute_id, $attribute_name, $attribute_values ) {
-		$attribute_values = explode( '|', $attribute_values );
+		$attribute_values   = explode( '|', $attribute_values );
 		$default_attributes = get_post_meta( $product_id, '_default_attributes', true );
-		$count = 1;
+		$count              = 1;
 		foreach ( $attribute_values as $attr_value ) {
 			$attr_value_data = array(
 				'product_id'           => $product_id,

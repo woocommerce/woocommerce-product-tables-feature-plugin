@@ -49,13 +49,12 @@ class WC_Product_Grouped_Data_Store_Custom_Table extends WC_Product_Data_Store_C
 		global $wpdb;
 
 		$min_price = $wpdb->get_var(
-			$wpdb->prepare( "
-				SELECT price
+			$wpdb->prepare(
+				"SELECT price
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
 				WHERE posts.post_parent = %d
-				order by price ASC
-				",
+				order by price ASC",
 				$product->get_id()
 			)
 		); // WPCS: db call ok, cache ok.

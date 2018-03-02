@@ -31,7 +31,7 @@ class WC_Custom_Meta_Box_Product_Data {
 	 * @todo This need to be changed in core.
 	 */
 	public function downloads_options_output() {
-		include( 'views/html-product-downloads.php' );
+		include 'views/html-product-downloads.php';
 	}
 
 	/**

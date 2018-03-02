@@ -37,19 +37,19 @@ class WCPT_Unit_Tests_Bootstrap {
 		define( 'WC_USE_TRANSACTIONS', false );
 
 		// load test function so tests_add_filter() is available.
-		require_once( $this->wp_tests_dir . '/includes/functions.php' );
+		require_once $this->wp_tests_dir . '/includes/functions.php';
 
 		tests_add_filter( 'muplugins_loaded', array( $this, 'load_plugin' ) );
 		tests_add_filter( 'setup_theme', array( $this, 'install' ) );
 
-		require_once( dirname( dirname( dirname( __FILE__ ) ) ) . '/woocommerce/tests/bootstrap.php' );
+		require_once dirname( dirname( dirname( __FILE__ ) ) ) . '/woocommerce/tests/bootstrap.php';
 	}
 
 	/**
 	 * Load Plugin.
 	 */
 	public function load_plugin() {
-		require_once( dirname( dirname( __FILE__ ) ) . '/woocommerce-product-tables-feature-plugin.php' );
+		require_once dirname( dirname( __FILE__ ) ) . '/woocommerce-product-tables-feature-plugin.php';
 	}
 
 	/**

@@ -23,4 +23,4 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WC_PRODUCT_TABLES_FILE', __FILE__ );
 
 // Include the main bootstrap class.
-include_once dirname( __FILE__ ) . '/includes/class-wc-product-tables-bootstrap.php';
+require_once dirname( __FILE__ ) . '/includes/class-wc-product-tables-bootstrap.php';

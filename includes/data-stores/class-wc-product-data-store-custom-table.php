@@ -76,13 +76,15 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			return;
 		}
 
-		$prop       = $this->relationships[ $type ];
-		$new_values = $product->{"get_$prop"}( 'edit' );
-		$relationships = array_filter( $this->get_product_relationship_rows_from_db( $product->get_id() ), function ( $relationship ) use ( $type ) {
-			return ! empty( $relationship->type ) && $relationship->type === $type;
-		});
-		$old_values = wp_list_pluck( $relationships, 'object_id' );
-		$missing    = array_diff( $old_values, $new_values );
+		$prop          = $this->relationships[ $type ];
+		$new_values    = $product->{"get_$prop"}( 'edit' );
+		$relationships = array_filter(
+			$this->get_product_relationship_rows_from_db( $product->get_id() ), function ( $relationship ) use ( $type ) {
+				return ! empty( $relationship->type ) && $relationship->type === $type;
+			}
+		);
+		$old_values    = wp_list_pluck( $relationships, 'object_id' );
+		$missing       = array_diff( $old_values, $new_values );
 
 		// Delete from database missing values.
 		foreach ( $missing as $object_id ) {
@@ -191,9 +193,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} elseif ( ! empty( $data ) ) {
-			$wpdb->update( "{$wpdb->prefix}wc_products", $data, array(
-				'product_id' => $product->get_id( 'edit' ),
-			) ); // WPCS: db call ok, cache ok.
+			$wpdb->update(
+				"{$wpdb->prefix}wc_products", $data, array(
+					'product_id' => $product->get_id( 'edit' ),
+				)
+			); // WPCS: db call ok, cache ok.
 		}
 
 		foreach ( $this->relationships as $type => $prop ) {
@@ -291,9 +295,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$props['manage_stock'] = isset( $props['stock_quantity'] ) && ! is_null( $props['stock_quantity'] );
 
 		$meta_to_props = array(
-			'_backorders'         => 'backorders',
-			'_sold_individually'  => 'sold_individually',
-			'_purchase_note'      => 'purchase_note',
+			'_backorders'        => 'backorders',
+			'_sold_individually' => 'sold_individually',
+			'_purchase_note'     => 'purchase_note',
 		);
 
 		foreach ( $meta_to_props as $meta_key => $prop ) {
@@ -317,10 +321,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
 
 		foreach ( $this->relationships as $type => $prop ) {
-			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
-				return ! empty( $relationship->type ) && $relationship->type === $type;
-			});
-			$values = array_values( wp_list_pluck( $relationships, 'object_id' ) );
+			$relationships  = array_filter(
+				$relationship_rows_from_db, function ( $relationship ) use ( $type ) {
+					return ! empty( $relationship->type ) && $relationship->type === $type;
+				}
+			);
+			$values         = array_values( wp_list_pluck( $relationships, 'object_id' ) );
 			$props[ $prop ] = $values;
 		}
 
@@ -702,11 +708,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		}
 
 		if ( in_array( 'stock_quantity', $this->updated_props, true ) ) {
-			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock' : 'woocommerce_product_set_stock' , $product );
+			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock' : 'woocommerce_product_set_stock', $product );
 		}
 
 		if ( in_array( 'stock_status', $this->updated_props, true ) ) {
-			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock_status' : 'woocommerce_product_set_stock_status' , $product->get_id(), $product->get_stock_status(), $product );
+			do_action( $product->is_type( 'variation' ) ? 'woocommerce_variation_set_stock_status' : 'woocommerce_product_set_stock_status', $product->get_id(), $product->get_stock_status(), $product );
 		}
 
 		// Trigger action so 3rd parties can deal with updated props.
@@ -726,13 +732,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	public function get_on_sale_products() {
 		global $wpdb;
 
-		return $wpdb->get_results( "
-			SELECT products.product_id as id, posts.post_parent as parent_id
+		return $wpdb->get_results(
+			"SELECT products.product_id as id, posts.post_parent as parent_id
 			FROM {$wpdb->prefix}wc_products as products
 			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
 			WHERE products.sale_price IS NOT NULL
-			AND products.price = products.sale_price
-			" ); // WPCS: db call ok, cache ok.
+			AND products.price = products.sale_price"
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -749,6 +755,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		return get_posts(
 			array(
 				'post_type'      => array( 'product', 'product_variation' ),
+				// phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_posts_per_page
 				'posts_per_page' => -1,
 				'post_status'    => 'publish',
 				// phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_tax_query
@@ -782,15 +789,19 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	public function is_existing_sku( $product_id, $sku ) {
 		global $wpdb;
 
-		return $wpdb->get_var( $wpdb->prepare( "
-			SELECT products.product_id
-			FROM {$wpdb->prefix}wc_products as products
-			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE posts.post_status != 'trash'
-			AND products.sku = '%s'
-			AND products.product_id <> %d
-			LIMIT 1;
-		 ", wp_slash( $sku ), $product_id ) ); // WPCS: db call ok, cache ok.
+		return $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT products.product_id
+				FROM {$wpdb->prefix}wc_products as products
+				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+				WHERE posts.post_status != 'trash'
+				AND products.sku = %s
+				AND products.product_id <> %d
+				LIMIT 1",
+				wp_slash( $sku ),
+				$product_id
+			)
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -803,14 +814,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	public function get_product_id_by_sku( $sku ) {
 		global $wpdb;
 
-		$id = $wpdb->get_var( $wpdb->prepare( "
-			SELECT products.product_id
-			FROM {$wpdb->prefix}wc_products as products
-			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE posts.post_status != 'trash'
-			AND products.sku = '%s'
-			LIMIT 1;
-		 ", $sku ) ); // WPCS: db call ok, cache ok.
+		$id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT products.product_id
+				FROM {$wpdb->prefix}wc_products as products
+				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+				WHERE posts.post_status != 'trash'
+				AND products.sku = %s
+				LIMIT 1",
+				$sku
+			)
+		); // WPCS: db call ok, cache ok.
 
 		return (int) apply_filters( 'woocommerce_get_product_id_by_sku', $id, $sku );
 	}
@@ -824,14 +838,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	public function get_starting_sales() {
 		global $wpdb;
 
-		return $wpdb->get_col( $wpdb->prepare( "
-			SELECT products.product_id
-			FROM {$wpdb->prefix}wc_products as products
-			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE products.`date_on_sale_from` > 0
-			AND products.`date_on_sale_from` < %s
-			AND products.`price` != products.`sale_price`
-		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
+		return $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT products.product_id
+				FROM {$wpdb->prefix}wc_products as products
+				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+				WHERE products.`date_on_sale_from` > 0
+				AND products.`date_on_sale_from` < %s
+				AND products.`price` != products.`sale_price`",
+				current_time( 'timestamp', true )
+			)
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -843,14 +860,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	public function get_ending_sales() {
 		global $wpdb;
 
-		return $wpdb->get_col( $wpdb->prepare( "
-			SELECT products.product_id
-			FROM {$wpdb->prefix}wc_products as products
-			LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-			WHERE products.`date_on_sale_to` > 0
-			AND products.`date_on_sale_to` < %s
-			AND products.`price` != products.`regular_price`
-		", current_time( 'timestamp', true ) ) ); // WPCS: db call ok, cache ok.
+		return $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT products.product_id
+				FROM {$wpdb->prefix}wc_products as products
+				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+				WHERE products.`date_on_sale_to` > 0
+				AND products.`date_on_sale_to` < %s
+				AND products.`price` != products.`regular_price`",
+				current_time( 'timestamp', true )
+			)
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -942,7 +962,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		}
 	}
 
-		/**
+	/**
 	 * Return a list of related products (using data like categories and IDs).
 	 *
 	 * @since 3.0.0
@@ -1093,7 +1113,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 	}
 
-		/**
+	/**
 	 * Update a products review count meta.
 	 *
 	 * @since 3.0.0
@@ -1298,9 +1318,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 */
 	public function read_attributes( &$product ) {
 		global $wpdb;
-		$product_attributes = $wpdb->get_results( $wpdb->prepare( "
-			SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
-		", $product->get_id() ) ); // WPCS: db call ok, cache ok.
+		$product_attributes = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
+				$product->get_id()
+			)
+		); // WPCS: db call ok, cache ok.
 
 		if ( ! empty( $product_attributes ) ) {
 			$attributes = array();
@@ -1313,9 +1336,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$attribute->set_visible( $attr->is_visible );
 				$attribute->set_variation( $attr->is_variation );
 
-				$attr_values = array_filter( $wpdb->get_col( $wpdb->prepare( "
-					SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d
-				", $attr->product_attribute_id ) ) ); // WPCS: db call ok, cache ok.
+				$attr_values = array_filter(
+					$wpdb->get_col(
+						$wpdb->prepare(
+							"SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d",
+							$attr->product_attribute_id
+						)
+					)
+				); // WPCS: db call ok, cache ok.
 
 				$attribute->set_options( $attr_values );
 
@@ -1414,9 +1442,14 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		if ( $force || array_key_exists( 'attributes', $changes ) || array_key_exists( 'default_attributes', $changes ) ) {
 			$attributes          = $product->get_attributes();
 			$default_attributes  = $product->get_default_attributes();
-			$existing_attributes = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
-				SELECT product_attribute_id, attribute_id FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
-			", $product->get_id( 'edit' ) ) ), 'attribute_id', 'product_attribute_id' ); // WPCS: db call ok, cache ok.
+			$existing_attributes = wp_list_pluck(
+				$wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT product_attribute_id, attribute_id FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
+						$product->get_id( 'edit' )
+					)
+				), 'attribute_id', 'product_attribute_id'
+			); // WPCS: db call ok, cache ok.
 			$updated_attributes  = array();
 
 			if ( $attributes ) {
@@ -1478,9 +1511,17 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 					}
 
 					// Get existing values.
-					$existing_attribute_values = array_map( 'absint', wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
-						SELECT attribute_value_id, value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d AND product_id = %d
-					", $product_attribute_id, $product->get_id() ) ), 'value', 'attribute_value_id' ) ); // WPCS: db call ok, cache ok.
+					$existing_attribute_values = array_map(
+						'absint', wp_list_pluck(
+							$wpdb->get_results(
+								$wpdb->prepare(
+									"SELECT attribute_value_id, value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d AND product_id = %d",
+									$product_attribute_id,
+									$product->get_id()
+								)
+							), 'value', 'attribute_value_id'
+						)
+					); // WPCS: db call ok, cache ok.
 
 					// Delete non-existing values.
 					$attributes_values_to_delete = array_diff( $existing_attribute_values, $attribute_values );
@@ -1654,8 +1695,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		// Handle date queries.
 		$date_queries = array(
-			'date_created'      => 'post_date',
-			'date_modified'     => 'post_modified',
+			'date_created'  => 'post_date',
+			'date_modified' => 'post_modified',
 		);
 		foreach ( $date_queries as $query_var_key => $db_key ) {
 			if ( isset( $query_vars[ $query_var_key ] ) && '' !== $query_vars[ $query_var_key ] ) {
@@ -1922,9 +1963,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						$where .= " AND products.`{$name}` {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
 						break;
 					case 'LIKE':
+						// phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 						$where .= $wpdb->prepare( " AND products.`{$name}` LIKE {$format} ", '%' . $wpdb->esc_like( $value ) . '%' );
 						break;
 					default:
+						// phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 						$where .= $wpdb->prepare( " AND products.`{$name}`{$compare}{$format} ", $value );
 				}
 			}
