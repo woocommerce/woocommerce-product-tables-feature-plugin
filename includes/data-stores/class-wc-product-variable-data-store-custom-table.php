@@ -58,14 +58,14 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		if ( empty( $children ) || ! is_array( $children ) || ! isset( $children['all'] ) || ! isset( $children['visible'] ) || $force_read ) {
 
 			$all_args = array(
-				'parent'  => $product->get_id(),
-				'type'    => 'variation',
-				'orderby' => 'menu_order',
-				'order'   => 'ASC',
-				'limit'   => -1,
-				'return'  => 'ids',
-				'status' => array( 'publish', 'private' ),
-				'numberposts' => -1,
+				'parent'      => $product->get_id(),
+				'type'        => 'variation',
+				'orderby'     => 'menu_order',
+				'order'       => 'ASC',
+				'limit'       => -1,
+				'return'      => 'ids',
+				'status'      => array( 'publish', 'private' ),
+				'numberposts' => -1, // @codingStandardsIgnoreLine
 			);
 			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
@@ -87,7 +87,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	/**
 	 * Map legacy WP_Query args to new wc_get_product args.
 	 *
-	 * @param array $args Arguments
+	 * @param array $args Arguments.
 	 * @return array
 	 */
 	protected function map_legacy_product_args( $args ) {
@@ -138,9 +138,9 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				$product_attribute_id = $attribute->get_product_attribute_id();
 				$values               = array_unique( $wpdb->get_col( $wpdb->prepare( "
 					SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
-					WHERE product_attribute_id=%d
-					AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
-					$product_attribute_id
+					WHERE product_attribute_id = %d
+					AND product_id IN ( %s )",
+					$product_attribute_id, implode( ',', array_map( 'absint', $child_ids ) )
 				) ) );
 
 				// Empty value indicates that all options for given attribute are available.
@@ -452,9 +452,9 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				"
 					UPDATE {$wpdb->prefix}wc_products
 					SET stock_status = %s
-					WHERE product_id IN ( " . implode( ',', array_map( 'absint', $children ) ) . " )
+					WHERE product_id IN ( %d )
 				",
-				$status
+				$status, implode( ',', array_map( 'absint', $children ) )
 			) );
 			$children = $this->read_children( $product, true );
 			$product->set_children( $children['all'] );
@@ -472,7 +472,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		global $wpdb;
 
 		$children  = $product->get_visible_children();
-		$min_price = $children ? array_unique( $wpdb->get_var( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( " . implode( ',', array_map( 'absint', $children ) ) . ' ) ORDER BY price DESC' ) ) : null;
+		$min_price = $children ? array_unique( $wpdb->get_var( $wpdb->prepare( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( %d ) ORDER BY price DESC", implode( ',', array_map( 'absint', $children ) ) ) ) ) : null;
 
 		if ( ! is_null( $min_price ) ) {
 			$wpdb->query( $wpdb->prepare(
@@ -523,7 +523,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			'post_type'   => 'product_variation',
 			'fields'      => 'ids',
 			'post_status' => array( 'any', 'trash', 'auto-draft' ),
-			'numberposts' => -1,
+			'numberposts' => -1, // @codingStandardsIgnoreLine
 		) ) );
 
 		if ( ! empty( $variation_ids ) ) {
@@ -556,7 +556,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			'post_type'   => 'product_variation',
 			'fields'      => 'ids',
 			'post_status' => 'trash',
-			'numberposts' => -1,
+			'numberposts' => -1, // @codingStandardsIgnoreLine
 		) ) );
 
 		if ( ! empty( $variation_ids ) ) {
