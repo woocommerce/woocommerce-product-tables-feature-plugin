@@ -117,14 +117,14 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						$wpdb->prepare(
 							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
 							WHERE product_attribute_id=%d
-							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
+							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
 							$product_attribute_id
 						)
 					)
 				);
 
 				// Empty value indicates that all options for given attribute are available.
-				if ( in_array( '', $values ) || empty( $values ) ) {
+				if ( in_array( '', $values, true ) || empty( $values ) ) {
 					$values = $attribute->get_slugs();
 				} elseif ( ! $attribute->is_taxonomy() ) {
 					$text_attributes          = $attribute->get_options();
@@ -132,7 +132,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					$values                   = array();
 
 					foreach ( $text_attributes as $text_attribute ) {
-						if ( in_array( $text_attribute, $assigned_text_attributes ) ) {
+						if ( in_array( $text_attribute, $assigned_text_attributes, true ) ) {
 							$values[] = $text_attribute;
 						}
 					}

@@ -42,7 +42,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		$post_object = $product->get_id() ? get_post( $product->get_id() ) : null;
 
-		if ( ! $product->get_id() || ! $post_object || ! in_array( $post_object->post_type, array( 'product', 'product_variation' ) ) ) {
+		if ( ! $product->get_id() || ! $post_object || ! in_array( $post_object->post_type, array( 'product', 'product_variation' ), true ) ) {
 			return;
 		}
 
@@ -176,6 +176,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	 * Create a new product variation.
 	 *
 	 * @param WC_Product $product Product object.
+	 * @throws Exception If unable to create post in the database.
 	 */
 	public function create( &$product ) {
 		try {

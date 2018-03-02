@@ -357,7 +357,6 @@ class WC_Product_Attribute implements ArrayAccess {
 	 * Offset unset.
 	 *
 	 * @param string $offset Offset.
-	 * @param mixed  $value Value.
 	 */
 	public function offsetUnset( $offset ) {
 		unset( $this->data[ $offset ] );

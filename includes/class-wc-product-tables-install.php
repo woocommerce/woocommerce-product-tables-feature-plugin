@@ -6,9 +6,9 @@
  * @author Automattic
  */
 
- /**
-  * Class handling table installs
-  */
+/**
+ * Class handling table installs
+ */
 class WC_Product_Tables_Install {
 
 	/**

@@ -1464,9 +1464,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		/*
 			@todo
-			'_default_attributes', // Attributes table(s)
-			'_product_attributes', // Attributes table(s)
-			'_downloadable_files', // Product downloads table
+			Attributes table(s): '_default_attributes',
+			Attributes table(s): '_product_attributes',
+			Product downloads table: '_downloadable_files',
 		*/
 	}
 }

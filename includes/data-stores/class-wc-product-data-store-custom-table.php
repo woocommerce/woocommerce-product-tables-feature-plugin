@@ -755,6 +755,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		return get_posts(
 			array(
 				'post_type'      => array( 'product', 'product_variation' ),
+				// phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_posts_per_page
 				'posts_per_page' => -1,
 				'post_status'    => 'publish',
 				// phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_tax_query
@@ -794,7 +795,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
 				WHERE posts.post_status != 'trash'
-				AND products.sku = '%s'
+				AND products.sku = %s
 				AND products.product_id <> %d
 				LIMIT 1",
 				wp_slash( $sku ),
@@ -819,7 +820,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				FROM {$wpdb->prefix}wc_products as products
 				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
 				WHERE posts.post_status != 'trash'
-				AND products.sku = '%s'
+				AND products.sku = %s
 				LIMIT 1",
 				$sku
 			)
@@ -1962,9 +1963,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						$where .= " AND products.`{$name}` {$compare} ('" . implode( "','", array_map( 'esc_sql', $value ) ) . "') ";
 						break;
 					case 'LIKE':
+						// phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 						$where .= $wpdb->prepare( " AND products.`{$name}` LIKE {$format} ", '%' . $wpdb->esc_like( $value ) . '%' );
 						break;
 					default:
+						// phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 						$where .= $wpdb->prepare( " AND products.`{$name}`{$compare}{$format} ", $value );
 				}
 			}
