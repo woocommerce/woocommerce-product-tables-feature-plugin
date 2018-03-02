@@ -56,26 +56,30 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		$children                = get_transient( $children_transient_name );
 
 		if ( empty( $children ) || ! is_array( $children ) || ! isset( $children['all'] ) || ! isset( $children['visible'] ) || $force_read ) {
-			$products = wc_get_products( array(
-				'parent'  => $product->get_id(),
-				'type'    => 'variation',
-				'orderby' => 'menu_order',
-				'limit'   => -1,
-				'return'  => 'ids',
-			) );
+			$products = wc_get_products(
+				array(
+					'parent'  => $product->get_id(),
+					'type'    => 'variation',
+					'orderby' => 'menu_order',
+					'limit'   => -1,
+					'return'  => 'ids',
+				)
+			);
 
 			$children['all']     = $products;
 			$children['visible'] = $products;
 
 			if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
-				$children['visible'] = wc_get_products( array(
-					'parent'       => $product->get_id(),
-					'type'         => 'variation',
-					'orderby'      => 'menu_order',
-					'limit'        => -1,
-					'stock_status' => 'instock',
-					'return'       => 'ids',
-				) );
+				$children['visible'] = wc_get_products(
+					array(
+						'parent'       => $product->get_id(),
+						'type'         => 'variation',
+						'orderby'      => 'menu_order',
+						'limit'        => -1,
+						'stock_status' => 'instock',
+						'return'       => 'ids',
+					)
+				);
 			}
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
@@ -108,12 +112,16 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				}
 
 				$product_attribute_id = $attribute->get_product_attribute_id();
-				$values               = array_unique( $wpdb->get_col( $wpdb->prepare( "
-					SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
-					WHERE product_attribute_id=%d
-					AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
-					$product_attribute_id
-				) ) );
+				$values               = array_unique(
+					$wpdb->get_col(
+						$wpdb->prepare(
+							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
+							WHERE product_attribute_id=%d
+							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')',
+							$product_attribute_id
+						)
+					)
+				);
 
 				// Empty value indicates that all options for given attribute are available.
 				if ( in_array( '', $values ) || empty( $values ) ) {
@@ -201,31 +209,43 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						// If we are getting prices for display, we need to account for taxes.
 						if ( $include_taxes ) {
 							if ( 'incl' === get_option( 'woocommerce_tax_display_shop' ) ) {
-								$price         = '' === $price ? '' : wc_get_price_including_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $price,
-								) );
-								$regular_price = '' === $regular_price ? '' : wc_get_price_including_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $regular_price,
-								) );
-								$sale_price    = '' === $sale_price ? '' : wc_get_price_including_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $sale_price,
-								) );
+								$price         = '' === $price ? '' : wc_get_price_including_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $price,
+									)
+								);
+								$regular_price = '' === $regular_price ? '' : wc_get_price_including_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $regular_price,
+									)
+								);
+								$sale_price    = '' === $sale_price ? '' : wc_get_price_including_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $sale_price,
+									)
+								);
 							} else {
-								$price         = '' === $price ? '' : wc_get_price_excluding_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $price,
-								) );
-								$regular_price = '' === $regular_price ? '' : wc_get_price_excluding_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $regular_price,
-								) );
-								$sale_price    = '' === $sale_price ? '' : wc_get_price_excluding_tax( $variation, array(
-									'qty'   => 1,
-									'price' => $sale_price,
-								) );
+								$price         = '' === $price ? '' : wc_get_price_excluding_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $price,
+									)
+								);
+								$regular_price = '' === $regular_price ? '' : wc_get_price_excluding_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $regular_price,
+									)
+								);
+								$sale_price    = '' === $sale_price ? '' : wc_get_price_excluding_tax(
+									$variation, array(
+										'qty'   => 1,
+										'price' => $sale_price,
+									)
+								);
 							}
 						}
 
@@ -367,13 +387,16 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		$child_is_in_stock = wp_cache_get( 'woocommerce_product_child_is_in_stock_' . $product->get_id(), 'product' );
 
 		if ( false === $child_is_in_stock ) {
-			$child_is_in_stock = null !== $wpdb->get_var( $wpdb->prepare( "
-				SELECT product_id
-				FROM {$wpdb->prefix}wc_products as products
-				LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
-				WHERE posts.post_parent = %d
-				AND products.stock_status = 'instock'
-			", $product->get_id() ) ) ? 1 : 0; // WPCS: db call ok, cache ok.
+			$child_is_in_stock = null !== $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT product_id
+					FROM {$wpdb->prefix}wc_products as products
+					LEFT JOIN {$wpdb->posts} as posts ON products.product_id = posts.ID
+					WHERE posts.post_parent = %d
+					AND products.stock_status = 'instock'",
+					$product->get_id()
+				)
+			) ? 1 : 0; // WPCS: db call ok, cache ok.
 
 			wp_cache_set( 'woocommerce_product_child_is_in_stock_' . $product->get_id(), $child_is_in_stock, 'product' );
 		}

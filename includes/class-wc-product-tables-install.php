@@ -28,7 +28,7 @@ class WC_Product_Tables_Install {
 	public static function activate() {
 		global $wpdb;
 
-		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		$collate = '';
 

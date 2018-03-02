@@ -34,7 +34,7 @@ global $product_object;
 			$downloadable_files = $product_object->get_downloads( 'edit' );
 			if ( $downloadable_files ) {
 				foreach ( $downloadable_files as $key => $file ) {
-					include( 'html-product-download.php' );
+					include 'html-product-download.php';
 				}
 			}
 			?>
@@ -49,7 +49,7 @@ global $product_object;
 							'name' => '',
 						);
 						ob_start();
-						include( 'html-product-download.php' );
+						require 'html-product-download.php';
 						$row_data = ob_get_clean();
 					?>
 

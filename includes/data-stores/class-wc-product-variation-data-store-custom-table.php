@@ -50,15 +50,15 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		$product->set_props(
 			array(
-				'name'              => $post_object->post_title,
-				'slug'              => $post_object->post_name,
-				'date_created'      => 0 < $post_object->post_date_gmt ? wc_string_to_timestamp( $post_object->post_date_gmt ) : null,
-				'date_modified'     => 0 < $post_object->post_modified_gmt ? wc_string_to_timestamp( $post_object->post_modified_gmt ) : null,
-				'status'            => $post_object->post_status,
-				'description'       => $post_object->post_content,
-				'parent_id'         => $post_object->post_parent,
-				'menu_order'        => $post_object->menu_order,
-				'reviews_allowed'   => 'open' === $post_object->comment_status,
+				'name'            => $post_object->post_title,
+				'slug'            => $post_object->post_name,
+				'date_created'    => 0 < $post_object->post_date_gmt ? wc_string_to_timestamp( $post_object->post_date_gmt ) : null,
+				'date_modified'   => 0 < $post_object->post_modified_gmt ? wc_string_to_timestamp( $post_object->post_modified_gmt ) : null,
+				'status'          => $post_object->post_status,
+				'description'     => $post_object->post_content,
+				'parent_id'       => $post_object->post_parent,
+				'menu_order'      => $post_object->menu_order,
+				'reviews_allowed' => 'open' === $post_object->comment_status,
 			)
 		);
 
@@ -114,11 +114,11 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		$props['manage_stock'] = isset( $props['stock_quantity'] ) && ! is_null( $props['stock_quantity'] );
 
 		$meta_to_props = array(
-			'_backorders'         => 'backorders',
-			'_sold_individually'  => 'sold_individually',
-			'_purchase_note'      => 'purchase_note',
-			'_download_limit'     => 'download_limit',
-			'_download_expiry'    => 'download_expiry',
+			'_backorders'        => 'backorders',
+			'_sold_individually' => 'sold_individually',
+			'_purchase_note'     => 'purchase_note',
+			'_download_limit'    => 'download_limit',
+			'_download_expiry'   => 'download_expiry',
 		);
 
 		foreach ( $meta_to_props as $meta_key => $prop ) {
@@ -142,10 +142,12 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		$relationship_rows_from_db = $this->get_product_relationship_rows_from_db( $product->get_id() );
 
 		foreach ( $this->relationships as $type => $prop ) {
-			$relationships = array_filter( $relationship_rows_from_db, function ( $relationship ) use ( $type ) {
-				return ! empty( $relationship->type ) && $relationship->type === $type;
-			});
-			$values = array_values( wp_list_pluck( $relationships, 'object_id' ) );
+			$relationships  = array_filter(
+				$relationship_rows_from_db, function ( $relationship ) use ( $type ) {
+					return ! empty( $relationship->type ) && $relationship->type === $type;
+				}
+			);
+			$values         = array_values( wp_list_pluck( $relationships, 'object_id' ) );
 			$props[ $prop ] = $values;
 		}
 
@@ -194,20 +196,24 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				$product->set_parent_id( 0 );
 			}
 
-			$id = wp_insert_post( apply_filters( 'woocommerce_new_product_variation_data', array(
-				'post_type'      => 'product_variation',
-				'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
-				'post_author'    => get_current_user_id(),
-				'post_title'     => $product->get_name( 'edit' ),
-				'post_content'   => $product->get_description( 'edit' ),
-				'post_parent'    => $product->get_parent_id(),
-				'comment_status' => 'closed',
-				'ping_status'    => 'closed',
-				'menu_order'     => $product->get_menu_order(),
-				'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
-				'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
-				'post_name'      => $product->get_slug( 'edit' ),
-			) ), true );
+			$id = wp_insert_post(
+				apply_filters(
+					'woocommerce_new_product_variation_data', array(
+						'post_type'      => 'product_variation',
+						'post_status'    => $product->get_status() ? $product->get_status() : 'publish',
+						'post_author'    => get_current_user_id(),
+						'post_title'     => $product->get_name( 'edit' ),
+						'post_content'   => $product->get_description( 'edit' ),
+						'post_parent'    => $product->get_parent_id(),
+						'comment_status' => 'closed',
+						'ping_status'    => 'closed',
+						'menu_order'     => $product->get_menu_order(),
+						'post_date'      => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getOffsetTimestamp() ),
+						'post_date_gmt'  => gmdate( 'Y-m-d H:i:s', $product->get_date_created( 'edit' )->getTimestamp() ),
+						'post_name'      => $product->get_slug( 'edit' ),
+					)
+				), true
+			);
 
 			if ( empty( $id ) || is_wp_error( $id ) ) {
 				throw new Exception( 'db_error' );
@@ -326,9 +332,12 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	public function read_attributes( &$product ) {
 		global $wpdb;
 
-		$product_attributes = $wpdb->get_results( $wpdb->prepare( "
-			SELECT value, product_attribute_id FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d
-		", $product->get_id() ) ); // WPCS: db call ok, cache ok.
+		$product_attributes = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT value, product_attribute_id FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d",
+				$product->get_id()
+			)
+		); // WPCS: db call ok, cache ok.
 
 		if ( ! empty( $product_attributes ) ) {
 			$attributes = array();
@@ -411,9 +420,13 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} elseif ( ! empty( $data ) ) {
-			$wpdb->update( "{$wpdb->prefix}wc_products", $data, array(
-				'product_id' => $product->get_id( 'edit' ),
-			) ); // WPCS: db call ok, cache ok.
+			$wpdb->update(
+				"{$wpdb->prefix}wc_products",
+				$data,
+				array(
+					'product_id' => $product->get_id( 'edit' ),
+				)
+			); // WPCS: db call ok, cache ok.
 		}
 
 		foreach ( $this->relationships as $type => $prop ) {
@@ -544,9 +557,14 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		$attributes = wp_cache_get( 'woocommerce_parent_product_attribute_names_' . $product->get_id(), 'product' );
 
 		if ( empty( $attributes ) ) {
-			$attributes = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
-				SELECT product_attribute_id, name FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d
-			", $product->get_parent_id() ) ), 'name', 'product_attribute_id' ); // WPCS: db call ok, cache ok.
+			$attributes = wp_list_pluck(
+				$wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT product_attribute_id, name FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
+						$product->get_parent_id()
+					)
+				), 'name', 'product_attribute_id'
+			); // WPCS: db call ok, cache ok.
 
 			wp_cache_set( 'woocommerce_parent_product_attribute_names_' . $product->get_id(), $attributes, 'product' );
 		}
@@ -567,9 +585,14 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		if ( $force || array_key_exists( 'attributes', $changes ) ) {
 			$attributes          = $product->get_attributes();
-			$existing_attributes = wp_list_pluck( $wpdb->get_results( $wpdb->prepare( "
-				SELECT product_attribute_id, value FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d
-			", $product->get_id() ) ), 'value', 'product_attribute_id' ); // WPCS: db call ok, cache ok.
+			$existing_attributes = wp_list_pluck(
+				$wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT product_attribute_id, value FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d",
+						$product->get_id()
+					)
+				), 'value', 'product_attribute_id'
+			); // WPCS: db call ok, cache ok.
 
 			if ( $attributes ) {
 				$updated_attribute_ids = array();
@@ -577,6 +600,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				foreach ( $attributes as $attribute_key => $attribute_value ) {
 					/**
 					 * Variation objects store name(slug)=>value pairs, so do a lookup on the attribute ID from the name.
+					 *
 					 * @todo when this moves to core I suggest we refactor the slug=>value pair storage and use IDs. This may
 					 * be a breaking change. For now we can workaround it with lookups.
 					 */
@@ -614,7 +638,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				$attributes_to_delete = array_diff( array_keys( $existing_attributes ), $updated_attribute_ids );
 
 				if ( $attributes_to_delete ) {
-					$wpdb->query( "DELETE FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = " . absint( $product->get_id() ) . " AND product_attribute_id IN (" . implode( ',', array_map( 'esc_sql', $attributes_to_delete ) ) . ')' ); // WPCS: db call ok, cache ok, unprepared SQL ok.
+					$wpdb->query( "DELETE FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = " . absint( $product->get_id() ) . ' AND product_attribute_id IN (' . implode( ',', array_map( 'esc_sql', $attributes_to_delete ) ) . ')' ); // WPCS: db call ok, cache ok, unprepared SQL ok.
 				}
 			}
 		}
