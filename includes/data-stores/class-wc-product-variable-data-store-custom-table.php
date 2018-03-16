@@ -492,7 +492,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		global $wpdb;
 
 		$children  = $product->get_visible_children();
-		$min_price = $children ? array_unique( $wpdb->get_var( $wpdb->prepare( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( %s ) ORDER BY price DESC", implode( ',', array_map( 'absint', $children ) ) ) ) ) : null;
+		$min_price = $children ? $wpdb->get_val( $wpdb->prepare( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( %s ) ORDER BY price ASC LIMIT 1", implode( ',', array_map( 'absint', $children ) ) ) ) : null;
 
 		if ( ! is_null( $min_price ) ) {
 			$wpdb->query(
