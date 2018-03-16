@@ -199,6 +199,10 @@ class WC_Product_Tables_Migrate_Data {
 				} else {
 					$meta_value = null;
 				}
+			} elseif ( '_sale_price' === $meta_key ) {
+				// replace empty strings (used to represent products not on sale) with NULL as the type of the field
+				// sale_price is double and an empty string is not a valid value.
+				$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
 			} else {
 				$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 			}
