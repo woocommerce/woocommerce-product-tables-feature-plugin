@@ -64,7 +64,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				'limit'       => -1,
 				'return'      => 'ids',
 				'status'      => array( 'publish', 'private' ),
-				'numberposts' => -1, // @codingStandardsIgnoreLine
+				'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
 			);
 			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
@@ -545,7 +545,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					'post_type'   => 'product_variation',
 					'fields'      => 'ids',
 					'post_status' => array( 'any', 'trash', 'auto-draft' ),
-					'numberposts' => -1, // @codingStandardsIgnoreLine
+					'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
 				)
 			)
 		);
@@ -582,7 +582,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					'post_type'   => 'product_variation',
 					'fields'      => 'ids',
 					'post_status' => 'trash',
-					'numberposts' => -1, // @codingStandardsIgnoreLine
+					'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
 				)
 			)
 		);
