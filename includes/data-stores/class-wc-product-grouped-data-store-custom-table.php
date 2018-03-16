@@ -69,4 +69,14 @@ class WC_Product_Grouped_Data_Store_Custom_Table extends WC_Product_Data_Store_C
 			)
 		); // WPCS: db call ok, cache ok.
 	}
+
+	/**
+	 * Empty method that overrides parent method and prevent the use of
+	 * WC_Product_Grouped::extra_data. If we don't do this, the post meta
+	 * '_children' will be used instead of product relationships from the
+	 * table wp_wc_product_relationships to get grouped products children.
+	 *
+	 * @param WC_Product $product Product object.
+	 */
+	protected function read_extra_data( &$product ) {}
 }
