@@ -22,7 +22,7 @@ class WC_Product_Tables_Migrate_Data {
 		// List of post meta keys that will be migrated to fields in the new wp_wc_products table.
 		'product' => array(
 			'_sku',
-			'_image_id',
+			'_thumbnail_id',
 			'_height',
 			'_width',
 			'_length',
@@ -207,7 +207,12 @@ class WC_Product_Tables_Migrate_Data {
 				$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 			}
 
-			$field_name              = ltrim( $meta_key, '_' );
+			if ( '_thumbnail_id' === $meta_key ) {
+				$field_name = 'image_id';
+			} else {
+				$field_name = ltrim( $meta_key, '_' );
+			}
+
 			$new_data[ $field_name ] = $meta_value;
 		}
 
