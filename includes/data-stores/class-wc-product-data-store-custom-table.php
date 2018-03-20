@@ -56,10 +56,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @var   array
 	 */
 	protected $relationships = array(
-		'image_gallery' => 'gallery_image_ids',
-		'upsell'        => 'upsell_ids',
-		'cross_sell'    => 'cross_sell_ids',
-		'grouped'       => 'children',
+		'image'      => 'gallery_image_ids',
+		'upsell'     => 'upsell_ids',
+		'cross_sell' => 'cross_sell_ids',
+		'grouped'    => 'children',
 	);
 
 	/**
