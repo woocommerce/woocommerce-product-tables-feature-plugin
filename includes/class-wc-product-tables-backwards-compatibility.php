@@ -811,14 +811,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'delete' => array(
@@ -975,7 +975,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
-						'format' => '',
+						'format' => '%s',
 						'value'  => 'instock',
 					),
 				),
