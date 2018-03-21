@@ -189,6 +189,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			}
 		}
 
+		// Manage stock over stock_quantity.
+		if ( isset( $changes['manage_stock'] ) && ! $changes['manage_stock'] ) {
+			$data['stock_quantity'] = null;
+			$this->updated_props[]  = 'stock_quantity';
+		}
+
 		if ( $insert ) {
 			$data['product_id'] = $product->get_id( 'edit' );
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
