@@ -359,7 +359,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		return array( get_post_field( 'post_excerpt', $args['product_id'], 'raw' ) );
+		return array( get_post_field( 'post_content', $args['product_id'], 'raw' ) );
 	}
 
 	/**
@@ -387,7 +387,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		return wp_update_post(
 			array(
 				'ID'           => $args['product_id'],
-				'post_excerpt' => $args['value'],
+				'post_content' => $args['value'],
 			)
 		);
 	}

@@ -552,9 +552,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_upsell_ids' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_upsell_ids', true ) );
 
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_upsell_ids' ) );
-		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_upsell_ids', true ) );
-
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_upsell_ids' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_upsell_ids', true ) );
@@ -583,9 +580,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_crosssell_ids' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_crosssell_ids', true ) );
 
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_crosssell_ids' ) );
-		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_crosssell_ids', true ) );
-
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_crosssell_ids' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_crosssell_ids', true ) );
@@ -609,9 +603,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_product_image_gallery', true ) );
 
 		update_post_meta( $product->get_id(), '_product_image_gallery', array( 40, 50 ) );
-
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_image_gallery' ) );
-		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_product_image_gallery', true ) );
 
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_image_gallery' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_product_image_gallery', true ) );
@@ -644,9 +635,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_children' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_children', true ) );
 
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_children' ) );
-		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_children', true ) );
-
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_children' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_children', true ) );
@@ -662,14 +650,105 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 	 *
 	 * @since 1.0.0
 	 */
+
+	/*
+	@todo Need to figure out how we're handling backwards compatibility for these since products have multiple download limits and expiries now.
 	public function test_download_limit_mapping() {
+		$product = new WC_Product_Simple();
+		$product->set_downloadable( true );
+		$product->set_downloads( array(
+			array(
+				'name' => 'Test download',
+				'file' => 'https://woocommerce.com',
+				'limit' => 5,
+				'expiry' => '',
+			),
+		) );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
+		$this->assertEquals( 5, get_post_meta( $product->get_id(), '_download_limit', true ) );
+
+		update_post_meta( $product->get_id(), '_download_limit', 10 );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
+		$this->assertEquals( 10, get_post_meta( $product->get_id(), '_download_limit', true ) );
+
+		// @todo Instantiate a product object and check it got updated should pass.
+		delete_post_meta( $product->get_id(), '_download_limit' );
+		$this->assertEquals( -1, get_post_meta( $product->get_id(), '_download_limit', true ) );
+
+		add_post_meta( $product->get_id(), '_download_limit', 3 );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
+		$this->assertEquals( 3, get_post_meta( $product->get_id(), '_download_limit', true ) );
+	}
+
+	public function test_download_expiry() {
 
 	}
 
-	// test_download_expiry_mapping
-	// test_downloadable_files_mapping
-	// test_variation_description_mapping
-	// test_manage_stock_mapping
+	public function test_downloadable_files_mapping() {
+
+	}
+	*/
+
+	/**
+	 * Test the variation description metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_variation_description_mapping() {
+		$product = new WC_Product_Variation();
+		$product->set_description( 'Test desc 1' );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_variation_description' ) );
+		$this->assertEquals( 'Test desc 1', get_post_meta( $product->get_id(), '_variation_description', true ) );
+
+		update_post_meta( $product->get_id(), '_variation_description', 'Test desc 2' );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_variation_description' ) );
+		$this->assertEquals( 'Test desc 2', get_post_meta( $product->get_id(), '_variation_description', true ) );
+
+		// @todo Instantiate a product object and check it got updated should pass.
+		delete_post_meta( $product->get_id(), '_variation_description' );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_variation_description', true ) );
+
+		add_post_meta( $product->get_id(), '_variation_description', 'Test desc 3' );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_variation_description' ) );
+		$this->assertEquals( 'Test desc 3', get_post_meta( $product->get_id(), '_variation_description', true ) );
+	}
+
+	/**
+	 * Test the manage stock metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_manage_stock_mapping() {
+		$product = new WC_Product_Simple();
+		$product->set_manage_stock( true );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_manage_stock' ) );
+		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
+
+		update_post_meta( $product->get_id(), '_manage_stock', false );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_manage_stock' ) );
+		$this->assertEquals( false, get_post_meta( $product->get_id(), '_manage_stock', true ) );
+
+		// @todo Instantiate a product object and check it got updated should pass.
+		delete_post_meta( $product->get_id(), '_manage_stock' );
+		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
+
+		add_post_meta( $product->get_id(), '_manage_stock', true );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_manage_stock' ) );
+		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
+	}
+
 	// test_default_attributes_mapping
 	// test_product_attributes_mapping
 	// test_downloadable_files_mapping.
