@@ -258,8 +258,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['type'] || ! $args['product_id'] ) {
 			return array();
 		}
+
 		// @todo caching
-		return $wpdb->get_results( $wpdb->prepare( "SELECT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ); // WPCS: db call ok, cache ok.
+		return array(
+			array(
+				$wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ),
+			),
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -354,7 +359,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		return array( get_post_field( 'post_excerpt', $args['product_id'], 'raw' ) );
+		return array( get_post_field( 'post_content', $args['product_id'], 'raw' ) );
 	}
 
 	/**
@@ -382,7 +387,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		return wp_update_post(
 			array(
 				'ID'           => $args['product_id'],
-				'post_excerpt' => $args['value'],
+				'post_content' => $args['value'],
 			)
 		);
 	}
@@ -811,14 +816,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'delete' => array(
@@ -975,7 +980,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
-						'format' => '',
+						'format' => '%s',
 						'value'  => 'instock',
 					),
 				),
@@ -1255,25 +1260,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'get'    => array(
 					'function' => array( $this, 'get_from_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'add'    => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type'  => 'crosssell',
+						'type'  => 'cross_sell',
 						'value' => array(),
 					),
 				),
