@@ -22,7 +22,7 @@ class WC_Product_Tables_Migrate_Data {
 		// List of post meta keys that will be migrated to fields in the new wp_wc_products table.
 		'product' => array(
 			'_sku',
-			'_image_id',
+			'_thumbnail_id',
 			'_height',
 			'_width',
 			'_length',
@@ -70,30 +70,7 @@ class WC_Product_Tables_Migrate_Data {
 		foreach ( $products as $product ) {
 			$metas = get_post_meta( $product->ID );
 
-			if ( 'product_varation' === $product->post_type ) {
-				$product_type = 'variation';
-			} else {
-				$product_type = wp_get_post_terms( $product->ID, 'product_type' )[0]->slug;
-			}
-
-			$new_data = array(
-				'product_id' => $product->ID,
-				'type'       => $product_type,
-			);
-
-			foreach ( self::$meta_keys['product'] as $meta_key ) {
-				if ( '_price' === $meta_key ) {
-					// Sort from low to high picking lowest.
-					$meta_value = isset( $metas['_price'] ) ? rsort( $metas['_price'] )[0] : null;
-				} else {
-					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
-				}
-
-				$field_name              = ltrim( $meta_key, '_' );
-				$new_data[ $field_name ] = $meta_value;
-			}
-
-			self::insert( 'wc_products', $new_data );
+			self::migrate_core_product_data( $product, $metas );
 
 			$priority = 1;
 
@@ -193,6 +170,53 @@ class WC_Product_Tables_Migrate_Data {
 		global $wpdb;
 		$wpdb->insert( $wpdb->prefix . $table, $data );
 		return $wpdb->insert_id;
+	}
+
+	/**
+	 * Migrate core product data to the new `wp_wc_products` table.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @param array      $metas List of product meta data.
+	 */
+	public static function migrate_core_product_data( $product, $metas ) {
+		if ( 'product_variation' === $product->post_type ) {
+			$product_type = 'variation';
+		} else {
+			$product_type = wp_get_post_terms( $product->ID, 'product_type' )[0]->slug;
+		}
+
+		$new_data = array(
+			'product_id' => $product->ID,
+			'type'       => $product_type,
+		);
+
+		foreach ( self::$meta_keys['product'] as $meta_key ) {
+			if ( '_price' === $meta_key ) {
+				if ( isset( $metas['_price'] ) ) {
+					// Sort from low to high picking lowest.
+					rsort( $metas['_price'] );
+					$meta_value = $metas['_price'][0];
+				} else {
+					$meta_value = null;
+				}
+			} elseif ( '_sale_price' === $meta_key ) {
+				// replace empty strings (used to represent products not on sale) with NULL as the type of the field
+				// sale_price is double and an empty string is not a valid value.
+				$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
+			} else {
+				$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
+			}
+
+			if ( '_thumbnail_id' === $meta_key ) {
+				$field_name = 'image_id';
+			} else {
+				$field_name = ltrim( $meta_key, '_' );
+			}
+
+			$new_data[ $field_name ] = $meta_value;
+		}
+
+		self::insert( 'wc_products', $new_data );
 	}
 
 	/**

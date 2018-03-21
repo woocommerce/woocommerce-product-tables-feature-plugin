@@ -56,10 +56,10 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @var   array
 	 */
 	protected $relationships = array(
-		'image_gallery' => 'gallery_image_ids',
-		'upsell'        => 'upsell_ids',
-		'cross_sell'    => 'cross_sell_ids',
-		'child'         => 'children',
+		'image'      => 'gallery_image_ids',
+		'upsell'     => 'upsell_ids',
+		'cross_sell' => 'cross_sell_ids',
+		'grouped'    => 'children',
 	);
 
 	/**
@@ -187,6 +187,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$data[ $column ]       = '' === $value && in_array( $column, $allow_null, true ) ? null : $value;
 				$this->updated_props[] = $column;
 			}
+		}
+
+		// Manage stock over stock_quantity.
+		if ( isset( $changes['manage_stock'] ) && ! $changes['manage_stock'] ) {
+			$data['stock_quantity'] = null;
+			$this->updated_props[]  = 'stock_quantity';
 		}
 
 		if ( $insert ) {
