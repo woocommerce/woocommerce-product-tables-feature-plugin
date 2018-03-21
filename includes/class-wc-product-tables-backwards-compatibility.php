@@ -258,8 +258,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['type'] || ! $args['product_id'] ) {
 			return array();
 		}
+
 		// @todo caching
-		return $wpdb->get_results( $wpdb->prepare( "SELECT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ); // WPCS: db call ok, cache ok.
+		return array(
+			array(
+				$wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ),
+			),
+		); // WPCS: db call ok, cache ok.
 	}
 
 	/**
@@ -1255,25 +1260,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'get'    => array(
 					'function' => array( $this, 'get_from_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'add'    => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type' => 'crosssell',
+						'type' => 'cross_sell',
 					),
 				),
 				'delete' => array(
 					'function' => array( $this, 'update_relationship_table' ),
 					'args'     => array(
-						'type'  => 'crosssell',
+						'type'  => 'cross_sell',
 						'value' => array(),
 					),
 				),
