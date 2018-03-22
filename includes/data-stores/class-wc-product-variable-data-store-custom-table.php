@@ -551,14 +551,9 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			foreach ( $variation_ids as $variation_id ) {
 				if ( $force_delete ) {
 					wp_delete_post( $variation_id, true );
+					$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $variation_id ), array( '%d' ) );
 				} else {
 					wp_trash_post( $variation_id );
-				}
-			}
-
-			if ( $force_delete && ! empty( $variation_ids ) ) {
-				foreach ( $variation_ids as $variation_id ) {
-					$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $variation_id ), array( '%d' ) );
 				}
 			}
 		}
