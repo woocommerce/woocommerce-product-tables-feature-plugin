@@ -261,6 +261,9 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	protected static function migrate_variation_attribute_values( $parent_id, $attribute_id, $attribute_name ) {
 		global $wpdb;
+
+		$meta_key = 'attribute_' . $attribute_name;
+
 		$variable_products = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_parent = %d",
@@ -270,8 +273,12 @@ class WC_Product_Tables_Migrate_Data {
 
 		if ( $variable_products ) {
 			foreach ( $variable_products as $variable_product ) {
-				$variation_value = get_post_meta( $variable_product->ID, 'attribute_' . $attribute_name, true );
-				if ( $variation_value ) {
+				$variation_value = get_post_meta( $variable_product->ID, $meta_key, true );
+
+				// metadata_exists() is needed here instead of simply checking if $variation_value is truthy. This because
+				// get_post_meta() returns an empty string for both a post meta that doesn't exist or an empty post meta and
+				// we want to migrate empty post metas (variation attributes whose value is 'any').
+				if ( metadata_exists( 'post', $variable_product->ID, $meta_key ) ) {
 					$variation_data = array(
 						'product_id'           => $variable_product->ID,
 						'value'                => $variation_value,
