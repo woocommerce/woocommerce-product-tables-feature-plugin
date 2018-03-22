@@ -45,7 +45,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	}
 
 	/**
-	 * Loads variation child IDs. @todo woocommerce_variable_children_args bw compat
+	 * Loads variation child IDs.
 	 *
 	 * @param  WC_Product $product Product object.
 	 * @param  bool       $force_read True to bypass the transient.
@@ -56,34 +56,56 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		$children                = get_transient( $children_transient_name );
 
 		if ( empty( $children ) || ! is_array( $children ) || ! isset( $children['all'] ) || ! isset( $children['visible'] ) || $force_read ) {
-			$products = wc_get_products(
-				array(
-					'parent'  => $product->get_id(),
-					'type'    => 'variation',
-					'orderby' => 'menu_order',
-					'limit'   => -1,
-					'return'  => 'ids',
-				)
+			$all_args = array(
+				'parent'      => $product->get_id(),
+				'type'        => 'variation',
+				'orderby'     => 'menu_order',
+				'order'       => 'ASC',
+				'limit'       => -1,
+				'return'      => 'ids',
+				'status'      => array( 'publish', 'private' ),
 			);
+			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
-			$children['all']     = $products;
-			$children['visible'] = $products;
-
+			$visible_only_args                = $all_args;
+			$visible_only_args['post_status'] = 'publish';
 			if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
-				$children['visible'] = wc_get_products(
-					array(
-						'parent'       => $product->get_id(),
-						'type'         => 'variation',
-						'orderby'      => 'menu_order',
-						'limit'        => -1,
-						'stock_status' => 'instock',
-						'return'       => 'ids',
-					)
-				);
+				$visible_only_args['stock_status'] = 'instock';
 			}
+			$visible_only_args = apply_filters( 'woocommerce_variable_children_args', $visible_only_args, $product, true );
+
+			$children['all']     = wc_get_products( $this->map_legacy_product_args( $all_args ) );
+			$children['visible'] = wc_get_products( $this->map_legacy_product_args( $visible_only_args ) );
+
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
 		return $children;
+	}
+
+	/**
+	 * Map legacy WP_Query args to new wc_get_product args.
+	 *
+	 * @param array $args Arguments.
+	 * @return array
+	 */
+	protected function map_legacy_product_args( $args ) {
+		$legacy_map = array(
+			'post_parent'    => 'parent',
+			'post_type'      => 'type',
+			'post_status'    => 'status',
+			'fields'         => 'return',
+			'posts_per_page' => 'limit',
+			'paged'          => 'page',
+			'numberposts'    => 'limit',
+		);
+
+		foreach ( $legacy_map as $from => $to ) {
+			if ( isset( $args[ $from ] ) ) {
+				$args[ $to ] = $args[ $from ];
+			}
+		}
+
+		return $args;
 	}
 
 	/**
@@ -116,7 +138,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					$wpdb->get_col(
 						$wpdb->prepare(
 							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
-							WHERE product_attribute_id=%d
+							WHERE product_attribute_id = %d
 							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
 							$product_attribute_id
 						)
@@ -404,14 +426,165 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		return (bool) $child_is_in_stock;
 	}
 
-	/*
-	 * @todo
+	/**
+	 * Syncs all variation names if the parent name is changed.
 	 *
-	 * sync_variation_names
-	 * sync_managed_variation_stock_status
-	 * sync_price
-	 * sync_stock_status
-	 * delete_variations
-	 * untrash_variations
+	 * @param WC_Product $product Product object.
+	 * @param string     $previous_name Variation previous name.
+	 * @param string     $new_name Variation new name.
+	 * @since 3.0.0
 	 */
+	public function sync_variation_names( &$product, $previous_name = '', $new_name = '' ) {
+		if ( $new_name !== $previous_name ) {
+			global $wpdb;
+
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$wpdb->posts}
+					SET post_title = REPLACE( post_title, %s, %s )
+					WHERE post_type = 'product_variation'
+					AND post_parent = %d",
+					$previous_name ? $previous_name : 'AUTO-DRAFT',
+					$new_name,
+					$product->get_id()
+				)
+			);
+		}
+	}
+
+	/**
+	 * Stock managed at the parent level - update children being managed by this product.
+	 * This sync function syncs downwards (from parent to child) when the variable product is saved.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @since 3.0.0
+	 */
+	public function sync_managed_variation_stock_status( &$product ) {
+		global $wpdb;
+
+		if ( $product->get_manage_stock() ) {
+			$status   = $product->get_stock_status();
+			$children = $product->get_children();
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$wpdb->prefix}wc_products
+					SET stock_status = %s
+					WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared,
+					$status
+				)
+			);
+			$children = $this->read_children( $product, true );
+			$product->set_children( $children['all'] );
+			$product->set_visible_children( $children['visible'] );
+		}
+	}
+
+	/**
+	 * Sync variable product price with children.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function sync_price( &$product ) {
+		global $wpdb;
+
+		$children  = $product->get_visible_children();
+		$min_price = $children ? $wpdb->get_var( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ') ORDER BY price ASC LIMIT 1' ) : null; // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
+
+		if ( ! is_null( $min_price ) ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$wpdb->prefix}wc_products
+					SET price = %d
+					WHERE product_id = %d",
+					wc_format_decimal( $min_price ),
+					$product->get_Id()
+				)
+			);
+		}
+	}
+
+	/**
+	 * Sync variable product stock status with children.
+	 * Change does not persist unless saved by caller.
+	 *
+	 * @since 3.0.0
+	 * @param WC_Product $product Product object.
+	 */
+	public function sync_stock_status( &$product ) {
+		if ( $product->child_is_in_stock() ) {
+			$product->set_stock_status( 'instock' );
+		} elseif ( $product->child_is_on_backorder() ) {
+			$product->set_stock_status( 'onbackorder' );
+		} else {
+			$product->set_stock_status( 'outofstock' );
+		}
+	}
+
+	/**
+	 * Delete variations of a product.
+	 *
+	 * @since 3.0.0
+	 * @param int  $product_id Product ID.
+	 * @param bool $force_delete False to trash.
+	 */
+	public function delete_variations( $product_id, $force_delete = false ) {
+		global $wpdb;
+
+		if ( ! is_numeric( $product_id ) || 0 >= $product_id ) {
+			return;
+		}
+
+		$variation_ids = wp_parse_id_list(
+			get_posts(
+				array(
+					'post_parent' => $product_id,
+					'post_type'   => 'product_variation',
+					'fields'      => 'ids',
+					'post_status' => array( 'any', 'trash', 'auto-draft' ),
+					'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
+				)
+			)
+		);
+
+		if ( ! empty( $variation_ids ) ) {
+			foreach ( $variation_ids as $variation_id ) {
+				if ( $force_delete ) {
+					wp_delete_post( $variation_id, true );
+					$wpdb->delete( "{$wpdb->prefix}wc_products", array( 'product_id' => $variation_id ), array( '%d' ) );
+				} else {
+					wp_trash_post( $variation_id );
+				}
+			}
+		}
+
+		delete_transient( 'wc_product_children_' . $product_id );
+	}
+
+	/**
+	 * Untrash variations.
+	 *
+	 * @param int $product_id Product ID.
+	 */
+	public function untrash_variations( $product_id ) {
+		$variation_ids = wp_parse_id_list(
+			get_posts(
+				array(
+					'post_parent' => $product_id,
+					'post_type'   => 'product_variation',
+					'fields'      => 'ids',
+					'post_status' => 'trash',
+					'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
+				)
+			)
+		);
+
+		if ( ! empty( $variation_ids ) ) {
+			foreach ( $variation_ids as $variation_id ) {
+				wp_untrash_post( $variation_id );
+			}
+		}
+
+		delete_transient( 'wc_product_children_' . $product_id );
+	}
 }
