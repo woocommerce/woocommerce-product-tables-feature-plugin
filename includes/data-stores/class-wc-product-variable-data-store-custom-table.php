@@ -64,7 +64,6 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				'limit'       => -1,
 				'return'      => 'ids',
 				'status'      => array( 'publish', 'private' ),
-				'numberposts' => -1, // phpcs:ignore WordPress.VIP.PostsPerPage.posts_per_page_numberposts
 			);
 			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
@@ -140,9 +139,8 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						$wpdb->prepare(
 							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
 							WHERE product_attribute_id = %d
-							AND product_id IN ( %s )",
-							$product_attribute_id,
-							implode( ',', array_map( 'absint', $child_ids ) )
+							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
+							$product_attribute_id
 						)
 					)
 				);
@@ -471,9 +469,8 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				$wpdb->prepare(
 					"UPDATE {$wpdb->prefix}wc_products
 					SET stock_status = %s
-					WHERE product_id IN ( %s )",
-					$status,
-					implode( ',', array_map( 'absint', $children ) )
+					WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared,
+					$status
 				)
 			);
 			$children = $this->read_children( $product, true );
@@ -492,7 +489,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		global $wpdb;
 
 		$children  = $product->get_visible_children();
-		$min_price = $children ? $wpdb->get_val( $wpdb->prepare( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN ( %s ) ORDER BY price ASC LIMIT 1", implode( ',', array_map( 'absint', $children ) ) ) ) : null;
+		$min_price = $children ? $wpdb->get_val( $wpdb->prepare( "SELECT price FROM {$wpdb->prefix}wc_products WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ') ORDER BY price ASC LIMIT 1' ) ) : null; // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
 
 		if ( ! is_null( $min_price ) ) {
 			$wpdb->query(
