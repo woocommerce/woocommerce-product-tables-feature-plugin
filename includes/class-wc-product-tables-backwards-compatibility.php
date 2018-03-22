@@ -259,12 +259,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		// @todo caching
-		return array(
-			array(
-				$wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ),
-			),
-		); // WPCS: db call ok, cache ok.
+		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
+
+		if ( empty( $data ) ) {
+			$data = array(
+				array(
+					$wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ),
+				),
+			);
+
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], $data, 'product' );
+		}
+
+		return $data;
 	}
 
 	/**
@@ -295,8 +302,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$new_values = $args['value'];
 
-		// @todo caching
-		$existing_relationship_data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d AND `type` = %s ORDER BY `priority` ASC", $args['product_id'], $args['type'] ) );  // WPCS: db call ok, cache ok.
+		$existing_relationship_data = $wpdb->get_results( $wpdb->prepare( "SELECT `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d AND `type` = %s ORDER BY `priority` ASC", $args['product_id'], $args['type'] ) ); // WPCS: db call ok, cache ok.
 		$old_values                 = wp_list_pluck( $existing_relationship_data, 'object_id' );
 		$missing                    = array_diff( $old_values, $new_values );
 
@@ -335,6 +341,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 				)
 			); // WPCS: db call ok, cache ok.
 		}
+
+		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
 
 		return true;
 	}
@@ -549,7 +557,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$query_results  = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
+		$query_results = wp_cache_get( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
+
+		if ( empty( $query_results ) ) {
+			$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d", $args['product_id'] ) );
+
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], $query_results, 'product' );
+		}
+
 		$mapped_results = array();
 		foreach ( $query_results as $result ) {
 			$mapped_results[ $result['download_id'] ] = array(
@@ -590,7 +605,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$new_values = $args['value'];
 		$new_ids    = array_keys( $new_values );
 
-		// @todo caching
 		$existing_file_data        = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `limit`, `expires` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) );  // WPCS: db call ok, cache ok.
 		$existing_file_data_by_key = array();
 		foreach ( $existing_file_data as $data ) {
@@ -640,6 +654,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 			++$priority;
 		}
+
+		wp_cache_delete( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
 
 		return true;
 	}
