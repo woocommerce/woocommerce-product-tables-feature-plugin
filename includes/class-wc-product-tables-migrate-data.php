@@ -396,10 +396,21 @@ class WC_Product_Tables_Migrate_Data {
 	 * @return void
 	 */
 	protected static function clean_old_data( $product_id ) {
+		global $wpdb;
+
 		$meta_keys = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
 
 		foreach ( $meta_keys as $meta_key ) {
 			delete_post_meta( $product_id, $meta_key );
 		}
+
+		// remove product variation attributes.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+				$product_id,
+				$wpdb->esc_like( 'attribute_' ) . '%'
+			)
+		);
 	}
 }
