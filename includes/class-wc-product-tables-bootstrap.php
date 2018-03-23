@@ -32,6 +32,7 @@ class WC_Product_Tables_Bootstrap {
 		include_once 'class-wc-product-tables-backwards-compatibility.php';
 		include_once 'class-wc-product-tables-install.php';
 		include_once 'class-wc-product-tables-migrate-data.php';
+		include_once 'class-wc-product-tables-query.php';
 		include_once 'compatibility/hacks.php';
 		include_once 'compatibility/class-wc-product-attribute.php';
 
@@ -42,6 +43,8 @@ class WC_Product_Tables_Bootstrap {
 		if ( is_admin() ) {
 			include_once 'admin/meta-boxes/class-wc-custom-meta-box-product-data.php';
 		}
+
+		$this->query = new WC_Product_Tables_Query();
 	}
 
 	/**
