@@ -20,7 +20,16 @@ class WC_Product_Tables_Query {
 	public function __construct() {
 		if ( ! is_admin() ) {
 			add_filter( 'woocommerce_get_catalog_ordering_args', array( $this, 'custom_ordering_args' ) );
+			add_action( 'wp', array( $this, 'remove_ordering_args' ) );
 		}
+	}
+
+	/**
+	 * Remove ordering queries.
+	 */
+	public function remove_ordering_args() {
+		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_price_asc_post_clauses' ) );
+		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_price_desc_post_clauses' ) );
 	}
 
 	/**
