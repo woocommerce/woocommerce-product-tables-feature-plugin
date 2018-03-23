@@ -55,7 +55,7 @@ class WC_Product_Tables_Query {
 			$search_within_terms   = get_term_children( $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy );
 			$search_within_terms[] = $wp_query->queried_object->term_taxonomy_id;
 			$args['join']         .= " INNER JOIN (
-					SELECT product_id, min( price+0 ) as price
+					SELECT product_id, price+0 as price
 					FROM {$wpdb->prefix}wc_products
 					INNER JOIN (
 						SELECT $wpdb->term_relationships.object_id
@@ -63,10 +63,9 @@ class WC_Product_Tables_Query {
 						WHERE 1=1
 						AND $wpdb->term_relationships.term_taxonomy_id IN (" . implode( ',', array_map( 'absint', $search_within_terms ) ) . ")
 					) as products_within_terms ON {$wpdb->prefix}wc_products.product_id = products_within_terms.object_id
-					GROUP BY product_id 
 				) as price_query ON $wpdb->posts.ID = price_query.product_id ";
 		} else {
-			$args['join'] .= " INNER JOIN ( SELECT product_id, min( price+0 ) as price FROM {$wpdb->prefix}wc_products GROUP BY product_id ) as price_query ON $wpdb->posts.ID = price_query.product_id ";
+			$args['join'] .= " INNER JOIN ( SELECT product_id, price+0 as price FROM {$wpdb->prefix}wc_products ) as price_query ON $wpdb->posts.ID = price_query.product_id ";
 		}
 
 		$args['orderby'] = " price_query.price ASC, $wpdb->posts.ID ASC ";
