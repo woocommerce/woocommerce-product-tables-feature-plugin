@@ -661,6 +661,105 @@ class WC_Product_Tables_Backwards_Compatibility {
 	}
 
 	/**
+	 * Get attributes in legacy meta format from attributes tables.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_product_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$attributes = wp_cache_get( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], 'product' );
+
+		if ( empty( $attributes ) ) {
+			$attributes = array();
+			$attribute_query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `product_attribute_id`, `name`, `is_visible`, `is_variation`, `priority`, `attribute_id` FROM {$wpdb->prefix}wc_product_attributes WHERE `product_id` = %d ORDER BY `priority`", $args['product_id'] ) );
+			foreach ( $attribute_query_results as $attribute_query_result ) {
+				$attribute = array(
+					'name'         => $attribute_query_result->name,
+					'position'     => absint( $attribute_query_result->priority ),
+					'is_visible'   => (int)(bool) $attribute_query_result->is_visible,
+					'is_variation' => $attribute_query_result->is_variation,
+					'is_taxonomy'  => (int)(bool) $attribute_query_result->attribute_id,
+					'value'        => '',
+				);
+
+				$attribute_values_query_results                     = $wpdb->get_col( $wpdb->prepare( "SELECT `value` FROM {$wpdb->prefix}wc_product_attribute_values WHERE `product_id`=%d AND `product_attribute_id`=%d ORDER BY `priority`", $args['product_id'], $attribute_query_result->product_attribute_id ) );
+				$attribute['value']                                 = implode( ' | ', $attribute_values_query_results );
+				$attributes[ sanitize_title( $attribute['name'] ) ] = $attribute;
+			}
+
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], $attributes, 'product' );
+		}
+
+		return array( array( $attributes ) );
+	}
+
+	/**
+	 * Update product attributes from legacy meta format .
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type array  $value Array of legacy meta format attribute info.
+	 * }
+	 * @return array
+	 */
+	public function update_product_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'value'      => array(),
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$product_id = $args['product_id'];
+		$attributes = $args['value'];
+
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return false;
+		}
+
+		$new_attributes = array();
+		foreach ( $attributes as $attribute ) {
+			$new_attribute = new WC_Product_Attribute();
+			$new_attribute->set_name( $attribute['name'] );
+			$new_attribute->set_position( $attribute['position'] );
+			$new_attribute->set_visible( $attribute['is_visible'] );
+			$new_attribute->set_variation( $attribute['is_variation'] );
+			$new_attribute->set_options( array_map( 'trim', explode( '|', $attribute['value'] ) ) );
+			$new_attributes[ sanitize_title( $attribute['name'] ) ] = $new_attribute;
+		}
+
+		$product->set_attributes( $new_attributes );
+		$product->save();
+
+		wp_cache_delete( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], 'product' );
+
+		return true;
+	}
+
+	/**
 	 * Get mapping.
 	 *
 	 * @return array
@@ -1478,6 +1577,26 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'set_manage_stock' ),
 					'args'     => array(
 						'value' => false,
+					),
+				),
+			),
+			'_product_attributes'          => array(
+				'get'    => array(
+					'function' => array( $this, 'get_product_attributes' ),
+					'args'     => array(),
+				),
+				'add'    => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(
+						'value' => array(),
 					),
 				),
 			),

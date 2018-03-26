@@ -749,7 +749,124 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
 	}
 
+	/**
+	 * Test the attributes metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_product_attributes_mapping() {
+		$attributes = array();
+		$attribute  = new WC_Product_Attribute();
+		$attribute->set_id( 0 );
+		$attribute->set_name( 'Test Attribute' );
+		$attribute->set_options( array( 'Fish', 'Fingers' ) );
+		$attribute->set_position( 0 );
+		$attribute->set_visible( true );
+		$attribute->set_variation( false );
+		$attributes['test-attribute'] = $attribute;
+
+		$product = new WC_Product_Simple();
+		$product->set_attributes( $attributes );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+
+		$expected = array(
+			'test-attribute' => array(
+				'name'         => 'Test Attribute',
+				'position'     => 0,
+				'is_visible'   => 1,
+				'is_variation' => 0,
+				'is_taxonomy'  => 0,
+				'value'        => 'Fish | Fingers',
+			),
+		);
+		$this->assertEquals( $expected, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		$updated = array(
+			'test-attribute-2' => array(
+				'name'         => 'Test Attribute 2',
+				'position'     => 1,
+				'is_visible'   => 1,
+				'is_variation' => 1,
+				'is_taxonomy'  => 0,
+				'value'        => 'Chicken | Nuggets',
+			),
+		);
+		update_post_meta( $product->get_id(), '_product_attributes', $updated );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+		$this->assertEquals( $updated, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		// @todo Instantiate a product object and check it got updated should pass.
+		delete_post_meta( $product->get_id(), '_product_attributes' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		add_post_meta( $product->get_id(), '_product_attributes', $expected );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+		$this->assertEquals( $expected, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+	}
+
 	// test_default_attributes_mapping
+	/*
+		Metadata format for _default_attributes:
+			array(2) {
+				["pa_color"]=> string(4) "blue"
+				["pa_size"]=> string(5) "large"
+			}
+	*/
 	// test_product_attributes_mapping
+	/*
+		Metadata format for _product_attributes:
+		array(3) {
+		  ["attr-1"]=>
+		  array(6) {
+		    ["name"]=>
+		    string(7) "attr #1"
+		    ["value"]=>
+		    string(11) "val1 | val2"
+		    ["position"]=>
+		    int(0)
+		    ["is_visible"]=>
+		    int(1)
+		    ["is_variation"]=>
+		    int(1)
+		    ["is_taxonomy"]=>
+		    int(0)
+		  }
+		  ["attr-2"]=>
+		  array(6) {
+		    ["name"]=>
+		    string(7) "attr #2"
+		    ["value"]=>
+		    string(11) "val1 | val2"
+		    ["position"]=>
+		    int(1)
+		    ["is_visible"]=>
+		    int(1)
+		    ["is_variation"]=>
+		    int(1)
+		    ["is_taxonomy"]=>
+		    int(0)
+		  }
+		  ["attr-3"]=>
+		  array(6) {
+		    ["name"]=>
+		    string(7) "attr #3"
+		    ["value"]=>
+		    string(11) "val1 | val2"
+		    ["position"]=>
+		    int(2)
+		    ["is_visible"]=>
+		    int(1)
+		    ["is_variation"]=>
+		    int(1)
+		    ["is_taxonomy"]=>
+		    int(0)
+		  }
+		}
+
+	*/
 	// test_downloadable_files_mapping.
 }
