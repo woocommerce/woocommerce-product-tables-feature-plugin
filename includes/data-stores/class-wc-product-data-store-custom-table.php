@@ -200,8 +200,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			}
 		}
 
-		error_log( print_r( $data, true ) );
-
 		// Manage stock over stock_quantity.
 		if ( isset( $changes['manage_stock'] ) && ! $changes['manage_stock'] ) {
 			$data['stock_quantity'] = null;
