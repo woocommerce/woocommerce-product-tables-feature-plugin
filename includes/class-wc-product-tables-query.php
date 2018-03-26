@@ -14,8 +14,6 @@
 class WC_Product_Tables_Query {
 	/**
 	 * Constructor for the query class. Hooks in methods.
-	 *
-	 * @return void
 	 */
 	public function __construct() {
 		if ( ! is_admin() ) {
