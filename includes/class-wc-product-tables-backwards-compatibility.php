@@ -142,12 +142,16 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['delete'];
 
-		// @todo $meta_value support
 		// @todo $delete_all support
 		$mapped_query       = $mapping[ $meta_key ]['delete'];
 		$mapped_func        = $mapping[ $meta_key ]['delete']['function'];
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
+
+		$meta_value = maybe_serialize( $meta_value );
+		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
+			$args['meta_value'] = $meta_value; // phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_meta_value
+		}
 
 		return (bool) call_user_func( $mapped_func, $args );
 	}
@@ -216,15 +220,21 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$format = $args['format'] ? array( $args['format'] ) : null;
+		$where  = array(
+			'product_id' => $args['product_id'],
+		);
+
+		// Support for $meta_value while deleting.
+		if ( isset( $args['meta_value'] ) ) {
+			$where[ $args['column'] ] = $args['meta_value'];
+		}
 
 		$update_success = (bool) $wpdb->update(
 			$wpdb->prefix . 'wc_products',
 			array(
 				$args['column'] => $args['value'],
 			),
-			array(
-				'product_id' => $args['product_id'],
-			),
+			$where,
 			$format
 		); // WPCS: db call ok, cache ok.
 
