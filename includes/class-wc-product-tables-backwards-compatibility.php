@@ -176,15 +176,16 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
-
-		if ( empty( $data ) ) {
-			$data = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
-
-			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], $data, 'product' );
+		$product = wc_get_product( $args['product_id'] );
+		if ( ! $product ) {
+			return false;
 		}
 
-		return $data;
+		if ( method_exists( $product, 'get_' . $args['column'] ) ) {
+			return array( array( $product->{"get_{$args['column']}"}() ) );
+		}
+
+		return array();
 	}
 
 	/**
@@ -215,24 +216,18 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
-		$format = $args['format'] ? array( $args['format'] ) : null;
-
-		$update_success = (bool) $wpdb->update(
-			$wpdb->prefix . 'wc_products',
-			array(
-				$args['column'] => $args['value'],
-			),
-			array(
-				'product_id' => $args['product_id'],
-			),
-			$format
-		); // WPCS: db call ok, cache ok.
-
-		if ( $update_success ) {
-			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+		$product = wc_get_product( $args['product_id'] );
+		if ( ! $product ) {
+			return false;
 		}
 
-		return $update_success;
+		if ( method_exists( $product, 'set_' . $args['column'] ) ) {
+			$product->{"set_{$args['column']}"}( $args['value'] );
+			$product->save();
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

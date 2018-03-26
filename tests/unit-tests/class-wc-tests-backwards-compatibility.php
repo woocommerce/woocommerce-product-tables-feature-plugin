@@ -43,9 +43,9 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_sku' ) );
 		$this->assertEquals( 'newsku', get_post_meta( $product->get_id(), '_sku', true ) );
 
-		// @todo this fails right now. Probably data-store related.
-		// $product = new WC_Product_Simple( $product->get_id() );
-		// $this->assertEquals( 'newsku', $product->get_sku() );
+		$product = new WC_Product_Simple( $product->get_id() );
+		$this->assertEquals( 'newsku', $product->get_sku() );
+
 		delete_post_meta( $product->get_id(), '_sku' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_sku', true ) );
 
@@ -75,7 +75,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated.
 		delete_post_meta( $product->get_id(), '_regular_price' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_regular_price', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_regular_price', true ) );
 
 		add_post_meta( $product->get_id(), '_regular_price', 2.12 );
 
@@ -104,7 +104,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated.
 		delete_post_meta( $product->get_id(), '_sale_price' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_sale_price', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_sale_price', true ) );
 
 		add_post_meta( $product->get_id(), '_sale_price', 10.50 );
 
@@ -133,7 +133,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated.
 		delete_post_meta( $product->get_id(), '_price' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_price', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_price', true ) );
 
 		add_post_meta( $product->get_id(), '_price', 5.50 );
 
@@ -342,7 +342,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_width' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_width', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_width', true ) );
 
 		add_post_meta( $product->get_id(), '_width', 10 );
 
@@ -370,7 +370,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_length' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_length', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_length', true ) );
 
 		add_post_meta( $product->get_id(), '_length', 10 );
 
@@ -398,7 +398,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_height' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_height', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_height', true ) );
 
 		add_post_meta( $product->get_id(), '_height', 10 );
 
@@ -426,7 +426,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		// @todo Instantiate a product object and check it got updated should pass.
 		delete_post_meta( $product->get_id(), '_weight' );
-		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_weight', true ) );
+		$this->assertEquals( '', get_post_meta( $product->get_id(), '_weight', true ) );
 
 		add_post_meta( $product->get_id(), '_weight', 10 );
 
