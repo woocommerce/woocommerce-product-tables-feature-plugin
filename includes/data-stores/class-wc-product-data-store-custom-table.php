@@ -166,6 +166,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'stock_status',
 		);
 
+		// Columns data need to be converted to datetime.
+		$date_columns = array(
+			'date_on_sale_from',
+			'date_on_sale_to',
+		);
+
 		// @todo: Adapt getters to return null in core.
 		$allow_null = array(
 			'height',
@@ -183,8 +189,13 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		foreach ( $columns as $column ) {
 			if ( $insert || array_key_exists( $column, $changes ) ) {
-				$value                 = $product->{"get_$column"}( 'edit' );
-				$data[ $column ]       = '' === $value && in_array( $column, $allow_null, true ) ? null : $value;
+				$value = $product->{"get_$column"}( 'edit' );
+
+				if ( in_array( $column, $date_columns, true ) ) {
+					$data[ $column ] = empty( $value ) ? null : gmdate( 'Y-m-d H:i:s', $product->{"get_$column"}( 'edit' )->getOffsetTimestamp() );
+				} else {
+					$data[ $column ] = '' === $value && in_array( $column, $allow_null, true ) ? null : $value;
+				}
 				$this->updated_props[] = $column;
 			}
 		}
