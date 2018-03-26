@@ -30,6 +30,7 @@ class WC_Product_Tables_Query {
 	public function remove_ordering_args() {
 		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_price_asc_post_clauses' ) );
 		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_price_desc_post_clauses' ) );
+		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_popularity_post_clauses' ) );
 	}
 
 	/**
@@ -47,6 +48,10 @@ class WC_Product_Tables_Query {
 				remove_filter( 'posts_clauses', array( WC()->query, 'order_by_price_asc_post_clauses' ) );
 				add_filter( 'posts_clauses', array( $this, 'custom_order_by_price_asc_post_clauses' ) );
 			}
+		} elseif ( 'popularity' === $args['orderby'] ) {
+			remove_filter( 'posts_clauses', array( WC()->query, 'order_by_popularity_post_clauses' ) );
+			add_filter( 'posts_clauses', array( $this, 'custom_order_by_popularity_post_clauses' ) );
+			unset( $args['meta_key'] );
 		}
 
 		return $args;
@@ -111,6 +116,21 @@ class WC_Product_Tables_Query {
 		}
 
 		$args['orderby'] = " price_query.price DESC, $wpdb->posts.ID DESC ";
+
+		return $args;
+	}
+
+	/**
+	 * Handle ordering products by popularity.
+	 *
+	 * @param array $args Query args.
+	 * @return array
+	 */
+	public function custom_order_by_popularity_post_clauses( $args ) {
+		global $wpdb;
+
+		$args['join']   .= " INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id ";
+		$args['orderby'] = "{$wpdb->prefix}wc_products.total_sales DESC, $wpdb->posts.post_date DESC";
 
 		return $args;
 	}
