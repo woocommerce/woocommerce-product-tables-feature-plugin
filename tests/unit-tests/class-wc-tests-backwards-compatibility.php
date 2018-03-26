@@ -141,9 +141,11 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( 5.50, get_post_meta( $product->get_id(), '_price', true ) );
 	}
 
-	/*
-	@todo Tables throw errors saving products with datetime objects so this cant be tested yet.
-	Seems to be from the main data store and not the mapping.
+	/**
+	 * Test sale price dates from mapping.
+	 *
+	 * @since 1.0.0
+	 */
 	public function test_sale_price_dates_from_mapping() {
 		$sale_time_from = time();
 
@@ -156,14 +158,26 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_sale_price_dates_from' ) );
 		$meta_date = get_post_meta( $product->get_id(), '_sale_price_dates_from', true );
 		$this->assertEquals( $sale_time_from, strtotime( $meta_date ) );
-
 	}
 
+	/**
+	 * Test sake price dates to mapping.
+	 *
+	 * @since 1.0.0
+	 */
 	public function test_sale_price_dates_to_mapping() {
+		$sale_time_to = strtotime( '+1 week' );
 
+		$product = new WC_Product_Simple();
+		$product->set_regular_price( 5 );
+		$product->set_sale_price( 4 );
+		$product->set_date_on_sale_to( $sale_time_to );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_sale_price_dates_to' ) );
+		$meta_date = get_post_meta( $product->get_id(), '_sale_price_dates_to', true );
+		$this->assertEquals( $sale_time_to, strtotime( $meta_date ) );
 	}
-	@todo see above
-	*/
 
 	/**
 	 * Test the total sales metadata mapping.
