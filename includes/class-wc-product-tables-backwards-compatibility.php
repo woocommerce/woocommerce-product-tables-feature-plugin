@@ -225,11 +225,15 @@ class WC_Product_Tables_Backwards_Compatibility {
 		);
 
 		if ( ! empty( $args['delete_all'] ) ) {
+			// Properly convert null values to mysql.
+			$delete_all_value = is_null( $args['value'] ) ? 'NULL' : "'" . esc_sql( $args['value'] ) . "'";
+
+			// Update all values.
 			$query  = "UPDATE {$wpdb->prefix}wc_products";
-			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . esc_sql( $args['value'] );
+			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . $delete_all_value;
 
 			if ( isset( $args['meta_value'] ) ) {
-				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . esc_sql( $args['meta_value'] );
+				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . "'" . esc_sql( $args['meta_value'] ) . "'";
 			}
 
 			$update_success = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
