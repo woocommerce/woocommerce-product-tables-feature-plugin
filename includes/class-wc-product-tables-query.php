@@ -26,6 +26,8 @@ class WC_Product_Tables_Query {
 
 	/**
 	 * Remove ordering queries.
+	 *
+	 * @return void
 	 */
 	public function remove_ordering_args() {
 		remove_filter( 'posts_clauses', array( $this, 'custom_order_by_price_asc_post_clauses' ) );
@@ -95,6 +97,7 @@ class WC_Product_Tables_Query {
 		if ( isset( $wp_query->queried_object, $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy ) && is_a( $wp_query->queried_object, 'WP_Term' ) ) {
 			$search_within_terms   = get_term_children( $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy );
 			$search_within_terms[] = $wp_query->queried_object->term_taxonomy_id;
+
 			$args['join']         .= " INNER JOIN (
 					SELECT product_id, max( price+0 ) as price
 					FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
@@ -107,7 +110,12 @@ class WC_Product_Tables_Query {
 					WHERE ID = product_id GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
 				) as price_query ON $wpdb->posts.ID = price_query.product_id ";
 		} else {
-			$args['join'] .= " INNER JOIN ( SELECT product_id, max( price+0 ) as price FROM {$wpdb->prefix}wc_products, {$wpdb->posts} WHERE ID = product_id GROUP BY IF( post_type = 'product_variation', post_parent, product_id ) ) as price_query ON {$wpdb->posts}.ID = price_query.product_id ";
+			$args['join'] .= " INNER JOIN (
+				    SELECT product_id, max( price+0 ) as price
+				    FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
+				    WHERE ID = product_id
+				    GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
+			    ) as price_query ON {$wpdb->posts}.ID = price_query.product_id ";
 		}
 
 		$args['orderby'] = " price_query.price DESC, $wpdb->posts.ID DESC ";
