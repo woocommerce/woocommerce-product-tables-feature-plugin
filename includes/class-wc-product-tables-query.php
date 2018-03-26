@@ -98,6 +98,8 @@ class WC_Product_Tables_Query {
 			$search_within_terms   = get_term_children( $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy );
 			$search_within_terms[] = $wp_query->queried_object->term_taxonomy_id;
 
+			// For variable products, the price field in `wp_wc_products` stores the minimum price of all variations. So to order variable products
+			// using the maximum price it is necessary to query all of its variations. This is done grouping by different fields depending on the post_type.
 			$args['join']         .= " INNER JOIN (
 					SELECT product_id, max( price+0 ) as price
 					FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
@@ -110,6 +112,8 @@ class WC_Product_Tables_Query {
 					WHERE ID = product_id GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
 				) as price_query ON $wpdb->posts.ID = price_query.product_id ";
 		} else {
+			// For variable products, the price field in `wp_wc_products` stores the minimum price of all variations. So to order variable products
+			// using the maximum price it is necessary to query all of its variations. This is done grouping by different fields depending on the post_type.
 			$args['join'] .= " INNER JOIN (
 				    SELECT product_id, max( price+0 ) as price
 				    FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
