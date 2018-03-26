@@ -691,9 +691,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 				$attribute = array(
 					'name'         => $attribute_query_result->name,
 					'position'     => absint( $attribute_query_result->priority ),
-					'is_visible'   => (int)(bool) $attribute_query_result->is_visible,
+					'is_visible'   => (int) (bool) $attribute_query_result->is_visible,
 					'is_variation' => $attribute_query_result->is_variation,
-					'is_taxonomy'  => (int)(bool) $attribute_query_result->attribute_id,
+					'is_taxonomy'  => (int) (bool) $attribute_query_result->attribute_id,
 					'value'        => '',
 				);
 
@@ -717,7 +717,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type int    $product_id Product ID.
 	 *     @type array  $value Array of legacy meta format attribute info.
 	 * }
-	 * @return array
+	 * @return bool
 	 */
 	public function update_product_attributes( $args ) {
 		global $wpdb;
@@ -757,6 +757,70 @@ class WC_Product_Tables_Backwards_Compatibility {
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], 'product' );
 
 		return true;
+	}
+
+	/**
+	 * Get default attributes in legacy meta format from attributes tables.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_product_default_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$product = wc_get_product( $args['product_id'] );
+		if ( $product ) {
+			return $product->get_default_attributes( 'edit' );
+		}
+
+		return array();
+	}
+
+	/**
+	 * Update product default attributes from legacy meta format .
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type array  $value Array of legacy meta format attribute info.
+	 * }
+	 * @return bool
+	 */
+	public function update_product_default_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'value'      => array(),
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$product = wc_get_product( $args['product_id'] );
+		if ( $product ) {
+			$product->set_default_attributes( $args['value'] );
+			$product->save();
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -1600,14 +1664,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
+			'_default_attributes'          => array(
+				'get'    => array(
+					'function' => array( $this, 'get_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'add'    => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(
+						'value' => array(),
+					),
+				),
+			),
 		);
-
-		/*
-			@todo
-			Attributes table(s): '_default_attributes',
-			Attributes table(s): '_product_attributes',
-			Product downloads table: '_downloadable_files',
-		*/
 	}
 }
 

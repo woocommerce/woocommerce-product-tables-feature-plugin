@@ -808,65 +808,42 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( $expected, get_post_meta( $product->get_id(), '_product_attributes', true ) );
 	}
 
-	// test_default_attributes_mapping
-	/*
-		Metadata format for _default_attributes:
-			array(2) {
-				["pa_color"]=> string(4) "blue"
-				["pa_size"]=> string(5) "large"
-			}
-	*/
-	// test_product_attributes_mapping
-	/*
-		Metadata format for _product_attributes:
-		array(3) {
-		  ["attr-1"]=>
-		  array(6) {
-		    ["name"]=>
-		    string(7) "attr #1"
-		    ["value"]=>
-		    string(11) "val1 | val2"
-		    ["position"]=>
-		    int(0)
-		    ["is_visible"]=>
-		    int(1)
-		    ["is_variation"]=>
-		    int(1)
-		    ["is_taxonomy"]=>
-		    int(0)
-		  }
-		  ["attr-2"]=>
-		  array(6) {
-		    ["name"]=>
-		    string(7) "attr #2"
-		    ["value"]=>
-		    string(11) "val1 | val2"
-		    ["position"]=>
-		    int(1)
-		    ["is_visible"]=>
-		    int(1)
-		    ["is_variation"]=>
-		    int(1)
-		    ["is_taxonomy"]=>
-		    int(0)
-		  }
-		  ["attr-3"]=>
-		  array(6) {
-		    ["name"]=>
-		    string(7) "attr #3"
-		    ["value"]=>
-		    string(11) "val1 | val2"
-		    ["position"]=>
-		    int(2)
-		    ["is_visible"]=>
-		    int(1)
-		    ["is_variation"]=>
-		    int(1)
-		    ["is_taxonomy"]=>
-		    int(0)
-		  }
-		}
+	/**
+	 * Test the default attribute metadata mapping.
+	 *
+	 * @since 1.0.0
+	 * @todo This fails currently. Something to do with caching in the data store.
+	 */
+	public function test_product_default_attributes_mapping() {
+		$attributes = array();
+		$attribute  = new WC_Product_Attribute();
+		$attribute->set_id( 0 );
+		$attribute->set_name( 'Test Attribute' );
+		$attribute->set_options( array( 'Fish', 'Fingers' ) );
+		$attribute->set_position( 0 );
+		$attribute->set_visible( true );
+		$attribute->set_variation( false );
+		$attributes['test-attribute'] = $attribute;
 
-	*/
-	// test_downloadable_files_mapping.
+		$default = array(
+			'test-attribute' => 'Fingers',
+		);
+
+		$product = new WC_Product_Simple();
+		$product->set_attributes( $attributes );
+		$product->set_default_attributes( $default );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_default_attributes' ) );
+		$this->assertEquals( $default, get_post_meta( $product->get_id(), '_default_attributes', true ) );
+
+		// @todo Instantiate a product object and check it got updated should pass.
+		delete_post_meta( $product->get_id(), '_default_attributes' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_default_attributes', true ) );
+
+		add_post_meta( $product->get_id(), '_default_attributes', $default );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_default_attributes' ) );
+		$this->assertEquals( $default, get_post_meta( $product->get_id(), '_default_attributes', true ) );
+	}
 }
