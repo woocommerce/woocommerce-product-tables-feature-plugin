@@ -142,11 +142,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['delete'];
 
-		// @todo $delete_all support
 		$mapped_query       = $mapping[ $meta_key ]['delete'];
 		$mapped_func        = $mapping[ $meta_key ]['delete']['function'];
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
+		$args['delete_all'] = $delete_all;
 
 		$meta_value = maybe_serialize( $meta_value );
 		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
@@ -224,19 +224,30 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'product_id' => $args['product_id'],
 		);
 
-		// Support for $meta_value while deleting.
-		if ( isset( $args['meta_value'] ) ) {
-			$where[ $args['column'] ] = $args['meta_value'];
-		}
+		if ( $args['delete_all'] ) {
+			$query  = "UPDATE {$wpdb->prefix}wc_products";
+			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . esc_sql( $args['value'] );
 
-		$update_success = (bool) $wpdb->update(
-			$wpdb->prefix . 'wc_products',
-			array(
-				$args['column'] => $args['value'],
-			),
-			$where,
-			$format
-		); // WPCS: db call ok, cache ok.
+			if ( isset( $args['meta_value'] ) ) {
+				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . esc_sql( $args['meta_value'] );
+			}
+
+			$update_success = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+		} else {
+			// Support for $meta_value while deleting.
+			if ( isset( $args['meta_value'] ) ) {
+				$where[ $args['column'] ] = $args['meta_value'];
+			}
+
+			$update_success = (bool) $wpdb->update(
+				$wpdb->prefix . 'wc_products',
+				array(
+					$args['column'] => $args['value'],
+				),
+				$where,
+				$format
+			); // WPCS: db call ok, cache ok.
+		}
 
 		if ( $update_success ) {
 			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
