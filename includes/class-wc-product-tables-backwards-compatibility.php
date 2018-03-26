@@ -460,8 +460,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		// Set stock_quantity to NULL if not managing stock.
-		$args['value']  = 'NULL';
+		$args['value']  = null;
 		$args['format'] = '';
+
 		return $this->update_in_product_table( $args );
 	}
 
