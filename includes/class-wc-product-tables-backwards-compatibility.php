@@ -224,7 +224,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'product_id' => $args['product_id'],
 		);
 
-		if ( $args['delete_all'] ) {
+		if ( ! empty( $args['delete_all'] ) ) {
 			$query  = "UPDATE {$wpdb->prefix}wc_products";
 			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . esc_sql( $args['value'] );
 
@@ -403,6 +403,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function set_variation_description( $args ) {
+		global $wpdb;
+
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => '',
@@ -413,6 +415,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
+		// Support delete all and check for meta value.
+		if ( ! empty( $args['delete_all'] ) ) {
+			$query = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
+
+			if ( isset( $args['meta_value'] ) ) {
+				$query .= " AND post_content = '" . esc_sql( $args['meta_value'] ) . "'";
+			}
+
+			return (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+		}
+
+		// Check for meta value while deleting.
+		if ( isset( $args['meta_value'] ) ) {
+			$description = $this->get_variation_description( $args );
+
+			if ( $args['meta_value'] !== $description[0] ) {
+				return false;
+			}
+		}
+
+		// Regular update.
 		return wp_update_post(
 			array(
 				'ID'           => $args['product_id'],
