@@ -369,7 +369,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
-		wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_relationships_' . $args['product_id'], 'product' );
 
 		return true;
 	}
