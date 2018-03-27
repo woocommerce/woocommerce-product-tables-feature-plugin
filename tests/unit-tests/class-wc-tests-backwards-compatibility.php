@@ -43,11 +43,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_sku' ) );
 		$this->assertEquals( 'newsku', get_post_meta( $product->get_id(), '_sku', true ) );
 
-		// @todo this fails right now. Probably data-store related.
-		// $product = new WC_Product_Simple( $product->get_id() );
-		// $this->assertEquals( 'newsku', $product->get_sku() );
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'newsku', $_product->get_sku() );
+
 		delete_post_meta( $product->get_id(), '_sku' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_sku', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_sku() );
 
 		add_post_meta( $product->get_id(), '_sku', 'newestsku' );
 
@@ -73,9 +76,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_regular_price' ) );
 		$this->assertEquals( 11.50, get_post_meta( $product->get_id(), '_regular_price', true ) );
 
-		// @todo Instantiate a product object and check it got updated.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 11.50, $_product->get_regular_price() );
+
 		delete_post_meta( $product->get_id(), '_regular_price' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_regular_price', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_regular_price() );
 
 		add_post_meta( $product->get_id(), '_regular_price', 2.12 );
 
@@ -102,9 +110,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_sale_price' ) );
 		$this->assertEquals( 1.63, get_post_meta( $product->get_id(), '_sale_price', true ) );
 
-		// @todo Instantiate a product object and check it got updated.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 1.63, $_product->get_sale_price() );
+
 		delete_post_meta( $product->get_id(), '_sale_price' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_sale_price', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_sale_price() );
 
 		add_post_meta( $product->get_id(), '_sale_price', 10.50 );
 
@@ -131,9 +144,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_price' ) );
 		$this->assertEquals( 12.0, get_post_meta( $product->get_id(), '_price', true ) );
 
-		// @todo Instantiate a product object and check it got updated.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 12.0, $_product->get_price() );
+
 		delete_post_meta( $product->get_id(), '_price' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_price', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_price() );
 
 		add_post_meta( $product->get_id(), '_price', 5.50 );
 
@@ -197,11 +215,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), 'total_sales' ) );
 		$this->assertEquals( 12, get_post_meta( $product->get_id(), 'total_sales', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
-		// $retrieved_product = new WC_Product_Simple( $product->get_id() );
-		// $this->assertEquals( 12, $retrieved_product->get_total_sales() );
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 12, $_product->get_total_sales() );
+
 		delete_post_meta( $product->get_id(), 'total_sales' );
 		$this->assertEquals( 0, get_post_meta( $product->get_id(), 'total_sales', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 0, $_product->get_total_sales() );
 
 		add_post_meta( $product->get_id(), 'total_sales', 2 );
 
@@ -227,9 +248,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_tax_status' ) );
 		$this->assertEquals( 'taxable', get_post_meta( $product->get_id(), '_tax_status', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'taxable', $_product->get_tax_status() );
+
 		delete_post_meta( $product->get_id(), '_tax_status' );
 		$this->assertEquals( 'taxable', get_post_meta( $product->get_id(), '_tax_status', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'taxable', $_product->get_tax_status() );
 
 		add_post_meta( $product->get_id(), '_tax_status', 'shipping' );
 
@@ -255,9 +281,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_tax_class' ) );
 		$this->assertEquals( 'zero-rate', get_post_meta( $product->get_id(), '_tax_class', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'zero-rate', $_product->get_tax_class() );
+
 		delete_post_meta( $product->get_id(), '_tax_class' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_tax_class', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_tax_class() );
 
 		add_post_meta( $product->get_id(), '_tax_class', 'zero-rate' );
 
@@ -284,9 +315,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_stock' ) );
 		$this->assertEquals( 10, get_post_meta( $product->get_id(), '_stock', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 10, $_product->get_stock_quantity() );
+
 		delete_post_meta( $product->get_id(), '_stock' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_stock', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_stock_quantity() );
 
 		add_post_meta( $product->get_id(), '_stock', 2 );
 
@@ -312,9 +348,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_stock_status' ) );
 		$this->assertEquals( 'onbackorder', get_post_meta( $product->get_id(), '_stock_status', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'onbackorder', $_product->get_stock_status() );
+
 		delete_post_meta( $product->get_id(), '_stock_status' );
 		$this->assertEquals( 'instock', get_post_meta( $product->get_id(), '_stock_status', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'instock', $_product->get_stock_status() );
 
 		add_post_meta( $product->get_id(), '_stock_status', 'outofstock' );
 
@@ -340,9 +381,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_width' ) );
 		$this->assertEquals( 30, get_post_meta( $product->get_id(), '_width', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 30, $_product->get_width() );
+
 		delete_post_meta( $product->get_id(), '_width' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_width', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_width() );
 
 		add_post_meta( $product->get_id(), '_width', 10 );
 
@@ -368,9 +414,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_length' ) );
 		$this->assertEquals( 30, get_post_meta( $product->get_id(), '_length', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 30, $_product->get_length() );
+
 		delete_post_meta( $product->get_id(), '_length' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_length', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_length() );
 
 		add_post_meta( $product->get_id(), '_length', 10 );
 
@@ -396,9 +447,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_height' ) );
 		$this->assertEquals( 30, get_post_meta( $product->get_id(), '_height', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 30, $_product->get_height() );
+
 		delete_post_meta( $product->get_id(), '_height' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_height', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_height() );
 
 		add_post_meta( $product->get_id(), '_height', 10 );
 
@@ -424,9 +480,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_weight' ) );
 		$this->assertEquals( 30, get_post_meta( $product->get_id(), '_weight', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 30, $_product->get_weight() );
+
 		delete_post_meta( $product->get_id(), '_weight' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_weight', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_weight() );
 
 		add_post_meta( $product->get_id(), '_weight', 10 );
 
@@ -452,15 +513,20 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_virtual' ) );
 		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_virtual', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
 		update_post_meta( $product->get_id(), '_virtual', true );
 		delete_post_meta( $product->get_id(), '_virtual' );
 		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_virtual', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( false, $_product->get_virtual() );
 
 		add_post_meta( $product->get_id(), '_virtual', true );
 
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_virtual' ) );
 		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_virtual', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( true, $_product->get_virtual() );
 	}
 
 	/**
@@ -481,15 +547,20 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable' ) );
 		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_downloadable', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
 		update_post_meta( $product->get_id(), '_downloadable', true );
 		delete_post_meta( $product->get_id(), '_downloadable' );
 		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_downloadable', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( false, $_product->get_downloadable() );
 
 		add_post_meta( $product->get_id(), '_downloadable', true );
 
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable' ) );
 		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_downloadable', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( true, $_product->get_downloadable() );
 	}
 
 	/**
@@ -510,9 +581,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_wc_average_rating' ) );
 		$this->assertEquals( 5, get_post_meta( $product->get_id(), '_wc_average_rating', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 5, $_product->get_average_rating() );
+
 		delete_post_meta( $product->get_id(), '_wc_average_rating' );
 		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_wc_average_rating', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 0, $_product->get_average_rating() );
 
 		add_post_meta( $product->get_id(), '_wc_average_rating', 3 );
 
@@ -538,9 +614,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_thumbnail_id' ) );
 		$this->assertEquals( 100, get_post_meta( $product->get_id(), '_thumbnail_id', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 100, $_product->get_image_id() );
+
 		delete_post_meta( $product->get_id(), '_thumbnail_id' );
 		$this->assertEquals( 0, get_post_meta( $product->get_id(), '_thumbnail_id', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 0, $_product->get_image_id() );
 
 		add_post_meta( $product->get_id(), '_thumbnail_id', 126 );
 
@@ -566,9 +647,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_upsell_ids' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_upsell_ids', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array( 40, 50 ), $_product->get_upsell_ids() );
+
 		delete_post_meta( $product->get_id(), '_upsell_ids' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_upsell_ids', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_upsell_ids() );
 
 		add_post_meta( $product->get_id(), '_upsell_ids', array( 20, 30 ) );
 
@@ -594,9 +680,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_crosssell_ids' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_crosssell_ids', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array( 40, 50 ), $_product->get_cross_sell_ids() );
+
 		delete_post_meta( $product->get_id(), '_crosssell_ids' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_crosssell_ids', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_cross_sell_ids() );
 
 		add_post_meta( $product->get_id(), '_crosssell_ids', array( 20, 30 ) );
 
@@ -621,9 +712,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_image_gallery' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_product_image_gallery', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array( 40, 50 ), $_product->get_gallery_image_ids() );
+
 		delete_post_meta( $product->get_id(), '_product_image_gallery' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_product_image_gallery', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_gallery_image_ids() );
 
 		add_post_meta( $product->get_id(), '_product_image_gallery', array( 20, 30 ) );
 
@@ -649,9 +745,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_children' ) );
 		$this->assertEquals( array( 40, 50 ), get_post_meta( $product->get_id(), '_children', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array( 40, 50 ), $_product->get_children() );
+
 		delete_post_meta( $product->get_id(), '_children' );
 		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_children', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_children() );
 
 		add_post_meta( $product->get_id(), '_children', array( 20, 30 ) );
 
@@ -725,9 +826,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_variation_description' ) );
 		$this->assertEquals( 'Test desc 2', get_post_meta( $product->get_id(), '_variation_description', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( 'Test desc 2', $_product->get_description() );
+
 		delete_post_meta( $product->get_id(), '_variation_description' );
 		$this->assertEquals( '', get_post_meta( $product->get_id(), '_variation_description', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( '', $_product->get_description() );
 
 		add_post_meta( $product->get_id(), '_variation_description', 'Test desc 3' );
 
@@ -753,7 +859,9 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_manage_stock' ) );
 		$this->assertEquals( false, get_post_meta( $product->get_id(), '_manage_stock', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( false, $_product->get_manage_stock() );
+
 		delete_post_meta( $product->get_id(), '_manage_stock' );
 		$this->assertEquals( false, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
 
@@ -761,6 +869,9 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_manage_stock' ) );
 		$this->assertEquals( true, (bool) get_post_meta( $product->get_id(), '_manage_stock', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( true, $_product->get_manage_stock() );
 	}
 
 	// test_default_attributes_mapping
