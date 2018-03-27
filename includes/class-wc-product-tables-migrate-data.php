@@ -20,26 +20,27 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	protected static $meta_keys = array(
 		// List of post meta keys that will be migrated to fields in the new wp_wc_products table.
+		// Each key of this array represent a field name in the new table and each value a post meta key.
 		'product' => array(
-			'_sku',
-			'_thumbnail_id',
-			'_height',
-			'_width',
-			'_length',
-			'_weight',
-			'_stock_quantity',
-			'_virtual',
-			'_downloadable',
-			'_tax_class',
-			'_tax_status',
-			'total_sales',
-			'_price',
-			'_regular_price',
-			'_sale_price',
-			'_date_on_sale_from',
-			'_date_on_sale_to',
-			'_average_rating',
-			'_stock_status',
+			'sku'               => '_sku',
+			'image_id'          => '_thumbnail_id',
+			'height'            => '_height',
+			'width'             => '_width',
+			'length'            => '_length',
+			'weight'            => '_weight',
+			'stock_quantity'    => '_stock',
+			'virtual'           => '_virtual',
+			'downloadable'      => '_downloadable',
+			'tax_class'         => '_tax_class',
+			'tax_status'        => '_tax_status',
+			'total_sales'       => 'total_sales',
+			'price'             => '_price',
+			'regular_price'     => '_regular_price',
+			'sale_price'        => '_sale_price',
+			'date_on_sale_from' => '_sale_price_dates_from',
+			'date_on_sale_to'   => '_sale_price_dates_to',
+			'average_rating'    => '_wc_average_rating',
+			'stock_status'      => '_stock_status',
 		),
 		// List of post meta keys that will be migrated to different tables created by this plugin.
 		'custom'  => array(
@@ -190,7 +191,7 @@ class WC_Product_Tables_Migrate_Data {
 			'type'       => $product_type,
 		);
 
-		foreach ( self::$meta_keys['product'] as $meta_key ) {
+		foreach ( self::$meta_keys['product'] as $new_field_name => $meta_key ) {
 			if ( '_price' === $meta_key ) {
 				if ( isset( $metas['_price'] ) ) {
 					// Sort from low to high picking lowest.
@@ -203,17 +204,19 @@ class WC_Product_Tables_Migrate_Data {
 				// replace empty strings (used to represent products not on sale) with NULL as the type of the field
 				// sale_price is double and an empty string is not a valid value.
 				$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
+			} elseif ( '_sale_price_dates_from' === $meta_key ) {
+				$meta_value = date( 'Y-m-d H:i:s', $metas['_sale_price_dates_from'][0] );
+			} elseif ( '_sale_price_dates_to' === $meta_key ) {
+				$meta_value = date( 'Y-m-d H:i:s', $metas['_sale_price_dates_to'][0] );
+			} elseif ( '_virtual' === $meta_key ) {
+				$meta_value = 'yes' === $metas['_virtual'][0] ? 1 : 0;
+			} elseif ( '_downloadable' === $meta_key ) {
+				$meta_value = 'yes' === $metas['_downloadable'][0] ? 1 : 0;
 			} else {
 				$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
 			}
 
-			if ( '_thumbnail_id' === $meta_key ) {
-				$field_name = 'image_id';
-			} else {
-				$field_name = ltrim( $meta_key, '_' );
-			}
-
-			$new_data[ $field_name ] = $meta_value;
+			$new_data[ $new_field_name ] = $meta_value;
 		}
 
 		self::insert( 'wc_products', $new_data );
