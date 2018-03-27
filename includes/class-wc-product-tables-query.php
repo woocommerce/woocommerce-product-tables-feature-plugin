@@ -59,25 +59,9 @@ class WC_Product_Tables_Query {
 	 * @return array
 	 */
 	public function custom_order_by_price_asc_post_clauses( $args ) {
-		global $wpdb, $wp_query;
+		global $wpdb;
 
-		if ( isset( $wp_query->queried_object, $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy ) && is_a( $wp_query->queried_object, 'WP_Term' ) ) {
-			$search_within_terms   = get_term_children( $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy );
-			$search_within_terms[] = $wp_query->queried_object->term_taxonomy_id;
-			$args['join']         .= " INNER JOIN (
-					SELECT product_id, price+0 as price
-					FROM {$wpdb->prefix}wc_products
-					INNER JOIN (
-						SELECT $wpdb->term_relationships.object_id
-						FROM $wpdb->term_relationships
-						WHERE 1=1
-						AND $wpdb->term_relationships.term_taxonomy_id IN (" . implode( ',', array_map( 'absint', $search_within_terms ) ) . ")
-					) as products_within_terms ON {$wpdb->prefix}wc_products.product_id = products_within_terms.object_id
-				) as price_query ON $wpdb->posts.ID = price_query.product_id ";
-		} else {
-			$args['join'] .= " INNER JOIN ( SELECT product_id, price+0 as price FROM {$wpdb->prefix}wc_products ) as price_query ON $wpdb->posts.ID = price_query.product_id ";
-		}
-
+		$args['join']   .= " INNER JOIN ( SELECT product_id, price+0 as price FROM {$wpdb->prefix}wc_products ) as price_query ON $wpdb->posts.ID = price_query.product_id ";
 		$args['orderby'] = " price_query.price ASC, $wpdb->posts.ID ASC ";
 
 		return $args;
@@ -90,35 +74,16 @@ class WC_Product_Tables_Query {
 	 * @return array
 	 */
 	public function custom_order_by_price_desc_post_clauses( $args ) {
-		global $wpdb, $wp_query;
+		global $wpdb;
 
-		if ( isset( $wp_query->queried_object, $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy ) && is_a( $wp_query->queried_object, 'WP_Term' ) ) {
-			$search_within_terms   = get_term_children( $wp_query->queried_object->term_taxonomy_id, $wp_query->queried_object->taxonomy );
-			$search_within_terms[] = $wp_query->queried_object->term_taxonomy_id;
-
-			// For variable products, the price field in `wp_wc_products` stores the minimum price of all variations. So to order variable products
-			// using the maximum price it is necessary to query all of its variations. This is done grouping by different fields depending on the post_type.
-			$args['join']         .= " INNER JOIN (
-					SELECT product_id, max( price+0 ) as price
-					FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
-					INNER JOIN (
-						SELECT $wpdb->term_relationships.object_id
-						FROM $wpdb->term_relationships
-						WHERE 1=1
-						AND $wpdb->term_relationships.term_taxonomy_id IN (" . implode( ',', array_map( 'absint', $search_within_terms ) ) . ")
-					) as products_within_terms ON IF( post_type = 'product_variation', post_parent, ID ) = products_within_terms.object_id
-					WHERE ID = product_id GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
-				) as price_query ON $wpdb->posts.ID = price_query.product_id ";
-		} else {
-			// For variable products, the price field in `wp_wc_products` stores the minimum price of all variations. So to order variable products
-			// using the maximum price it is necessary to query all of its variations. This is done grouping by different fields depending on the post_type.
-			$args['join'] .= " INNER JOIN (
-				    SELECT product_id, max( price+0 ) as price
-				    FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
-				    WHERE ID = product_id
-				    GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
-			    ) as price_query ON {$wpdb->posts}.ID = price_query.product_id ";
-		}
+		// For variable products, the price field in `wp_wc_products` stores the minimum price of all variations. So to order variable products
+		// using the maximum price it is necessary to query all of its variations. This is done grouping by different fields depending on the post_type.
+		$args['join'] .= " INNER JOIN (
+			    SELECT product_id, max( price+0 ) as price
+			    FROM {$wpdb->prefix}wc_products, {$wpdb->posts}
+			    WHERE ID = product_id
+			    GROUP BY IF( post_type = 'product_variation', post_parent, product_id )
+		    ) as price_query ON {$wpdb->posts}.ID = price_query.product_id ";
 
 		$args['orderby'] = " price_query.price DESC, $wpdb->posts.ID DESC ";
 
