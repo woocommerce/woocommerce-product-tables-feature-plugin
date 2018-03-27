@@ -343,7 +343,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 					return ! empty( $relationship->type ) && $relationship->type === $type;
 				}
 			);
-			$values         = array_values( wp_list_pluck( $relationships, 'object_id' ) );
+			$values         = array_map( 'intval', array_values( wp_list_pluck( $relationships, 'object_id' ) ) );
 			$props[ $prop ] = $values;
 		}
 

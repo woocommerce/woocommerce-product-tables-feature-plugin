@@ -255,6 +255,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		if ( $update_success ) {
 			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+			wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 		}
 
 		return $update_success;
@@ -368,6 +369,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_relationships_' . $args['product_id'], 'product' );
 
 		return true;
 	}
@@ -705,6 +707,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 
 		return true;
 	}
