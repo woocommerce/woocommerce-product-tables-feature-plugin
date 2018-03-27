@@ -734,27 +734,23 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$attributes = wp_cache_get( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], 'product' );
+		$product = wc_get_product( $args['product_id'] );
+		if ( ! $product ) {
+			return array();
+		}
 
-		if ( empty( $attributes ) ) {
-			$attributes = array();
-			$attribute_query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `product_attribute_id`, `name`, `is_visible`, `is_variation`, `priority`, `attribute_id` FROM {$wpdb->prefix}wc_product_attributes WHERE `product_id` = %d ORDER BY `priority`", $args['product_id'] ) );
-			foreach ( $attribute_query_results as $attribute_query_result ) {
-				$attribute = array(
-					'name'         => $attribute_query_result->name,
-					'position'     => absint( $attribute_query_result->priority ),
-					'is_visible'   => (int) (bool) $attribute_query_result->is_visible,
-					'is_variation' => $attribute_query_result->is_variation,
-					'is_taxonomy'  => (int) (bool) $attribute_query_result->attribute_id,
-					'value'        => '',
-				);
-
-				$attribute_values_query_results                     = $wpdb->get_col( $wpdb->prepare( "SELECT `value` FROM {$wpdb->prefix}wc_product_attribute_values WHERE `product_id`=%d AND `product_attribute_id`=%d ORDER BY `priority`", $args['product_id'], $attribute_query_result->product_attribute_id ) );
-				$attribute['value']                                 = implode( ' | ', $attribute_values_query_results );
-				$attributes[ sanitize_title( $attribute['name'] ) ] = $attribute;
-			}
-
-			wp_cache_set( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], $attributes, 'product' );
+		$raw_attributes = $product->get_attributes();
+		$attributes = array();
+		foreach ( $raw_attributes as $raw_attribute ) {
+			$attribute = array(
+				'name' => $raw_attribute->get_name(),
+				'position' => $raw_attribute->get_position(),
+				'is_visible' => (int) $raw_attribute->get_visible(),
+				'is_variation' => (int) $raw_attribute->get_variation(),
+				'is_taxonomy' => (int) $raw_attribute->is_taxonomy(),
+				'value' => implode( ' | ', $raw_attribute->get_options() ),
+			);
+			$attributes[ sanitize_title( $raw_attribute->get_name() ) ] = $attribute;
 		}
 
 		return array( array( $attributes ) );
