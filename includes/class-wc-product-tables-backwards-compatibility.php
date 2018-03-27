@@ -111,12 +111,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['update'];
 
-		// @todo: $prev_value support.
 		$mapped_query       = $mapping[ $meta_key ]['update'];
 		$mapped_func        = $mapping[ $meta_key ]['update']['function'];
 		$args               = $mapping[ $meta_key ]['update']['args'];
 		$args['product_id'] = $post_id;
 		$args['value']      = $meta_value;
+		$args['prev_value'] = maybe_serialize( $prev_value );
 
 		return (bool) call_user_func( $mapped_func, $args );
 	}
@@ -127,11 +127,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param array|null $result     Query result.
 	 * @param int        $post_id    Post ID.
 	 * @param string     $meta_key   Metadata key.
-	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
+	 * @param mixed      $prev_value Metadata value. Must be serializable if non-scalar.
 	 * @param bool       $delete_all Delete all metadata.
 	 * @return int|bool
 	 */
-	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $meta_value, $delete_all ) {
+	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
@@ -146,10 +146,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
 		$args['delete_all'] = $delete_all;
+		$args['prev_value'] = '';
 
-		$meta_value = maybe_serialize( $meta_value );
-		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
-			$args['meta_value'] = $meta_value; // phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_meta_value
+		$prev_value = maybe_serialize( $prev_value );
+		if ( '' !== $prev_value && null !== $prev_value && false !== $prev_value ) {
+			$args['prev_value'] = $prev_value;
 		}
 
 		return (bool) call_user_func( $mapped_func, $args );
@@ -231,15 +232,15 @@ class WC_Product_Tables_Backwards_Compatibility {
 			$query  = "UPDATE {$wpdb->prefix}wc_products";
 			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . $delete_all_value;
 
-			if ( isset( $args['meta_value'] ) ) {
-				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . "'" . esc_sql( $args['meta_value'] ) . "'";
+			if ( ! empty( $args['prev_value'] ) ) {
+				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . "'" . esc_sql( $args['prev_value'] ) . "'";
 			}
 
 			$update_success = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
 		} else {
-			// Support for $meta_value while deleting.
-			if ( isset( $args['meta_value'] ) ) {
-				$where[ $args['column'] ] = $args['meta_value'];
+			// Support for prev value while deleting or updating.
+			if ( ! empty( $args['prev_value'] ) ) {
+				$where[ $args['column'] ] = $args['prev_value'];
 			}
 
 			$update_success = (bool) $wpdb->update(
@@ -424,18 +425,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! empty( $args['delete_all'] ) ) {
 			$query = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
 
-			if ( isset( $args['meta_value'] ) ) {
-				$query .= " AND post_content = '" . esc_sql( $args['meta_value'] ) . "'";
+			if ( ! empty( $args['prev_value'] ) ) {
+				$query .= " AND post_content = '" . esc_sql( $args['prev_value'] ) . "'";
 			}
 
-			return (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+			$results = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+
+			// Clear post cache if successfully.
+			if ( $results ) {
+				clean_post_cache( $post_ID );
+			}
+
+			return $results;
 		}
 
-		// Check for meta value while deleting.
-		if ( isset( $args['meta_value'] ) ) {
+		// Check for previous value while deleting or updating.
+		if ( ! empty( $args['prev_value'] ) ) {
 			$description = $this->get_variation_description( $args );
 
-			if ( $args['meta_value'] !== $description[0] ) {
+			if ( $args['prev_value'] !== $description[0] ) {
 				return false;
 			}
 		}
