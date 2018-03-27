@@ -255,6 +255,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		if ( $update_success ) {
 			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+			wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 		}
 
 		return $update_success;
