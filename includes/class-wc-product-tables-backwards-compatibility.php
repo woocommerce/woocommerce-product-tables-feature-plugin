@@ -635,8 +635,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'product_id'  => $args['product_id'],
 				'name'        => isset( $download_info['name'] ) ? $download_info['name'] : '',
 				'url'         => isset( $download_info['file'] ) ? $download_info['file'] : '',
-				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : 'NULL',
-				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : 'NULL',
+				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : null,
+				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : null,
 				'priority'    => $priority,
 			);
 
@@ -728,7 +728,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -758,7 +758,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -788,7 +788,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -818,7 +818,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_from',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -848,7 +848,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -968,7 +968,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1028,7 +1028,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'length',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1058,7 +1058,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'width',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1088,7 +1088,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'height',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1118,7 +1118,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
