@@ -142,12 +142,16 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['delete'];
 
-		// @todo $meta_value support
-		// @todo $delete_all support
 		$mapped_query       = $mapping[ $meta_key ]['delete'];
 		$mapped_func        = $mapping[ $meta_key ]['delete']['function'];
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
+		$args['delete_all'] = $delete_all;
+
+		$meta_value = maybe_serialize( $meta_value );
+		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
+			$args['meta_value'] = $meta_value; // phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_meta_value
+		}
 
 		return (bool) call_user_func( $mapped_func, $args );
 	}
@@ -216,17 +220,38 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$format = $args['format'] ? array( $args['format'] ) : null;
+		$where  = array(
+			'product_id' => $args['product_id'],
+		);
 
-		$update_success = (bool) $wpdb->update(
-			$wpdb->prefix . 'wc_products',
-			array(
-				$args['column'] => $args['value'],
-			),
-			array(
-				'product_id' => $args['product_id'],
-			),
-			$format
-		); // WPCS: db call ok, cache ok.
+		if ( ! empty( $args['delete_all'] ) ) {
+			// Properly convert null values to mysql.
+			$delete_all_value = is_null( $args['value'] ) ? 'NULL' : "'" . esc_sql( $args['value'] ) . "'";
+
+			// Update all values.
+			$query  = "UPDATE {$wpdb->prefix}wc_products";
+			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . $delete_all_value;
+
+			if ( isset( $args['meta_value'] ) ) {
+				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . "'" . esc_sql( $args['meta_value'] ) . "'";
+			}
+
+			$update_success = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+		} else {
+			// Support for $meta_value while deleting.
+			if ( isset( $args['meta_value'] ) ) {
+				$where[ $args['column'] ] = $args['meta_value'];
+			}
+
+			$update_success = (bool) $wpdb->update(
+				$wpdb->prefix . 'wc_products',
+				array(
+					$args['column'] => $args['value'],
+				),
+				$where,
+				$format
+			); // WPCS: db call ok, cache ok.
+		}
 
 		if ( $update_success ) {
 			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
@@ -382,6 +407,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function set_variation_description( $args ) {
+		global $wpdb;
+
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => '',
@@ -392,6 +419,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
+		// Support delete all and check for meta value.
+		if ( ! empty( $args['delete_all'] ) ) {
+			$query = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
+
+			if ( isset( $args['meta_value'] ) ) {
+				$query .= " AND post_content = '" . esc_sql( $args['meta_value'] ) . "'";
+			}
+
+			return (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+		}
+
+		// Check for meta value while deleting.
+		if ( isset( $args['meta_value'] ) ) {
+			$description = $this->get_variation_description( $args );
+
+			if ( $args['meta_value'] !== $description[0] ) {
+				return false;
+			}
+		}
+
+		// Regular update.
 		return wp_update_post(
 			array(
 				'ID'           => $args['product_id'],
@@ -635,8 +683,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'product_id'  => $args['product_id'],
 				'name'        => isset( $download_info['name'] ) ? $download_info['name'] : '',
 				'url'         => isset( $download_info['file'] ) ? $download_info['file'] : '',
-				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : 'NULL',
-				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : 'NULL',
+				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : null,
+				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : null,
 				'priority'    => $priority,
 			);
 
@@ -891,7 +939,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -921,7 +969,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -951,7 +999,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -981,7 +1029,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_from',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1011,7 +1059,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1131,7 +1179,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1191,7 +1239,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'length',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1221,7 +1269,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'width',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1251,7 +1299,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'height',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1281,7 +1329,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
