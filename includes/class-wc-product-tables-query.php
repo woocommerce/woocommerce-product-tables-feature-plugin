@@ -12,6 +12,21 @@
  * used by WooCommerce and get data from the new data structure instead of post meta.
  */
 class WC_Product_Tables_Query {
+
+	/**
+	 * Minimum value to filter products by price.
+	 *
+	 * @var int
+	 */
+	protected $price_filter_min;
+
+	/**
+	 * Maximum value to filter products by price
+	 *
+	 * @var int
+	 */
+	protected $price_filter_max;
+
 	/**
 	 * Constructor for the query class. Hooks in methods.
 	 */
@@ -19,6 +34,8 @@ class WC_Product_Tables_Query {
 		if ( ! is_admin() ) {
 			add_filter( 'woocommerce_get_catalog_ordering_args', array( $this, 'custom_ordering_args' ) );
 			add_action( 'wp', array( $this, 'remove_ordering_args' ) );
+			add_filter( 'woocommerce_price_filter_sql', array( $this, 'custom_price_filter_sql' ), 10, 3 );
+			add_action( 'woocommerce_product_query', array( $this, 'custom_price_filter_args' ) );
 		}
 	}
 
@@ -125,6 +142,77 @@ class WC_Product_Tables_Query {
 
 		$args['join']   .= " INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id ";
 		$args['orderby'] = "{$wpdb->prefix}wc_products.average_rating DESC, $wpdb->posts.post_date DESC";
+
+		return $args;
+	}
+
+	/**
+	 * Replacement query to get the minimum and maximum prices
+	 * displayed in the "Filter products by price" widget.
+	 *
+	 * @param string $sql Original query.
+	 * @param array  $meta_query_sql Meta query part of the original query.
+	 * @param array  $tax_query_sql Tax query part of the original query.
+	 *
+	 * @return string
+	 */
+	public function custom_price_filter_sql( $sql, $meta_query_sql, $tax_query_sql ) {
+		global $wpdb;
+
+		$sql  = "SELECT min( FLOOR( price ) ) as min_price, max( CEILING( price ) ) as max_price FROM {$wpdb->posts} ";
+		$sql .= "LEFT JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id " . $tax_query_sql['join'] . $meta_query_sql['join'];
+		$sql .= " 	WHERE {$wpdb->posts}.post_type IN ('" . implode( "','", array_map( 'esc_sql', apply_filters( 'woocommerce_price_filter_post_type', array( 'product', 'product_variation' ) ) ) ) . "')
+					AND {$wpdb->posts}.post_status = 'publish'
+					AND price > 0 ";
+		$sql .= $tax_query_sql['where'] . $meta_query_sql['where'];
+
+		$search = WC_Query::get_main_search_query_sql();
+
+		if ( $search ) {
+			$sql .= ' AND ' . $search;
+		}
+
+		return $sql;
+	}
+
+	/**
+	 * Unset meta_query used by WC core to filter products by price and
+	 * adds a new filter that will build the filter query used by this plugin
+	 * (see WC_Product_Tables_Query::custom_price_filter_post_clauses()).
+	 *
+	 * @param WP Query $wp_query WP_Query object.
+	 */
+	public function custom_price_filter_args( $wp_query ) {
+		$meta_query = $wp_query->get( 'meta_query', array() );
+
+		if ( isset( $meta_query['price_filter'] ) && ! empty( $meta_query['price_filter'] ) ) {
+			$this->price_filter_min = $meta_query['price_filter']['value'][0];
+			$this->price_filter_max = $meta_query['price_filter']['value'][1];
+
+			unset( $meta_query['price_filter'] );
+
+			$wp_query->set( 'meta_query', $meta_query );
+
+			add_filter( 'posts_clauses', array( $this, 'custom_price_filter_post_clauses' ), 10, 2 );
+		}
+	}
+
+	/**
+	 * Custom query used to filter products by price using the price field
+	 * from the wp_wc_products table.
+	 *
+	 * @param array    $args Query args.
+	 * @param WC_Query $wp_query WC_Query object.
+	 *
+	 * @return array
+	 */
+	public function custom_price_filter_post_clauses( $args, $wp_query ) {
+		global $wpdb;
+
+		if ( $wp_query->is_main_query() ) {
+			$args['join']  .= " INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id ";
+			$args['where'] .= " AND {$wpdb->prefix}wc_products.price >= {$this->price_filter_min} AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max} ";
+		}
 
 		return $args;
 	}
