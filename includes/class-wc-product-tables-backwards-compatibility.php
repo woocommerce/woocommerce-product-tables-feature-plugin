@@ -720,6 +720,165 @@ class WC_Product_Tables_Backwards_Compatibility {
 	}
 
 	/**
+	 * Get attributes in legacy meta format from attributes tables.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_product_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$product = wc_get_product( $args['product_id'] );
+		if ( ! $product ) {
+			return array();
+		}
+
+		$raw_attributes = $product->get_attributes();
+		$attributes = array();
+		foreach ( $raw_attributes as $raw_attribute ) {
+			$attribute = array(
+				'name' => $raw_attribute->get_name(),
+				'position' => $raw_attribute->get_position(),
+				'is_visible' => (int) $raw_attribute->get_visible(),
+				'is_variation' => (int) $raw_attribute->get_variation(),
+				'is_taxonomy' => (int) $raw_attribute->is_taxonomy(),
+				'value' => implode( ' | ', $raw_attribute->get_options() ),
+			);
+			$attributes[ sanitize_title( $raw_attribute->get_name() ) ] = $attribute;
+		}
+
+		return array( array( $attributes ) );
+	}
+
+	/**
+	 * Update product attributes from legacy meta format .
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type array  $value Array of legacy meta format attribute info.
+	 * }
+	 * @return bool
+	 */
+	public function update_product_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'value'      => array(),
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$product_id = $args['product_id'];
+		$attributes = $args['value'];
+
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return false;
+		}
+
+		$new_attributes = array();
+		foreach ( $attributes as $attribute ) {
+			$new_attribute = new WC_Product_Attribute();
+			$new_attribute->set_name( $attribute['name'] );
+			$new_attribute->set_position( $attribute['position'] );
+			$new_attribute->set_visible( $attribute['is_visible'] );
+			$new_attribute->set_variation( $attribute['is_variation'] );
+			$new_attribute->set_options( array_map( 'trim', explode( '|', $attribute['value'] ) ) );
+			$new_attributes[ sanitize_title( $attribute['name'] ) ] = $new_attribute;
+		}
+
+		$product->set_attributes( $new_attributes );
+		$product->save();
+
+		wp_cache_delete( 'woocommerce_product_backwards_compatibility_attributes_' . $args['product_id'], 'product' );
+
+		return true;
+	}
+
+	/**
+	 * Get default attributes in legacy meta format from attributes tables.
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 * }
+	 * @return array
+	 */
+	public function get_product_default_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] ) {
+			return array();
+		}
+
+		$product = wc_get_product( $args['product_id'] );
+		if ( $product ) {
+			return $product->get_default_attributes( 'edit' );
+		}
+
+		return array();
+	}
+
+	/**
+	 * Update product default attributes from legacy meta format .
+	 *
+	 * @param  array $args {
+	 *     Array of arguments.
+	 *
+	 *     @type int    $product_id Product ID.
+	 *     @type array  $value Array of legacy meta format attribute info.
+	 * }
+	 * @return bool
+	 */
+	public function update_product_default_attributes( $args ) {
+		global $wpdb;
+
+		$defaults = array(
+			'product_id' => 0,
+			'value'      => array(),
+		);
+		$args     = wp_parse_args( $args, $defaults );
+
+		if ( ! $args['product_id'] || ! is_array( $args['value'] ) ) {
+			return false;
+		}
+
+		$product = wc_get_product( $args['product_id'] );
+		if ( $product ) {
+			$product->set_default_attributes( $args['value'] );
+			$product->save();
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Get mapping.
 	 *
 	 * @return array
@@ -1540,14 +1699,47 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
+			'_product_attributes'          => array(
+				'get'    => array(
+					'function' => array( $this, 'get_product_attributes' ),
+					'args'     => array(),
+				),
+				'add'    => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_product_attributes' ),
+					'args'     => array(
+						'value' => array(),
+					),
+				),
+			),
+			'_default_attributes'          => array(
+				'get'    => array(
+					'function' => array( $this, 'get_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'add'    => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_product_default_attributes' ),
+					'args'     => array(
+						'value' => array(),
+					),
+				),
+			),
 		);
-
-		/*
-			@todo
-			Attributes table(s): '_default_attributes',
-			Attributes table(s): '_product_attributes',
-			Product downloads table: '_downloadable_files',
-		*/
 	}
 }
 

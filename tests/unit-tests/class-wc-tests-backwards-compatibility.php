@@ -874,7 +874,108 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( true, $_product->get_manage_stock() );
 	}
 
-	// test_default_attributes_mapping
-	// test_product_attributes_mapping
-	// test_downloadable_files_mapping.
+	/**
+	 * Test the attributes metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_product_attributes_mapping() {
+		$attributes = array();
+		$attribute  = new WC_Product_Attribute();
+		$attribute->set_id( 0 );
+		$attribute->set_name( 'Test Attribute' );
+		$attribute->set_options( array( 'Fish', 'Fingers' ) );
+		$attribute->set_position( 0 );
+		$attribute->set_visible( true );
+		$attribute->set_variation( false );
+		$attributes['test-attribute'] = $attribute;
+
+		$product = new WC_Product_Simple();
+		$product->set_attributes( $attributes );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+
+		$expected = array(
+			'test-attribute' => array(
+				'name'         => 'Test Attribute',
+				'position'     => 0,
+				'is_visible'   => 1,
+				'is_variation' => 0,
+				'is_taxonomy'  => 0,
+				'value'        => 'Fish | Fingers',
+			),
+		);
+		$this->assertEquals( $expected, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		$updated = array(
+			'test-attribute-2' => array(
+				'name'         => 'Test Attribute 2',
+				'position'     => 1,
+				'is_visible'   => 1,
+				'is_variation' => 1,
+				'is_taxonomy'  => 0,
+				'value'        => 'Chicken | Nuggets',
+			),
+		);
+		update_post_meta( $product->get_id(), '_product_attributes', $updated );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+		$this->assertEquals( $updated, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$retrieved_attribute = current( $_product->get_attributes() );
+		$this->assertEquals( 1, count( $_product->get_attributes() ) );
+		$this->assertEquals( 'Test Attribute 2', $retrieved_attribute->get_name() );
+		$this->assertEquals( array( 'Chicken', 'Nuggets' ), $retrieved_attribute->get_options() );
+
+		delete_post_meta( $product->get_id(), '_product_attributes' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_product_attributes', true ) );
+
+		add_post_meta( $product->get_id(), '_product_attributes', $expected );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
+		$this->assertEquals( $expected, get_post_meta( $product->get_id(), '_product_attributes', true ) );
+	}
+
+	/**
+	 * Test the default attribute metadata mapping.
+	 *
+	 * @since 1.0.0
+	 * @todo This fails currently. Something to do with caching in the data store.
+	 */
+	public function test_product_default_attributes_mapping() {
+		$attributes = array();
+		$attribute  = new WC_Product_Attribute();
+		$attribute->set_id( 0 );
+		$attribute->set_name( 'Test Attribute' );
+		$attribute->set_options( array( 'Fish', 'Fingers' ) );
+		$attribute->set_position( 0 );
+		$attribute->set_visible( true );
+		$attribute->set_variation( false );
+		$attributes['test-attribute'] = $attribute;
+
+		$default = array(
+			'test-attribute' => 'Fingers',
+		);
+
+		$product = new WC_Product_Simple();
+		$product->set_attributes( $attributes );
+		$product->set_default_attributes( $default );
+		$product->save();
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_default_attributes' ) );
+		$this->assertEquals( $default, get_post_meta( $product->get_id(), '_default_attributes', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( $default, $_product->get_default_attributes() );
+
+		delete_post_meta( $product->get_id(), '_default_attributes' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_default_attributes', true ) );
+
+		add_post_meta( $product->get_id(), '_default_attributes', $default );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_default_attributes' ) );
+		$this->assertEquals( $default, get_post_meta( $product->get_id(), '_default_attributes', true ) );
+	}
 }
