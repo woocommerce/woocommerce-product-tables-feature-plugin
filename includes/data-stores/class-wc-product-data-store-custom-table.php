@@ -1344,6 +1344,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		if ( ! empty( $product_attributes ) ) {
 			$attributes = array();
+			$default_attributes = array();
 			foreach ( $product_attributes as $attr ) {
 				$attribute = new WC_Product_Attribute();
 				$attribute->set_attribute_id( $attr->attribute_id ); // This is the attribute taxonomy ID, or 0 for local attributes.
@@ -1353,20 +1354,26 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$attribute->set_visible( $attr->is_visible );
 				$attribute->set_variation( $attr->is_variation );
 
-				$attr_values = array_filter(
-					$wpdb->get_col(
-						$wpdb->prepare(
-							"SELECT value FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d",
-							$attr->product_attribute_id
-						)
+				$attr_value_data = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT value, is_default FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d",
+						$attr->product_attribute_id
 					)
-				); // WPCS: db call ok, cache ok.
+				);
 
+				$attr_values = array_filter( wp_list_pluck( $attr_value_data, 'value' ) );
 				$attribute->set_options( $attr_values );
 
 				$attributes[] = $attribute;
+
+				foreach ( $attr_value_data as $value_data ) {
+					if ( $value_data->is_default ) {
+						$default_attributes[ sanitize_title( $attr->name ) ] = $value_data->value;
+					}
+				}
 			}
 			$product->set_attributes( $attributes );
+			$product->set_default_attributes( $default_attributes );
 		}
 	}
 
@@ -1557,7 +1564,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 							'product_attribute_id' => $product_attribute_id,
 							'value'                => $attribute_value,
 							'priority'             => $count ++,
-							'is_default'           => isset( $default_attributes[ $product_attribute_id ] ) && $default_attributes[ $product_attribute_id ] === $attribute_value ? 1 : 0,
+							'is_default'           => isset( $default_attributes[ sanitize_title( $attribute->get_name() ) ] ) && $default_attributes[ sanitize_title( $attribute->get_name() ) ] === $attribute_value ? 1 : 0,
 						);
 
 						if ( $attribute_value_id ) {
