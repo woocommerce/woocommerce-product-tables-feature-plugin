@@ -838,7 +838,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$product = wc_get_product( $args['product_id'] );
 		if ( $product ) {
-			return $product->get_default_attributes( 'edit' );
+			return array( array( $product->get_default_attributes( 'edit' ) ) );
 		}
 
 		return array();
