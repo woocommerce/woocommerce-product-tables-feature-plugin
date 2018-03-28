@@ -146,7 +146,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				);
 
 				// Empty value indicates that all options for given attribute are available.
-				if ( in_array( '', $values, true ) || empty( $values ) ) {
+				if ( in_array( null, $values, true ) || empty( $values ) ) {
 					$values = $attribute->get_slugs();
 				} elseif ( ! $attribute->is_taxonomy() ) {
 					$text_attributes          = $attribute->get_options();

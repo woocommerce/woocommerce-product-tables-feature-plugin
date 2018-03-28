@@ -9,7 +9,6 @@
  * Backwards compatibility layer for metadata access.
  *
  * @todo WP_Query meta query support? (IMO no. They should be using CRUD search helpers)
- * @todo migrate _variation_description meta to post_content
  */
 class WC_Product_Tables_Backwards_Compatibility {
 
@@ -112,12 +111,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['update'];
 
-		// @todo: $prev_value support.
 		$mapped_query       = $mapping[ $meta_key ]['update'];
 		$mapped_func        = $mapping[ $meta_key ]['update']['function'];
 		$args               = $mapping[ $meta_key ]['update']['args'];
 		$args['product_id'] = $post_id;
 		$args['value']      = $meta_value;
+		$args['prev_value'] = maybe_serialize( $prev_value );
 
 		return (bool) call_user_func( $mapped_func, $args );
 	}
@@ -128,11 +127,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param array|null $result     Query result.
 	 * @param int        $post_id    Post ID.
 	 * @param string     $meta_key   Metadata key.
-	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
+	 * @param mixed      $prev_value Metadata value. Must be serializable if non-scalar.
 	 * @param bool       $delete_all Delete all metadata.
 	 * @return int|bool
 	 */
-	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $meta_value, $delete_all ) {
+	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
 		global $wpdb;
 
 		$mapping = $this->get_mapping();
@@ -142,12 +141,17 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$mapped_query = $mapping[ $meta_key ]['delete'];
 
-		// @todo $meta_value support
-		// @todo $delete_all support
 		$mapped_query       = $mapping[ $meta_key ]['delete'];
 		$mapped_func        = $mapping[ $meta_key ]['delete']['function'];
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
+		$args['delete_all'] = $delete_all;
+		$args['prev_value'] = '';
+
+		$prev_value = maybe_serialize( $prev_value );
+		if ( '' !== $prev_value && null !== $prev_value && false !== $prev_value ) {
+			$args['prev_value'] = $prev_value;
+		}
 
 		return (bool) call_user_func( $mapped_func, $args );
 	}
@@ -216,20 +220,42 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$format = $args['format'] ? array( $args['format'] ) : null;
+		$where  = array(
+			'product_id' => $args['product_id'],
+		);
 
-		$update_success = (bool) $wpdb->update(
-			$wpdb->prefix . 'wc_products',
-			array(
-				$args['column'] => $args['value'],
-			),
-			array(
-				'product_id' => $args['product_id'],
-			),
-			$format
-		); // WPCS: db call ok, cache ok.
+		if ( ! empty( $args['delete_all'] ) ) {
+			// Properly convert null values to mysql.
+			$delete_all_value = is_null( $args['value'] ) ? 'NULL' : "'" . esc_sql( $args['value'] ) . "'";
+
+			// Update all values.
+			$query  = "UPDATE {$wpdb->prefix}wc_products";
+			$query .= ' SET ' . esc_sql( $args['column'] ) . ' = ' . $delete_all_value;
+
+			if ( ! empty( $args['prev_value'] ) ) {
+				$query .= ' WHERE ' . esc_sql( $args['column'] ) . ' = ' . "'" . esc_sql( $args['prev_value'] ) . "'";
+			}
+
+			$update_success = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+		} else {
+			// Support for prev value while deleting or updating.
+			if ( ! empty( $args['prev_value'] ) ) {
+				$where[ $args['column'] ] = $args['prev_value'];
+			}
+
+			$update_success = (bool) $wpdb->update(
+				$wpdb->prefix . 'wc_products',
+				array(
+					$args['column'] => $args['value'],
+				),
+				$where,
+				$format
+			); // WPCS: db call ok, cache ok.
+		}
 
 		if ( $update_success ) {
 			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+			wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 		}
 
 		return $update_success;
@@ -343,6 +369,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_relationships_' . $args['product_id'], 'product' );
 
 		return true;
 	}
@@ -382,6 +409,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function set_variation_description( $args ) {
+		global $wpdb;
+
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => '',
@@ -392,6 +421,34 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
+		// Support delete all and check for meta value.
+		if ( ! empty( $args['delete_all'] ) ) {
+			$query = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
+
+			if ( ! empty( $args['prev_value'] ) ) {
+				$query .= " AND post_content = '" . esc_sql( $args['prev_value'] ) . "'";
+			}
+
+			$results = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+
+			// Clear post cache if successfully.
+			if ( $results ) {
+				clean_post_cache( $post_ID );
+			}
+
+			return $results;
+		}
+
+		// Check for previous value while deleting or updating.
+		if ( ! empty( $args['prev_value'] ) ) {
+			$description = $this->get_variation_description( $args );
+
+			if ( $args['prev_value'] !== $description[0] ) {
+				return false;
+			}
+		}
+
+		// Regular update.
 		return wp_update_post(
 			array(
 				'ID'           => $args['product_id'],
@@ -460,8 +517,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		// Set stock_quantity to NULL if not managing stock.
-		$args['value']  = 'NULL';
+		$args['value']  = null;
 		$args['format'] = '';
+
 		return $this->update_in_product_table( $args );
 	}
 
@@ -634,8 +692,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'product_id'  => $args['product_id'],
 				'name'        => isset( $download_info['name'] ) ? $download_info['name'] : '',
 				'url'         => isset( $download_info['file'] ) ? $download_info['file'] : '',
-				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : 'NULL',
-				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : 'NULL',
+				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : null,
+				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : null,
 				'priority'    => $priority,
 			);
 
@@ -656,6 +714,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 
 		return true;
 	}
@@ -727,7 +786,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -757,7 +816,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -787,7 +846,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -817,7 +876,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_from',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -847,7 +906,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -967,7 +1026,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1027,7 +1086,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'length',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1057,7 +1116,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'width',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1087,7 +1146,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'height',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
@@ -1117,7 +1176,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '',
-						'value'  => 'NULL',
+						'value'  => null,
 					),
 				),
 			),
