@@ -1236,9 +1236,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 				foreach ( array_values( $downloads ) as $key => $data ) {
 					$download_id = 'tmp_' === substr( $data['id'], 0, 4 ) ? 0 : intval( $data['id'] );
-
-					// @todo Need to handle limit and expiry in WC_Product_Download.
-					$download = array(
+					$download    = array(
 						'download_id' => $download_id,
 						'product_id'  => $product->get_id(),
 						'name'        => $data['name'],
