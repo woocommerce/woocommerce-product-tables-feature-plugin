@@ -149,7 +149,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 				if ( in_array( null, $values, true ) || empty( $values ) ) {
 					$values = $attribute->get_slugs();
 				} elseif ( ! $attribute->is_taxonomy() ) {
-					$text_attributes          = $attribute->get_options();
+					$text_attributes          = array_map( 'trim', $attribute->get_options() );
 					$assigned_text_attributes = $values;
 					$values                   = array();
 
