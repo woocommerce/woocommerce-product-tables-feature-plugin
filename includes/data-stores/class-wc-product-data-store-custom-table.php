@@ -1755,7 +1755,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'virtual',
 			'downloadable',
 			'total_sales',
-			'downloadable',
 			'stock_quantity',
 			'average_rating',
 			'stock_status',
