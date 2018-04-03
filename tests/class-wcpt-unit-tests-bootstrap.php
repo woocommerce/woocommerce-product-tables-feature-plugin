@@ -34,7 +34,6 @@ class WCPT_Unit_Tests_Bootstrap {
 	 */
 	public function __construct() {
 		$this->wp_tests_dir = getenv( 'WP_TESTS_DIR' ) ? getenv( 'WP_TESTS_DIR' ) : '/tmp/wordpress-tests-lib';
-		define( 'WC_USE_TRANSACTIONS', false );
 
 		// load test function so tests_add_filter() is available.
 		require_once $this->wp_tests_dir . '/includes/functions.php';
