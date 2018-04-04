@@ -103,7 +103,7 @@ class WC_Tests_Migrate_Data extends WC_Unit_Test_Case {
 				'meta_key'   => $meta_key,
 				'meta_value' => $meta_value,
 			)
-		);
+		); // WPCS: slow query ok.
 	}
 
 	// @todo: write tests for the migration of data to tables other than wc_wp_products

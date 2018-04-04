@@ -747,15 +747,15 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$raw_attributes = $product->get_attributes();
-		$attributes = array();
+		$attributes     = array();
 		foreach ( $raw_attributes as $raw_attribute ) {
 			$attribute = array(
-				'name' => $raw_attribute->get_name(),
-				'position' => $raw_attribute->get_position(),
-				'is_visible' => (int) $raw_attribute->get_visible(),
+				'name'         => $raw_attribute->get_name(),
+				'position'     => $raw_attribute->get_position(),
+				'is_visible'   => (int) $raw_attribute->get_visible(),
 				'is_variation' => (int) $raw_attribute->get_variation(),
-				'is_taxonomy' => (int) $raw_attribute->is_taxonomy(),
-				'value' => implode( ' | ', $raw_attribute->get_options() ),
+				'is_taxonomy'  => (int) $raw_attribute->is_taxonomy(),
+				'value'        => implode( ' | ', $raw_attribute->get_options() ),
 			);
 			$attributes[ sanitize_title( $raw_attribute->get_name() ) ] = $attribute;
 		}
@@ -1699,7 +1699,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
-			'_product_attributes'          => array(
+			'_product_attributes'    => array(
 				'get'    => array(
 					'function' => array( $this, 'get_product_attributes' ),
 					'args'     => array(),
@@ -1719,7 +1719,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
-			'_default_attributes'          => array(
+			'_default_attributes'    => array(
 				'get'    => array(
 					'function' => array( $this, 'get_product_default_attributes' ),
 					'args'     => array(),

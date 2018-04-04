@@ -923,7 +923,7 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_product_attributes' ) );
 		$this->assertEquals( $updated, get_post_meta( $product->get_id(), '_product_attributes', true ) );
 
-		$_product = wc_get_product( $product->get_id() );
+		$_product            = wc_get_product( $product->get_id() );
 		$retrieved_attribute = current( $_product->get_attributes() );
 		$this->assertEquals( 1, count( $_product->get_attributes() ) );
 		$this->assertEquals( 'Test Attribute 2', $retrieved_attribute->get_name() );
