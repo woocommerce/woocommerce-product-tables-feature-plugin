@@ -1629,53 +1629,95 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	}
 
 	/**
-	 * Search product data for a term and return ids. @todo
+	 * Search product data for a term and return ids.
 	 *
 	 * @param  string $term Search term.
 	 * @param  string $type Type of product.
 	 * @param  bool   $include_variations Include variations in search or not.
+	 * @param  bool   $all_statuses Should we search all statuses or limit to published.
 	 * @return array of ids
 	 */
-	public function search_products( $term, $type = '', $include_variations = false ) {
+	public function search_products( $term, $type = '', $include_variations = false, $all_statuses = false ) {
 		global $wpdb;
 
-		$like_term     = '%' . $wpdb->esc_like( $term ) . '%';
 		$post_types    = $include_variations ? array( 'product', 'product_variation' ) : array( 'product' );
 		$post_statuses = current_user_can( 'edit_private_products' ) ? array( 'private', 'publish' ) : array( 'publish' );
-		$type_join     = '';
+		$status_where  = '';
 		$type_where    = '';
+		$term          = wc_strtolower( $term );
 
-		if ( $type ) {
-			if ( in_array( $type, array( 'virtual', 'downloadable' ), true ) ) {
-				$type_join  = " LEFT JOIN {$wpdb->postmeta} postmeta_type ON posts.ID = postmeta_type.post_id ";
-				$type_where = " AND ( postmeta_type.meta_key = '_{$type}' AND postmeta_type.meta_value = 'yes' ) ";
+		if ( 'virtual' === $type ) {
+			$type_where = ' AND products.virtual = 1 ';
+		} elseif ( 'downloadable' === $type ) {
+			$type_where = ' AND products.downloadable = 1 ';
+		}
+
+		// See if search term contains OR keywords.
+		if ( strstr( $term, ' or ' ) ) {
+			$term_groups = explode( ' or ', $term );
+		} else {
+			$term_groups = array( $term );
+		}
+
+		$search_where   = '';
+		$search_queries = array();
+
+		foreach ( $term_groups as $term_group ) {
+			// Parse search terms.
+			if ( preg_match_all( '/".*?("|$)|((?<=[\t ",+])|^)[^\t ",+]+/', $term_group, $matches ) ) {
+				$search_terms = $this->get_valid_search_terms( $matches[0] );
+				$count        = count( $search_terms );
+
+				// if the search string has only short terms or stopwords, or is 10+ terms long, match it as sentence.
+				if ( 9 < $count || 0 === $count ) {
+					$search_terms = array( $term_group );
+				}
+			} else {
+				$search_terms = array( $term_group );
+			}
+
+			$term_group_query = '';
+			$searchand        = '';
+
+			foreach ( $search_terms as $search_term ) {
+				$like              = '%' . $wpdb->esc_like( $search_term ) . '%';
+				$term_group_query .= $wpdb->prepare(
+					" {$searchand} ( ( posts.post_title LIKE %s) OR ( posts.post_excerpt LIKE %s) OR ( posts.post_content LIKE %s ) OR ( products.sku LIKE %s ) )", // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
+					$like,
+					$like,
+					$like,
+					$like
+				);
+				$searchand         = ' AND ';
+			}
+
+			if ( $term_group_query ) {
+				$search_queries[] = $term_group_query;
 			}
 		}
 
-		// phpcs:ignore WordPress.VIP.DirectDatabaseQuery.DirectQuery
-		$product_ids = $wpdb->get_col(
-			// phpcs:disable
-			$wpdb->prepare(
-				"SELECT DISTINCT posts.ID FROM {$wpdb->posts} posts
-				LEFT JOIN {$wpdb->postmeta} postmeta ON posts.ID = postmeta.post_id
-				$type_join
-				WHERE (
-					posts.post_title LIKE %s
-					OR posts.post_content LIKE %s
-					OR (
-						postmeta.meta_key = '_sku' AND postmeta.meta_value LIKE %s
-					)
-				)
-				AND posts.post_type IN ('" . implode( "','", $post_types ) . "')
-				AND posts.post_status IN ('" . implode( "','", $post_statuses ) . "')
-				$type_where
-				ORDER BY posts.post_parent ASC, posts.post_title ASC",
-				$like_term,
-				$like_term,
-				$like_term
-			)
-			// phpcs:enable
+		if ( $search_queries ) {
+			$search_where = 'AND (' . implode( ') OR (', $search_queries ) . ')';
+		}
+
+		if ( ! $all_statuses ) {
+			$status_where = " AND posts.post_status IN ('" . implode( "','", $post_statuses ) . "') ";
+		}
+
+		// phpcs:disable WordPress.WP.PreparedSQL.NotPrepared
+		$search_results = $wpdb->get_results(
+			"SELECT DISTINCT posts.ID as product_id, posts.post_parent as parent_id FROM {$wpdb->posts} posts
+			INNER JOIN {$wpdb->prefix}wc_products products ON posts.ID = products.product_id
+			WHERE posts.post_type IN ('" . implode( "','", $post_types ) . "')
+			AND posts.post_status IN ('" . implode( "','", $post_statuses ) . "')
+			$search_where
+			$status_where
+			$type_where
+			ORDER BY posts.post_parent ASC, posts.post_title ASC"
 		);
+		// phpcs:enable
+
+		$product_ids = wp_parse_id_list( array_merge( wp_list_pluck( $search_results, 'product_id' ), wp_list_pluck( $search_results, 'parent_id' ) ) );
 
 		if ( is_numeric( $term ) ) {
 			$post_id   = absint( $term );
