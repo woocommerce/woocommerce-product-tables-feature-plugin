@@ -1,0 +1,15 @@
+language: php
+
+php:
+  - 7.2
+
+script:
+  - bash tests/bin/travis-setup.sh
+  - bash tests/bin/phpcs.sh
+
+# Specifies that Travis should create builds for master and release branches and also tags.
+branches:
+  only:
+    - master
+    - /^\d+\.\d+(\.\d+)?(-\S*)?$/
+    - /^release\//
