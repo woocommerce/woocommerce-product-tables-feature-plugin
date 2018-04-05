@@ -901,21 +901,41 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( 'Test download 4', $results[1]['name'] );
 		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
 
-		// // Download expiry is soft deprecated now and should return -1.
-		// $_product = wc_get_product( $product->get_id() );
-		// $this->assertEquals( -1, $_product->get_downloadable_files() );
+		$_product = wc_get_product( $product->get_id() );
+		$results  = array_values( $_product->get_downloads() );
+		$this->assertEquals( 'Test download 3', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/3', $results[0]['file'] );
+		$this->assertEquals( 'Test download 4', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
 
-		// delete_post_meta( $product->get_id(), '_downloadable_files' );
-		// $this->assertEquals( -1, get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		delete_post_meta( $product->get_id(), '_downloadable_files' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_downloadable_files', true ) );
 
-		// // Download expiry is soft deprecated now and should return -1.
-		// $_product = wc_get_product( $product->get_id() );
-		// $this->assertEquals( -1, $_product->get_downloadable_files() );
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_downloads() );
 
-		// add_post_meta( $product->get_id(), '_downloadable_files', 3 );
+		add_post_meta( $product->get_id(), '_downloadable_files', array(
+			array(
+				'name'   => 'Test download 3',
+				'file'   => 'https://woocommerce.com/3',
+				'limit'  => '',
+				'expiry' => '',
+			),
+			array(
+				'name'   => 'Test download 4',
+				'file'   => 'https://woocommerce.com/4',
+				'limit'  => '',
+				'expiry' => '',
+			),
+		) );
 
-		// $this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable_files' ) );
-		// $this->assertEquals( 3, get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable_files' ) );
+
+		$results = array_values( get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		$this->assertEquals( 'Test download 3', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/3', $results[0]['file'] );
+		$this->assertEquals( 'Test download 4', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
 	}
 
 	/**
