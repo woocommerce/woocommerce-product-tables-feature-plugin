@@ -467,7 +467,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			$children = $product->get_children();
 
 			if ( ! empty( $children ) ) {
-				$wpdb->query(
+				$changed = $wpdb->query(
 					$wpdb->prepare(
 						"UPDATE {$wpdb->prefix}wc_products
 						SET stock_status = %s
@@ -476,9 +476,11 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					)
 				);
 
-				$children = $this->read_children( $product, true );
-				$product->set_children( $children['all'] );
-				$product->set_visible_children( $children['visible'] );
+				if ( $changed ) {
+					$children = $this->read_children( $product, true );
+					$product->set_children( $children['all'] );
+					$product->set_visible_children( $children['visible'] );
+				}
 			}
 		}
 	}
