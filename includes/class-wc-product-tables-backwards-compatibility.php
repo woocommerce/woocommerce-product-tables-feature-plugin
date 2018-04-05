@@ -624,7 +624,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$query_results = wp_cache_get( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
 
 		if ( empty( $query_results ) ) {
-			$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER by priority ASC", $args['product_id'] ) );
+			$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER by `priority` ASC", $args['product_id'] ) );
 
 			wp_cache_set( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], $query_results, 'product' );
 		}
