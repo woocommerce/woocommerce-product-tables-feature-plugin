@@ -465,17 +465,21 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		if ( $product->get_manage_stock() ) {
 			$status   = $product->get_stock_status();
 			$children = $product->get_children();
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$wpdb->prefix}wc_products
-					SET stock_status = %s
-					WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared,
-					$status
-				)
-			);
-			$children = $this->read_children( $product, true );
-			$product->set_children( $children['all'] );
-			$product->set_visible_children( $children['visible'] );
+
+			if ( ! empty( $children ) ) {
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$wpdb->prefix}wc_products
+						SET stock_status = %s
+						WHERE product_id IN (" . implode( ',', array_map( 'absint', $children ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared,
+						$status
+					)
+				);
+
+				$children = $this->read_children( $product, true );
+				$product->set_children( $children['all'] );
+				$product->set_visible_children( $children['visible'] );
+			}
 		}
 	}
 
