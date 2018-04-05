@@ -57,13 +57,13 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 		if ( empty( $children ) || ! is_array( $children ) || ! isset( $children['all'] ) || ! isset( $children['visible'] ) || $force_read ) {
 			$all_args = array(
-				'parent'      => $product->get_id(),
-				'type'        => 'variation',
-				'orderby'     => 'menu_order',
-				'order'       => 'ASC',
-				'limit'       => -1,
-				'return'      => 'ids',
-				'status'      => array( 'publish', 'private' ),
+				'parent'  => $product->get_id(),
+				'type'    => 'variation',
+				'orderby' => 'menu_order',
+				'order'   => 'ASC',
+				'limit'   => -1,
+				'return'  => 'ids',
+				'status'  => array( 'publish', 'private' ),
 			);
 			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 

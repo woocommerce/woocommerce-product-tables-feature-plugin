@@ -1341,7 +1341,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		); // WPCS: db call ok, cache ok.
 
 		if ( ! empty( $product_attributes ) ) {
-			$attributes = array();
+			$attributes         = array();
 			$default_attributes = array();
 			foreach ( $product_attributes as $attr ) {
 				$attribute = new WC_Product_Attribute();
