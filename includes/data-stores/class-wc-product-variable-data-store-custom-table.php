@@ -504,7 +504,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					SET price = %d
 					WHERE product_id = %d",
 					wc_format_decimal( $min_price ),
-					$product->get_Id()
+					$product->get_id()
 				)
 			);
 		}
