@@ -765,17 +765,14 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 	 *
 	 * @since 1.0.0
 	 */
-
-	/*
-	@todo Need to figure out how we're handling backwards compatibility for these since products have multiple download limits and expiries now.
 	public function test_download_limit_mapping() {
 		$product = new WC_Product_Simple();
 		$product->set_downloadable( true );
 		$product->set_downloads( array(
 			array(
-				'name' => 'Test download',
-				'file' => 'https://woocommerce.com',
-				'limit' => 5,
+				'name'   => 'Test download',
+				'file'   => 'https://woocommerce.com',
+				'limit'  => 5,
 				'expiry' => '',
 			),
 		) );
@@ -789,9 +786,16 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
 		$this->assertEquals( 10, get_post_meta( $product->get_id(), '_download_limit', true ) );
 
-		// @todo Instantiate a product object and check it got updated should pass.
+		// Download limit is soft deprecated now and should return -1.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( -1, $_product->get_download_limit() );
+
 		delete_post_meta( $product->get_id(), '_download_limit' );
 		$this->assertEquals( -1, get_post_meta( $product->get_id(), '_download_limit', true ) );
+
+		// Download limit is soft deprecated now and should return -1.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( -1, $_product->get_download_limit() );
 
 		add_post_meta( $product->get_id(), '_download_limit', 3 );
 
@@ -799,14 +803,140 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 		$this->assertEquals( 3, get_post_meta( $product->get_id(), '_download_limit', true ) );
 	}
 
-	public function test_download_expiry() {
+	/**
+	 * Test the download expiry metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
+	public function test_download_expiry_mapping() {
+		$product = new WC_Product_Simple();
+		$product->set_downloadable( true );
+		$product->set_downloads( array(
+			array(
+				'name'   => 'Test download',
+				'file'   => 'https://woocommerce.com',
+				'limit'  => '',
+				'expiry' => 120,
+			),
+		) );
+		$product->save();
 
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_expiry' ) );
+		$this->assertEquals( 120, get_post_meta( $product->get_id(), '_download_expiry', true ) );
+
+		update_post_meta( $product->get_id(), '_download_expiry', 10 );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_expiry' ) );
+		$this->assertEquals( 10, get_post_meta( $product->get_id(), '_download_expiry', true ) );
+
+		// Download expiry is soft deprecated now and should return -1.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( -1, $_product->get_download_expiry() );
+
+		delete_post_meta( $product->get_id(), '_download_expiry' );
+		$this->assertEquals( -1, get_post_meta( $product->get_id(), '_download_expiry', true ) );
+
+		// Download expiry is soft deprecated now and should return -1.
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( -1, $_product->get_download_expiry() );
+
+		add_post_meta( $product->get_id(), '_download_expiry', 3 );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_expiry' ) );
+		$this->assertEquals( 3, get_post_meta( $product->get_id(), '_download_expiry', true ) );
 	}
 
+	/**
+	 * Test downloads files metadata mapping.
+	 *
+	 * @since 1.0.0
+	 */
 	public function test_downloadable_files_mapping() {
+		$product = new WC_Product_Simple();
+		$product->set_downloadable( true );
+		$product->set_downloads( array(
+			array(
+				'name'   => 'Test download',
+				'file'   => 'https://woocommerce.com',
+				'limit'  => '',
+				'expiry' => '',
+			),
+			array(
+				'name'   => 'Test download 2',
+				'file'   => 'https://woocommerce.com/2',
+				'limit'  => '',
+				'expiry' => '',
+			),
+		) );
+		$product->save();
 
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable_files' ) );
+
+		$results = array_values( get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		$this->assertEquals( 'Test download', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com', $results[0]['file'] );
+		$this->assertEquals( 'Test download 2', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/2', $results[1]['file'] );
+
+		update_post_meta( $product->get_id(), '_downloadable_files', array(
+			array(
+				'name'   => 'Test download 3',
+				'file'   => 'https://woocommerce.com/3',
+				'limit'  => '',
+				'expiry' => '',
+			),
+			array(
+				'name'   => 'Test download 4',
+				'file'   => 'https://woocommerce.com/4',
+				'limit'  => '',
+				'expiry' => '',
+			),
+		) );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable_files' ) );
+
+		$results = array_values( get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		$this->assertEquals( 'Test download 3', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/3', $results[0]['file'] );
+		$this->assertEquals( 'Test download 4', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
+
+		$_product = wc_get_product( $product->get_id() );
+		$results  = array_values( $_product->get_downloads() );
+		$this->assertEquals( 'Test download 3', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/3', $results[0]['file'] );
+		$this->assertEquals( 'Test download 4', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
+
+		delete_post_meta( $product->get_id(), '_downloadable_files' );
+		$this->assertEquals( array(), get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+
+		$_product = wc_get_product( $product->get_id() );
+		$this->assertEquals( array(), $_product->get_downloads() );
+
+		add_post_meta( $product->get_id(), '_downloadable_files', array(
+			array(
+				'name'   => 'Test download 3',
+				'file'   => 'https://woocommerce.com/3',
+				'limit'  => '',
+				'expiry' => '',
+			),
+			array(
+				'name'   => 'Test download 4',
+				'file'   => 'https://woocommerce.com/4',
+				'limit'  => '',
+				'expiry' => '',
+			),
+		) );
+
+		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_downloadable_files' ) );
+
+		$results = array_values( get_post_meta( $product->get_id(), '_downloadable_files', true ) );
+		$this->assertEquals( 'Test download 3', $results[0]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/3', $results[0]['file'] );
+		$this->assertEquals( 'Test download 4', $results[1]['name'] );
+		$this->assertEquals( 'https://woocommerce.com/4', $results[1]['file'] );
 	}
-	*/
 
 	/**
 	 * Test the variation description metadata mapping.

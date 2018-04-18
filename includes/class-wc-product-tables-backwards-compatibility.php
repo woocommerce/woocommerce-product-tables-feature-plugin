@@ -581,7 +581,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$format = $args['format'] ? array( $args['format'] ) : null;
 
-		return (bool) $wpdb->update(
+		$result = (bool) $wpdb->update(
 			$wpdb->prefix . 'wc_product_downloads',
 			array(
 				$args['column'] => $args['value'],
@@ -591,6 +591,12 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			$format
 		); // WPCS: db call ok, cache ok.
+
+		if ( $result ) {
+			wp_cache_delete( 'woocommerce_product_downloads_' . $args['product_id'], 'product' );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -618,22 +624,22 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$query_results = wp_cache_get( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
 
 		if ( empty( $query_results ) ) {
-			$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d", $args['product_id'] ) );
+			$query_results = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file` from {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER by `priority` ASC", $args['product_id'] ) );
 
 			wp_cache_set( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], $query_results, 'product' );
 		}
 
 		$mapped_results = array();
 		foreach ( $query_results as $result ) {
-			$mapped_results[ $result['download_id'] ] = array(
-				'id'            => $result['download_id'],
-				'name'          => $result['name'],
-				'file'          => $result['file'],
+			$mapped_results[ $result->download_id ] = array(
+				'id'            => $result->download_id,
+				'name'          => $result->name,
+				'file'          => $result->file,
 				'previous_hash' => '',
 			);
 		}
 
-		return $mapped_results;
+		return array( array( $mapped_results ) );
 	}
 
 	/**
@@ -663,10 +669,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$new_values = $args['value'];
 		$new_ids    = array_keys( $new_values );
 
-		$existing_file_data        = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `limit`, `expires` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) );  // WPCS: db call ok, cache ok.
+		$existing_file_data        = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `limit`, `expires` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
 		$existing_file_data_by_key = array();
 		foreach ( $existing_file_data as $data ) {
-			$existing_file_data_by_key[ $data['download_id'] ] = $data;
+			$existing_file_data_by_key[ $data->download_id ] = $data;
 		}
 		$old_ids = wp_list_pluck( $existing_file_data, 'download_id' );
 		$missing = array_diff( $old_ids, $new_ids );
@@ -691,7 +697,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'download_id' => $id,
 				'product_id'  => $args['product_id'],
 				'name'        => isset( $download_info['name'] ) ? $download_info['name'] : '',
-				'url'         => isset( $download_info['file'] ) ? $download_info['file'] : '',
+				'file'        => isset( $download_info['file'] ) ? $download_info['file'] : '',
 				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : null,
 				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : null,
 				'priority'    => $priority,
@@ -710,11 +716,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 				)
 			); // WPCS: db call ok, cache ok.
 
-			++$priority;
+			$priority++;
 		}
 
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_downloadable_files_' . $args['product_id'], 'product' );
-		wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
+		wp_cache_delete( 'woocommerce_product_downloads_' . $args['product_id'], 'product' );
 
 		return true;
 	}
@@ -1571,10 +1577,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
-
-			/**
-			 * In downloads table. @todo Products and data stores are not handling this correctly. Was previously meta.
-			 */
 			'_download_limit'        => array(
 				'get'    => array(
 					'function' => array( $this, 'get_from_downloads_table' ),
