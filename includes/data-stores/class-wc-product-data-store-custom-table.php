@@ -133,11 +133,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		global $wpdb;
 
 		$data    = array(
-			'type' => $product->get_type( 'edit' ),
+			'type' => $product->get_type(),
 		);
 		$changes = $product->get_changes();
 		$insert  = false;
-		$row     = $this->get_product_row_from_db( $product->get_id( 'edit' ) );
+		$row     = $this->get_product_row_from_db( $product->get_id() );
 
 		if ( ! $row ) {
 			$insert = true;
@@ -207,12 +207,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		}
 
 		if ( $insert ) {
-			$data['product_id'] = $product->get_id( 'edit' );
+			$data['product_id'] = $product->get_id();
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} elseif ( ! empty( $data ) ) {
 			$wpdb->update(
 				"{$wpdb->prefix}wc_products", $data, array(
-					'product_id' => $product->get_id( 'edit' ),
+					'product_id' => $product->get_id(),
 				)
 			); // WPCS: db call ok, cache ok.
 		}
@@ -692,7 +692,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						'sale_price' => null,
 					),
 					array(
-						'product_id' => $product->get_id( 'edit' ),
+						'product_id' => $product->get_id(),
 					)
 				); // WPCS: db call ok, cache ok.
 				$product->set_sale_price( '' );
@@ -706,7 +706,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						'price' => $product->get_sale_price( 'edit' ),
 					),
 					array(
-						'product_id' => $product->get_id( 'edit' ),
+						'product_id' => $product->get_id(),
 					)
 				); // WPCS: db call ok, cache ok.
 				$product->set_price( $product->get_sale_price( 'edit' ) );
@@ -717,7 +717,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						'price' => $product->get_regular_price( 'edit' ),
 					),
 					array(
-						'product_id' => $product->get_id( 'edit' ),
+						'product_id' => $product->get_id(),
 					)
 				); // WPCS: db call ok, cache ok.
 				$product->set_price( $product->get_regular_price( 'edit' ) );
@@ -1468,7 +1468,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$wpdb->get_results(
 					$wpdb->prepare(
 						"SELECT product_attribute_id, attribute_id FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
-						$product->get_id( 'edit' )
+						$product->get_id()
 					)
 				), 'attribute_id', 'product_attribute_id'
 			); // WPCS: db call ok, cache ok.
@@ -1488,7 +1488,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 					$product_attribute_id = $attribute->get_product_attribute_id();
 					$attribute_data       = array(
-						'product_id'   => $product->get_id( 'edit' ),
+						'product_id'   => $product->get_id(),
 						'name'         => $attribute->get_name(),
 						'is_visible'   => $attribute->get_visible() ? 1 : 0,
 						'is_variation' => $attribute->get_variation() ? 1 : 0,

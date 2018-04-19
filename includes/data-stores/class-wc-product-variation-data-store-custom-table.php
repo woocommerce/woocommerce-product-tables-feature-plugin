@@ -360,11 +360,11 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		global $wpdb;
 
 		$data    = array(
-			'type' => $product->get_type( 'edit' ),
+			'type' => $product->get_type(),
 		);
 		$changes = $product->get_changes();
 		$insert  = false;
-		$row     = $this->get_product_row_from_db( $product->get_id( 'edit' ) );
+		$row     = $this->get_product_row_from_db( $product->get_id() );
 
 		if ( ! $row ) {
 			$insert = true;
@@ -427,14 +427,14 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		}
 
 		if ( $insert ) {
-			$data['product_id'] = $product->get_id( 'edit' );
+			$data['product_id'] = $product->get_id();
 			$wpdb->insert( "{$wpdb->prefix}wc_products", $data ); // WPCS: db call ok, cache ok.
 		} elseif ( ! empty( $data ) ) {
 			$wpdb->update(
 				"{$wpdb->prefix}wc_products",
 				$data,
 				array(
-					'product_id' => $product->get_id( 'edit' ),
+					'product_id' => $product->get_id(),
 				)
 			); // WPCS: db call ok, cache ok.
 		}
@@ -628,7 +628,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 							),
 							array(
 								'product_attribute_id' => $product_attribute_id,
-								'product_id'           => $product->get_id( 'edit' ),
+								'product_id'           => $product->get_id(),
 							)
 						); // WPCS: db call ok, cache ok.
 					} else {
@@ -637,7 +637,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 							array(
 								'value'                => $attribute_value,
 								'product_attribute_id' => $product_attribute_id,
-								'product_id'           => $product->get_id( 'edit' ),
+								'product_id'           => $product->get_id(),
 							)
 						); // WPCS: db call ok, cache ok.
 					}
