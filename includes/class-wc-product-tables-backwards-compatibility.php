@@ -32,14 +32,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return string|array
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
-		global $wpdb;
-
 		$mapping = $this->get_mapping();
 		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
-		$mapped_query       = $mapping[ $meta_key ]['get'];
 		$mapped_func        = $mapping[ $meta_key ]['get']['function'];
 		$args               = $mapping[ $meta_key ]['get']['args'];
 		$args['product_id'] = $post_id;
@@ -68,8 +65,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return int|bool
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
-		global $wpdb;
-
 		$mapping = $this->get_mapping();
 		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
@@ -82,7 +77,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 			}
 		}
 
-		$mapped_query       = $mapping[ $meta_key ]['add'];
 		$mapped_func        = $mapping[ $meta_key ]['add']['function'];
 		$args               = $mapping[ $meta_key ]['add']['args'];
 		$args['product_id'] = $post_id;
@@ -102,16 +96,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return int|bool
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
-		global $wpdb;
-
 		$mapping = $this->get_mapping();
 		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
-		$mapped_query = $mapping[ $meta_key ]['update'];
-
-		$mapped_query       = $mapping[ $meta_key ]['update'];
 		$mapped_func        = $mapping[ $meta_key ]['update']['function'];
 		$args               = $mapping[ $meta_key ]['update']['args'];
 		$args['product_id'] = $post_id;
@@ -132,16 +121,11 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return int|bool
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
-		global $wpdb;
-
 		$mapping = $this->get_mapping();
 		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
-		$mapped_query = $mapping[ $meta_key ]['delete'];
-
-		$mapped_query       = $mapping[ $meta_key ]['delete'];
 		$mapped_func        = $mapping[ $meta_key ]['delete']['function'];
 		$args               = $mapping[ $meta_key ]['delete']['args'];
 		$args['product_id'] = $post_id;
@@ -736,8 +720,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function get_product_attributes( $args ) {
-		global $wpdb;
-
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -781,8 +763,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function update_product_attributes( $args ) {
-		global $wpdb;
-
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => array(),
@@ -831,8 +811,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array
 	 */
 	public function get_product_default_attributes( $args ) {
-		global $wpdb;
-
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -862,8 +840,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return bool
 	 */
 	public function update_product_default_attributes( $args ) {
-		global $wpdb;
-
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => array(),
