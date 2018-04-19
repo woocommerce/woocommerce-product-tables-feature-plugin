@@ -62,7 +62,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param string     $meta_key   Metadata key.
 	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
 	 * @param bool       $unique     Whether the same key should not be added.
-	 * @return int|bool
+	 * @return array|bool
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
 		$mapping = $this->get_mapping();
@@ -93,7 +93,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param string     $meta_key   Metadata key.
 	 * @param mixed      $meta_value Metadata value. Must be serializable if non-scalar.
 	 * @param mixed      $prev_value Previous value to check before removing.
-	 * @return int|bool
+	 * @return array|bool
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
 		$mapping = $this->get_mapping();
@@ -118,7 +118,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param string     $meta_key   Metadata key.
 	 * @param mixed      $prev_value Metadata value. Must be serializable if non-scalar.
 	 * @param bool       $delete_all Delete all metadata.
-	 * @return int|bool
+	 * @return array|bool
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
 		$mapping = $this->get_mapping();
@@ -546,7 +546,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type string $format     Format of column data.
 	 *     @type mixed  $value      New value to put in column.
 	 * }
-	 * @return bool
+	 * @return array|bool
 	 */
 	public function update_downloads_table( $args ) {
 		global $wpdb;
@@ -635,7 +635,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *     @type int    $product_id Product ID.
 	 *     @type array  $value Array of legacy meta format downloads info.
 	 * }
-	 * @return array
+	 * @return bool
 	 */
 	public function update_downloadable_files( $args ) {
 		global $wpdb;
