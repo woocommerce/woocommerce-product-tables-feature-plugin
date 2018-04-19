@@ -655,4 +655,14 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 			}
 		}
 	}
+
+	/**
+	 * Clear product variations specific caches and calls parent::clear_caches() to clear the remaining product caches.
+	 *
+	 * @param WC_Product $product The product object.
+	 */
+	protected function clear_caches( &$product ) {
+		wp_cache_delete( 'woocommerce_product_children_stock_status_' . $product->get_parent_id(), 'product' );
+		parent::clear_caches( $product );
+	}
 }
