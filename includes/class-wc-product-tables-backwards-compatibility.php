@@ -164,15 +164,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], 'product' );
 
-		if ( empty( $data ) ) {
-			$data = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
-
-			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], $data, 'product' );
+		if ( false === $data ) {
+			$data = array();
 		}
 
-		return $data;
+		if ( empty( $data[ $args['column'] ] ) ) {
+			$data[ $args['column'] ] = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
+
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], $data, 'product' );
+		}
+
+		return $data[ $args['column'] ];
 	}
 
 	/**
@@ -238,7 +242,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		if ( $update_success ) {
-			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['column'] . '_' . $args['product_id'], 'product' );
+			wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], 'product' );
 			wp_cache_delete( 'woocommerce_product_' . $args['product_id'], 'product' );
 		}
 

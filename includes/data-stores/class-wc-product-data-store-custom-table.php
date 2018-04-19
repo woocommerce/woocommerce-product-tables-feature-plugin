@@ -598,6 +598,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_relationships_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_downloads_' . $product->get_id(), 'product' );
+		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $product->get_id(), 'product' );
 		wc_delete_product_transients( $product->get_id() );
 	}
 
