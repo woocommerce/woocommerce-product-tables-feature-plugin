@@ -46,8 +46,6 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 			return;
 		}
 
-		$id = $product->get_id();
-
 		$product->set_props(
 			array(
 				'name'            => $post_object->post_title,
