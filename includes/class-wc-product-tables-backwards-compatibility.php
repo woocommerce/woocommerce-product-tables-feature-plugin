@@ -407,17 +407,22 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		// Support delete all and check for meta value.
 		if ( ! empty( $args['delete_all'] ) ) {
-			$query = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
+			$prev_value = '';
+			$update     = "UPDATE {$wpdb->posts} SET post_content = '' WHERE post_type = 'product_variation'";
+			$current    = "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation'";
 
 			if ( ! empty( $args['prev_value'] ) ) {
-				$query .= " AND post_content = '" . esc_sql( $args['prev_value'] ) . "'";
+				$prev_value = " AND post_content = '" . esc_sql( $args['prev_value'] ) . "'";
 			}
 
-			$results = (bool) $wpdb->query( $query ); // WPCS: unprepared SQL ok.
+			$id_list = $wpdb->get_results( $current . $prev_value ); // WPCS: unprepared SQL ok.
+			$results = (bool) $wpdb->query( $update . $prev_value ); // WPCS: unprepared SQL ok.
 
 			// Clear post cache if successfully.
 			if ( $results ) {
-				clean_post_cache( $post_ID );
+				foreach ( $id_list as $variation ) {
+					clean_post_cache( $variation->ID );
+				}
 			}
 
 			return $results;
