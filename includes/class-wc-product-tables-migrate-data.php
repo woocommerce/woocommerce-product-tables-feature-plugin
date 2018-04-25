@@ -31,6 +31,8 @@ class WC_Product_Tables_Migrate_Data {
 			'stock_quantity'    => '_stock',
 			'virtual'           => '_virtual',
 			'downloadable'      => '_downloadable',
+			'download_limit'    => '_download_limit',
+			'download_expiry'   => '_download_expiry',
 			'tax_class'         => '_tax_class',
 			'tax_status'        => '_tax_status',
 			'total_sales'       => 'total_sales',
@@ -45,8 +47,6 @@ class WC_Product_Tables_Migrate_Data {
 		// List of post meta keys that will be migrated to different tables created by this plugin.
 		'custom'  => array(
 			'_downloadable_files',
-			'_download_limit',
-			'_download_expiry',
 			'_children',
 			'_upsell_ids',
 			'_crosssell_ids',
@@ -83,8 +83,6 @@ class WC_Product_Tables_Migrate_Data {
 					'product_id' => $product->ID,
 					'name'       => $downloadable_file['name'],
 					'file'       => $downloadable_file['file'],
-					'limit'      => isset( $metas['_download_limit'] ) ? $metas['_download_limit'][0] : null,
-					'expires'    => isset( $metas['_download_expiry'] ) ? $metas['_download_expiry'][0] : null,
 					'priority'   => $priority,
 				);
 				$new_download_id = self::insert( 'wc_product_downloads', $new_download );

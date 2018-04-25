@@ -154,6 +154,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'type',
 			'virtual',
 			'downloadable',
+			'download_limit',
+			'download_expiry',
 			'tax_class',
 			'tax_status',
 			'total_sales',
@@ -277,7 +279,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$data = wp_cache_get( 'woocommerce_product_downloads_' . $product_id, 'product' );
 
 		if ( empty( $data ) ) {
-			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file`, `limit`, `expires`, `priority` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
+			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file`, `priority` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_downloads_' . $product_id, $data, 'product' );
 		}
@@ -1200,8 +1202,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$download->set_id( $data->download_id );
 				$download->set_name( $data->name ? $data->name : wc_get_filename_from_url( $data->file ) );
 				$download->set_file( apply_filters( 'woocommerce_file_download_path', $data->file, $product, $data->download_id ) );
-				$download->set_limit( $data->limit );
-				$download->set_expiry( $data->expires );
 				$downloads[] = $download;
 			}
 
@@ -1242,8 +1242,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						'product_id'  => $product->get_id(),
 						'name'        => $data['name'],
 						'file'        => $data['file'],
-						'limit'       => $data['limit'],
-						'expires'     => $data['expiry'],
 						'priority'    => $key,
 					);
 
@@ -1253,7 +1251,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 						array(
 							'%d',
 							'%d',
-							'%s',
 							'%s',
 							'%s',
 							'%d',

@@ -36,6 +36,8 @@ class WC_Tests_Migrate_Data extends WC_Unit_Test_Case {
 		$this->assertEquals( 5, $migrated_product->stock_quantity );
 		$this->assertEquals( 1, $migrated_product->virtual );
 		$this->assertEquals( 1, $migrated_product->downloadable );
+		$this->assertEquals( 5, $migrated_product->download_limit );
+		$this->assertEquals( 365, $migrated_product->download_expiry );
 		$this->assertEquals( '', $migrated_product->tax_class );
 		$this->assertEquals( 'taxable', $migrated_product->tax_status );
 		$this->assertEquals( 7, $migrated_product->total_sales );
@@ -70,6 +72,8 @@ class WC_Tests_Migrate_Data extends WC_Unit_Test_Case {
 		$this->insert_post_meta( $product_id, '_stock', '5' );
 		$this->insert_post_meta( $product_id, '_virtual', 'yes' );
 		$this->insert_post_meta( $product_id, '_downloadable', 'yes' );
+		$this->insert_post_meta( $product_id, '_download_limit', '5' );
+		$this->insert_post_meta( $product_id, '_download_expiry', '365' );
 		$this->insert_post_meta( $product_id, '_tax_class', '' );
 		$this->insert_post_meta( $product_id, '_tax_status', 'taxable' );
 		$this->insert_post_meta( $product_id, 'total_sales', '7' );
