@@ -49,8 +49,6 @@ class WC_Product_Tables_Install {
 			  `type` varchar(100) NULL default 'simple',
 			  `virtual` tinyint(1) NULL default 0,
 			  `downloadable` tinyint(1) NULL default 0,
-			  `download_limit` int(11) default NULL,
-			  `download_expiry` int(11) default NULL,
 			  `tax_class` varchar(100) NULL default '',
 			  `tax_status` varchar(100) NULL default 'taxable',
 			  `total_sales` double NULL default 0,

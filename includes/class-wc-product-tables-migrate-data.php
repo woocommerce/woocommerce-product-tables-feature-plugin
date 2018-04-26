@@ -31,8 +31,6 @@ class WC_Product_Tables_Migrate_Data {
 			'stock_quantity'    => '_stock',
 			'virtual'           => '_virtual',
 			'downloadable'      => '_downloadable',
-			'download_limit'    => '_download_limit',
-			'download_expiry'   => '_download_expiry',
 			'tax_class'         => '_tax_class',
 			'tax_status'        => '_tax_status',
 			'total_sales'       => 'total_sales',

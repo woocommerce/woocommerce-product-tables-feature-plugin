@@ -154,8 +154,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'type',
 			'virtual',
 			'downloadable',
-			'download_limit',
-			'download_expiry',
 			'tax_class',
 			'tax_status',
 			'total_sales',
@@ -317,6 +315,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'_backorders'        => 'backorders',
 			'_sold_individually' => 'sold_individually',
 			'_purchase_note'     => 'purchase_note',
+			'_download_limit'    => 'download_limit',
+			'_download_expiry'   => 'download_expiry',
 		);
 
 		foreach ( $meta_to_props as $meta_key => $prop ) {
@@ -630,6 +630,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'_purchase_note'     => 'purchase_note',
 			'_wc_rating_count'   => 'rating_counts',
 			'_wc_review_count'   => 'review_count',
+			'_download_limit'    => 'download_limit',
+			'_download_expiry'   => 'download_expiry',
 		);
 
 		// Make sure to take extra data (like product url or text for external products) into account.

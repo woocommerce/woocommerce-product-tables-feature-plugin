@@ -1314,66 +1314,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 					),
 				),
 			),
-			'_download_limit'        => array(
-				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
-					'args'     => array(
-						'column' => 'download_limit',
-					),
-				),
-				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_limit',
-						'format' => '%d',
-					),
-				),
-				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_limit',
-						'format' => '%d',
-					),
-				),
-				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_limit',
-						'format' => '%d',
-						'value'  => -1,
-					),
-				),
-			),
-			'_download_expiry'       => array(
-				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
-					'args'     => array(
-						'column' => 'download_expiry',
-					),
-				),
-				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_expiry',
-						'format' => '%d',
-					),
-				),
-				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_expiry',
-						'format' => '%d',
-					),
-				),
-				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
-					'args'     => array(
-						'column' => 'download_expiry',
-						'format' => '%d',
-						'value'  => -1,
-					),
-				),
-			),
 			'_wc_average_rating'     => array(
 				'get'    => array(
 					'function' => array( $this, 'get_from_product_table' ),
