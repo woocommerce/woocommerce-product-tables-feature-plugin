@@ -88,8 +88,6 @@ class WC_Product_Tables_Install {
 			  `product_id` bigint(20) NOT NULL,
 			  `name` varchar(1000) NOT NULL,
 			  `file` text NOT NULL,
-			  `limit` int(11) default NULL,
-			  `expires` int(11) default NULL,
 			  `priority` int(11) default 0,
 			  PRIMARY KEY  (`download_id`)
 			) $collate;
