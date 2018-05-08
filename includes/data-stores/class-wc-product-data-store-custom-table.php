@@ -1193,8 +1193,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		if ( $existing_downloads ) {
 			$downloads = array();
 			foreach ( $existing_downloads as $data ) {
-				// @todo Should delete downloads that does not have any name or file?
-				if ( empty( $data->name ) || empty( $data->file ) ) {
+				// @todo Should delete downloads that does not have any file?
+				if ( empty( $data->file ) ) {
 					continue;
 				}
 
