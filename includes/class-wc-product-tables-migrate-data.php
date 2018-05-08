@@ -55,6 +55,13 @@ class WC_Product_Tables_Migrate_Data {
 	);
 
 	/**
+	 * Whether or not the migration is currently running.
+	 *
+	 * @var bool
+	 */
+	public static $migrating = false;
+
+	/**
 	 * Main function that runs the whole migration.
 	 *
 	 * @param bool $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
@@ -62,7 +69,7 @@ class WC_Product_Tables_Migrate_Data {
 	public static function migrate( $clean_old_data = false ) {
 		global $wpdb;
 
-		define( 'WC_PRODUCT_TABLES_MIGRATING', true );
+		self::$migrating = true;
 
 		$products = self::get_products();
 
@@ -140,6 +147,8 @@ class WC_Product_Tables_Migrate_Data {
 				self::clean_old_data( $product->ID );
 			}
 		}
+
+		self::$migrating = false;
 	}
 
 	/**

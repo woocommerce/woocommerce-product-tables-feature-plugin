@@ -10,7 +10,10 @@
 	syntaxCheck="true"
 	>
 	<testsuites>
-		<testsuite name="WooCommerce Test Suite">
+		<testsuite name="WooCommerce Product Custom Tables Suite">
+			<directory suffix=".php">tests/unit-tests</directory>
+		</testsuite>
+		<testsuite name="WooCommerce Core Test Suite">
 			<directory suffix=".php">./../woocommerce/tests/unit-tests</directory>
 		</testsuite>
 	</testsuites>

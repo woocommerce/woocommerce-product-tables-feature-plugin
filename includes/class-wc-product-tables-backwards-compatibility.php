@@ -33,7 +33,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
 		$mapping = $this->get_mapping();
-		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -66,7 +66,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
 		$mapping = $this->get_mapping();
-		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -97,7 +97,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
 		$mapping = $this->get_mapping();
-		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -122,7 +122,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
 		$mapping = $this->get_mapping();
-		if ( ( defined( 'WC_PRODUCT_TABLES_MIGRATING' ) && WC_PRODUCT_TABLES_MIGRATING ) || ! isset( $mapping[ $meta_key ] ) ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
