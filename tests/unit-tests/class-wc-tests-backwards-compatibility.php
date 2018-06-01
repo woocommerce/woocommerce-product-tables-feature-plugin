@@ -761,49 +761,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 	}
 
 	/**
-	 * Test the download limit metadata mapping.
-	 *
-	 * @since 1.0.0
-	 */
-	public function test_download_limit_mapping() {
-		$product = new WC_Product_Simple();
-		$product->set_downloadable( true );
-		$product->set_downloads( array(
-			array(
-				'name'   => 'Test download',
-				'file'   => 'https://woocommerce.com',
-				'limit'  => 5,
-				'expiry' => '',
-			),
-		) );
-		$product->save();
-
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
-		$this->assertEquals( 5, get_post_meta( $product->get_id(), '_download_limit', true ) );
-
-		update_post_meta( $product->get_id(), '_download_limit', 10 );
-
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
-		$this->assertEquals( 10, get_post_meta( $product->get_id(), '_download_limit', true ) );
-
-		// Download limit is soft deprecated now and should return -1.
-		$_product = wc_get_product( $product->get_id() );
-		$this->assertEquals( -1, $_product->get_download_limit() );
-
-		delete_post_meta( $product->get_id(), '_download_limit' );
-		$this->assertEquals( -1, get_post_meta( $product->get_id(), '_download_limit', true ) );
-
-		// Download limit is soft deprecated now and should return -1.
-		$_product = wc_get_product( $product->get_id() );
-		$this->assertEquals( -1, $_product->get_download_limit() );
-
-		add_post_meta( $product->get_id(), '_download_limit', 3 );
-
-		$this->assertEquals( array(), $this->get_from_meta_table( $product->get_id(), '_download_limit' ) );
-		$this->assertEquals( 3, get_post_meta( $product->get_id(), '_download_limit', true ) );
-	}
-
-	/**
 	 * Test the download expiry metadata mapping.
 	 *
 	 * @since 1.0.0
