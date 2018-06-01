@@ -589,7 +589,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$new_values = $args['value'];
 		$new_ids    = array_keys( $new_values );
 
-		$existing_file_data        = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `limit`, `expires` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
+		$existing_file_data        = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $args['product_id'] ) ); // WPCS: db call ok, cache ok.
 		$existing_file_data_by_key = array();
 		foreach ( $existing_file_data as $data ) {
 			$existing_file_data_by_key[ $data->download_id ] = $data;
@@ -618,8 +618,6 @@ class WC_Product_Tables_Backwards_Compatibility {
 				'product_id'  => $args['product_id'],
 				'name'        => isset( $download_info['name'] ) ? $download_info['name'] : '',
 				'file'        => isset( $download_info['file'] ) ? $download_info['file'] : '',
-				'limit'       => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['limit'] : null,
-				'expires'     => isset( $existing_file_data_by_key[ $id ] ) ? $existing_file_data_by_key[ $id ]['expires'] : null,
 				'priority'    => $priority,
 			);
 
