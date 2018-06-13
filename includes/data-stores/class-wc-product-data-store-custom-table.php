@@ -632,6 +632,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'_wc_review_count'   => 'review_count',
 			'_download_limit'    => 'download_limit',
 			'_download_expiry'   => 'download_expiry',
+			'_thumbnail_id'      => 'image_id', // For compatibility with WordPress functions like has_post_thumbnail.
 		);
 
 		// Make sure to take extra data (like product url or text for external products) into account.
