@@ -413,6 +413,11 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 			'average_rating',
 		);
 
+		if ( array_key_exists( 'manage_stock', $changes ) && ! $product->get_stock_quantity( 'edit' ) ) {
+			$data['stock_quantity'] = 0;
+			$this->updated_props[] = 'stock_quantity';
+		}
+
 		foreach ( $columns as $column ) {
 			if ( $insert || array_key_exists( $column, $changes ) ) {
 				$value = $product->{"get_$column"}( 'edit' );
