@@ -1,8 +1,6 @@
 <?php
 /**
- * ¯\_(ツ)_/¯
- *
- * @todo move to core.
+ * When this functionality moves to core, this code will be moved into core directly and won't need to be hooked in!
  *
  * @package WooCommerce Product Tables Feature Plugin
  * @author Automattic
