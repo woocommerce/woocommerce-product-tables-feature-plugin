@@ -1809,33 +1809,37 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'price',
 			'regular_price',
 			'sale_price',
-			'date_on_sale_from',
-			'date_on_sale_to',
 		);
-		foreach ( $product_table_queries as $product_table_query ) {
-			if ( isset( $query_vars[ $product_table_query ] ) && '' !== $query_vars[ $product_table_query ] ) {
+		foreach ( $product_table_queries as $column_name ) {
+			if ( isset( $query_vars[ $column_name ] ) && '' !== $query_vars[ $column_name ] ) {
 				$query = array(
-					'value'   => $query_vars[ $product_table_query ],
+					'value'   => $query_vars[ $column_name ],
 					'format'  => '%s',
-					'compare' => is_array( $query_vars[ $product_table_query ] ) ? 'IN' : '=',
+					'compare' => is_array( $query_vars[ $column_name ] ) ? 'IN' : '=',
 				);
-				switch ( $product_table_query ) {
+				switch ( $column_name ) {
 					case 'virtual':
 					case 'downloadable':
-						$query['value']  = $query_vars[ $product_table_query ] ? 1 : 0;
+						$query['value']  = $query_vars[ $column_name ] ? 1 : 0;
 						$query['format'] = '%d';
-						break;
-					case 'date_on_sale_from':
-					case 'date_on_sale_to':
-						$query['value'] = $this->parse_date_for_wp_query( $query_vars[ $product_table_query ], $product_table_query, $wp_query_args );
 						break;
 					case 'sku':
 						$query['compare'] = 'LIKE';
 						break;
 				}
-				$wp_query_args['wc_products_query'][ $product_table_query ] = $query;
-				unset( $wp_query_args[ $product_table_query ] );
+				$wp_query_args['wc_products_query'][ $column_name ] = $query;
+				unset( $wp_query_args[ $column_name ] );
 			}
+		}
+
+		if ( isset( $query_vars['date_on_sale_from'] ) && '' !== $query_vars['date_on_sale_from'] ) {
+			$wp_query_args = $this->parse_date_for_wp_query( $query_vars['date_on_sale_from'], 'date_on_sale_from', $wp_query_args );
+			unset( $wp_query_args['date_on_sale_from'] );
+		}
+
+		if ( isset( $query_vars['date_on_sale_to'] ) && '' !== $query_vars['date_on_sale_to'] ) {
+			$wp_query_args = $this->parse_date_for_wp_query( $query_vars['date_on_sale_to'], 'date_on_sale_to', $wp_query_args );
+			unset( $wp_query_args['date_on_sale_to'] );
 		}
 
 		// Handle product types.
@@ -1971,6 +1975,174 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		}
 
 		return apply_filters( 'woocommerce_product_data_store_cpt_get_products_query', $wp_query_args, $query_vars, $this );
+	}
+
+	/**
+	 * Map a valid date query var to WP_Query arguments.
+	 * Valid date formats: YYYY-MM-DD or timestamp, possibly combined with an operator from $valid_operators.
+	 * Also accepts a WC_DateTime object.
+	 *
+	 * @since 3.2.0
+	 * @param mixed  $query_var A valid date format.
+	 * @param string $key meta or db column key.
+	 * @param array  $wp_query_args WP_Query args.
+	 * @return array Modified $wp_query_args
+	 */
+	public function parse_date_for_wp_query( $query_var, $key, $wp_query_args = array() ) {
+		$query_parse_regex = '/([^.<>]*)(>=|<=|>|<|\.\.\.)([^.<>]+)/';
+		$valid_operators   = array( '>', '>=', '=', '<=', '<', '...' );
+
+		// YYYY-MM-DD queries have 'day' precision. Timestamp/WC_DateTime queries have 'second' precision.
+		$precision = 'second';
+
+		$dates    = array();
+		$operator = '=';
+
+		try {
+			// Specific time query with a WC_DateTime.
+			if ( is_a( $query_var, 'WC_DateTime' ) ) {
+				$dates[] = $query_var;
+			} elseif ( is_numeric( $query_var ) ) { // Specific time query with a timestamp.
+				$dates[] = new WC_DateTime( "@{$query_var}", new DateTimeZone( 'UTC' ) );
+			} elseif ( preg_match( $query_parse_regex, $query_var, $sections ) ) { // Query with operators and possible range of dates.
+				if ( ! empty( $sections[1] ) ) {
+					$dates[] = is_numeric( $sections[1] ) ? new WC_DateTime( "@{$sections[1]}", new DateTimeZone( 'UTC' ) ) : wc_string_to_datetime( $sections[1] );
+				}
+
+				$operator = in_array( $sections[2], $valid_operators, true ) ? $sections[2] : '';
+				$dates[]  = is_numeric( $sections[3] ) ? new WC_DateTime( "@{$sections[3]}", new DateTimeZone( 'UTC' ) ) : wc_string_to_datetime( $sections[3] );
+
+				if ( ! is_numeric( $sections[1] ) && ! is_numeric( $sections[3] ) ) {
+					$precision = 'day';
+				}
+			} else { // Specific time query with a string.
+				$dates[]   = wc_string_to_datetime( $query_var );
+				$precision = 'day';
+			}
+		} catch ( Exception $e ) {
+			return $wp_query_args;
+		}
+
+		// Check for valid inputs.
+		if ( ! $operator || empty( $dates ) || ( '...' === $operator && count( $dates ) < 2 ) ) {
+			return $wp_query_args;
+		}
+
+		// Build date query for 'post_date' or 'post_modified' keys.
+		if ( in_array( $key, array( 'post_date', 'post_modified', 'date_on_sale_from', 'date_on_sale_to' ), true ) ) {
+			if ( ! isset( $wp_query_args['date_query'] ) ) {
+				$wp_query_args['date_query'] = array();
+			}
+
+			$query_arg = array(
+				'column'    => 'day' === $precision ? $key : $key . '_gmt',
+				'inclusive' => '>' !== $operator && '<' !== $operator,
+			);
+
+			// Add 'before'/'after' query args.
+			$comparisons = array();
+			if ( '>' === $operator || '>=' === $operator || '...' === $operator ) {
+				$comparisons[] = 'after';
+			}
+			if ( '<' === $operator || '<=' === $operator || '...' === $operator ) {
+				$comparisons[] = 'before';
+			}
+
+			foreach ( $comparisons as $index => $comparison ) {
+				if ( 'day' === $precision ) {
+					/**
+					 * WordPress doesn't generate the correct SQL for inclusive day queries with both a 'before' and
+					 * 'after' string query, so we have to use the array format in 'day' precision.
+					 *
+					 * @see https://core.trac.wordpress.org/ticket/29908
+					 */
+					$query_arg[ $comparison ]['year']  = $dates[ $index ]->date( 'Y' );
+					$query_arg[ $comparison ]['month'] = $dates[ $index ]->date( 'n' );
+					$query_arg[ $comparison ]['day']   = $dates[ $index ]->date( 'j' );
+				} else {
+					/**
+					 * WordPress doesn't support 'hour'/'second'/'minute' in array format 'before'/'after' queries,
+					 * so we have to use a string query.
+					 */
+					$query_arg[ $comparison ] = gmdate( 'm/d/Y H:i:s', $dates[ $index ]->getTimestamp() );
+				}
+			}
+
+			if ( empty( $comparisons ) ) {
+				$query_arg['year']  = $dates[0]->date( 'Y' );
+				$query_arg['month'] = $dates[0]->date( 'n' );
+				$query_arg['day']   = $dates[0]->date( 'j' );
+				if ( 'second' === $precision ) {
+					$query_arg['hour']   = $dates[0]->date( 'H' );
+					$query_arg['minute'] = $dates[0]->date( 'i' );
+					$query_arg['second'] = $dates[0]->date( 's' );
+				}
+			}
+			$wp_query_args['date_query'][] = $query_arg;
+			return $wp_query_args;
+		}
+
+		// Build meta query for unrecognized keys.
+		if ( ! isset( $wp_query_args['meta_query'] ) ) {
+			$wp_query_args['meta_query'] = array(); // phpcs:ignore WordPress.VIP.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		// Meta dates are stored as timestamps in the db.
+		// Check against beginning/end-of-day timestamps when using 'day' precision.
+		if ( 'day' === $precision ) {
+			$start_timestamp = strtotime( gmdate( 'm/d/Y 00:00:00', $dates[0]->getTimestamp() ) );
+			$end_timestamp   = '...' !== $operator ? ( $start_timestamp + DAY_IN_SECONDS ) : strtotime( gmdate( 'm/d/Y 00:00:00', $dates[1]->getTimestamp() ) );
+			switch ( $operator ) {
+				case '>':
+				case '<=':
+					$wp_query_args['meta_query'][] = array(
+						'key'     => $key,
+						'value'   => $end_timestamp,
+						'compare' => $operator,
+					);
+					break;
+				case '<':
+				case '>=':
+					$wp_query_args['meta_query'][] = array(
+						'key'     => $key,
+						'value'   => $start_timestamp,
+						'compare' => $operator,
+					);
+					break;
+				default:
+					$wp_query_args['meta_query'][] = array(
+						'key'     => $key,
+						'value'   => $start_timestamp,
+						'compare' => '>=',
+					);
+					$wp_query_args['meta_query'][] = array(
+						'key'     => $key,
+						'value'   => $end_timestamp,
+						'compare' => '<=',
+					);
+			}
+		} else {
+			if ( '...' !== $operator ) {
+				$wp_query_args['meta_query'][] = array(
+					'key'     => $key,
+					'value'   => $dates[0]->getTimestamp(),
+					'compare' => $operator,
+				);
+			} else {
+				$wp_query_args['meta_query'][] = array(
+					'key'     => $key,
+					'value'   => $dates[0]->getTimestamp(),
+					'compare' => '>=',
+				);
+				$wp_query_args['meta_query'][] = array(
+					'key'     => $key,
+					'value'   => $dates[1]->getTimestamp(),
+					'compare' => '<=',
+				);
+			}
+		}
+
+		return $wp_query_args;
 	}
 
 	/**
