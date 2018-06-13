@@ -1359,7 +1359,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 					)
 				);
 
-				$attr_values = array_filter( wp_list_pluck( $attr_value_data, 'value' ) );
+				$attr_values = wp_list_pluck( $attr_value_data, 'value' );
 				$attribute->set_options( $attr_values );
 
 				$attributes[] = $attribute;
