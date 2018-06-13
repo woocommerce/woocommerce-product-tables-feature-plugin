@@ -52,7 +52,7 @@ class WCPT_Unit_Tests_Bootstrap {
 	}
 
 	/**
-	 * Install WooCommerce after the test environment and WC have been loaded. @todo new tables will need removing in core when merged.
+	 * Install WooCommerce after the test environment and WC have been loaded.
 	 */
 	public function install() {
 		global $wpdb;

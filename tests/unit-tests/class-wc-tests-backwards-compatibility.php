@@ -995,7 +995,6 @@ class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 	 * Test the default attribute metadata mapping.
 	 *
 	 * @since 1.0.0
-	 * @todo This fails currently. Something to do with caching in the data store.
 	 */
 	public function test_product_default_attributes_mapping() {
 		$attributes = array();
