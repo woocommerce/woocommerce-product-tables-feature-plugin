@@ -33,6 +33,8 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		'_wp_old_slug',
 		'_edit_last',
 		'_edit_lock',
+		'_download_limit',
+		'_download_expiry',
 	);
 
 	/**
