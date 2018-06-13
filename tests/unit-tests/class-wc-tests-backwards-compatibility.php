@@ -13,6 +13,15 @@
 class WC_Tests_Backwards_Compatibility extends WC_Unit_Test_Case {
 
 	/**
+	 * Setup.
+	 */
+	public function setUp() {
+		if ( defined( 'WC_PRODUCT_TABLES_DISABLE_BW_COMPAT' ) ) {
+			$this->markTestSkipped( 'all tests in this file are invactive for this configuration!' );
+		}
+	}
+
+	/**
 	 * Get meta values directly from the postmeta table.
 	 *
 	 * @since 1.0.0
