@@ -16,7 +16,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * WC_Product_Tables_Backwards_Compatibility constructor.
 	 */
 	public function __construct() {
-		if ( ! apply_filters( 'woocommerce_product_tables_enable_backward_compatibility', true ) ) {
+		if ( ! apply_filters( 'woocommerce_product_tables_enable_backward_compatibility', true ) || defined( 'WC_PRODUCT_TABLES_DISABLE_BW_COMPAT' ) ) {
 			return;
 		}
 		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
