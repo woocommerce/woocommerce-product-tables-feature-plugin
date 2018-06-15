@@ -8,8 +8,6 @@
 
 /**
  * Class WC_Product_Tables_Migrate_Data
- *
- * @todo migrate _variation_description meta to post_content
  */
 class WC_Product_Tables_Migrate_Data {
 
@@ -51,6 +49,7 @@ class WC_Product_Tables_Migrate_Data {
 			'_product_image_gallery',
 			'_product_attributes',
 			'_default_attributes',
+			'_variation_description',
 		),
 	);
 
@@ -142,6 +141,14 @@ class WC_Product_Tables_Migrate_Data {
 			}
 
 			self::migrate_attributes( $product );
+
+			// Migrate variation description.
+			if ( 'product_variation' === $product->post_type ) {
+				wp_update_post( array(
+					'ID'           => $product->get_id(),
+					'post_content' => get_post_meta( $product->get_id(), '_variation_description', true ),
+				) );
+			}
 
 			if ( $clean_old_data ) {
 				self::clean_old_data( $product->ID );
