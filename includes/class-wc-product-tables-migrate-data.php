@@ -8,8 +8,6 @@
 
 /**
  * Class WC_Product_Tables_Migrate_Data
- *
- * @todo migrate _variation_description meta to post_content
  */
 class WC_Product_Tables_Migrate_Data {
 
@@ -51,6 +49,7 @@ class WC_Product_Tables_Migrate_Data {
 			'_product_image_gallery',
 			'_product_attributes',
 			'_default_attributes',
+			'_variation_description',
 		),
 	);
 
@@ -143,6 +142,14 @@ class WC_Product_Tables_Migrate_Data {
 
 			self::migrate_attributes( $product );
 
+			// Migrate variation description.
+			if ( 'product_variation' === $product->post_type ) {
+				wp_update_post( array(
+					'ID'           => $product->ID,
+					'post_content' => get_post_meta( $product->ID, '_variation_description', true ),
+				) );
+			}
+
 			if ( $clean_old_data ) {
 				self::clean_old_data( $product->ID );
 			}
@@ -197,30 +204,53 @@ class WC_Product_Tables_Migrate_Data {
 		);
 
 		foreach ( self::$meta_keys['product'] as $new_field_name => $meta_key ) {
-			if ( '_price' === $meta_key ) {
-				if ( isset( $metas['_price'] ) ) {
-					// Sort from low to high picking lowest.
-					rsort( $metas['_price'] );
-					$meta_value = $metas['_price'][0];
-				} else {
-					$meta_value = null;
-				}
-			} elseif ( '_sale_price' === $meta_key ) {
-				// replace empty strings (used to represent products not on sale) with NULL as the type of the field
-				// sale_price is double and an empty string is not a valid value.
-				$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
-			} elseif ( '_sale_price_dates_from' === $meta_key ) {
-				$meta_value = date( 'Y-m-d H:i:s', $metas['_sale_price_dates_from'][0] );
-			} elseif ( '_sale_price_dates_to' === $meta_key ) {
-				$meta_value = date( 'Y-m-d H:i:s', $metas['_sale_price_dates_to'][0] );
-			} elseif ( '_virtual' === $meta_key ) {
-				$meta_value = 'yes' === $metas['_virtual'][0] ? 1 : 0;
-			} elseif ( '_downloadable' === $meta_key ) {
-				$meta_value = 'yes' === $metas['_downloadable'][0] ? 1 : 0;
-			} else {
-				$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
+			switch ( $meta_key ) {
+				case '_price':
+					if ( isset( $metas['_price'] ) ) {
+						// Sort from low to high picking lowest.
+						rsort( $metas['_price'] );
+						$meta_value = $metas['_price'][0];
+					} else {
+						$meta_value = null;
+					}
+					break;
+				case '_sale_price':
+					// replace empty strings (used to represent products not on sale) with NULL as the type of the field
+					// sale_price is double and an empty string is not a valid value.
+					$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
+					break;
+				case '_sale_price_dates_from':
+					if ( ! empty( $metas['_sale_price_dates_from'] ) ) {
+						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_from'][0] );
+					} else {
+						$meta_vaule = null;
+					}
+					break;
+				case '_sale_price_dates_to':
+					if ( ! empty( $metas['_sale_price_dates_to'] ) ) {
+						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_to'][0] );
+					} else {
+						$meta_vaule = null;
+					}
+					break;
+				case '_virtual':
+					if ( isset( $metas['_virtual'] ) ) {
+						$meta_value = 'yes' === $metas['_virtual'][0] ? 1 : 0;
+					} else {
+						$meta_value = 0;
+					}
+					break;
+				case '_downloadable':
+					if ( isset( $metas['_downloadable'] ) ) {
+						$meta_value = 'yes' === $metas['_downloadable'][0] ? 1 : 0;
+					} else {
+						$meta_value = 0;
+					}
+					break;
+				default:
+					$meta_value = isset( $metas[ $meta_key ] ) ? $metas[ $meta_key ][0] : null;
+					break;
 			}
-
 			$new_data[ $new_field_name ] = $meta_value;
 		}
 
