@@ -1361,6 +1361,12 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				);
 
 				$attr_values = wp_list_pluck( $attr_value_data, 'value' );
+
+				// If this is a taxonomy, we're reading numeric term IDs.
+				if ( $attr->attribute_id ) {
+					$attr_values = array_map( 'absint', $attr_values );
+				}
+
 				$attribute->set_options( $attr_values );
 
 				$attributes[] = $attribute;

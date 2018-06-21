@@ -97,9 +97,6 @@ class WC_Product_Attribute implements ArrayAccess {
 	 * @param array $value Array of values or term ids.
 	 */
 	public function set_options( $value ) {
-		if ( $this->is_taxonomy() ) {
-			$value = array_map( 'absint', $value ); // Format term IDs to int.
-		}
 		$this->data['options'] = $value;
 	}
 
