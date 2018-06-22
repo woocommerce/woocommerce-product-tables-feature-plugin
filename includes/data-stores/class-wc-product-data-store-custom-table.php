@@ -174,7 +174,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 			'date_on_sale_to',
 		);
 
-		// @todo: Adapt getters to return null in core.
+		// Values which can be null in the database.
 		$allow_null = array(
 			'height',
 			'length',
