@@ -341,6 +341,4 @@ class WC_Tests_Migrate_Data extends WC_Unit_Test_Case {
 			)
 		); // WPCS: slow query ok.
 	}
-
-	// @todo: write tests for the migration of data to tables other than wc_wp_products
 }

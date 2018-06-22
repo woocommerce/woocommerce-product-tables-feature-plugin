@@ -7,8 +7,6 @@
 
 /**
  * Backwards compatibility layer for metadata access.
- *
- * @todo WP_Query meta query support? (IMO no. They should be using CRUD search helpers)
  */
 class WC_Product_Tables_Backwards_Compatibility {
 

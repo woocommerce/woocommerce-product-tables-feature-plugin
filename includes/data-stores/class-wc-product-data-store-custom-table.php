@@ -373,7 +373,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$product->set_date_created( current_time( 'timestamp', true ) );
 			}
 
-			// Handle manage_stock prop which is changing in this schema. @todo Depreate in core?
 			if ( $product->get_manage_stock( 'edit' ) && ! $product->get_stock_quantity( 'edit' ) ) {
 				$product->set_stock_quantity( 0 );
 			}
@@ -475,7 +474,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		$product->save_meta_data();
 		$changes = $product->get_changes();
 
-		// Handle manage_stock prop which is changing in this schema. @todo Depreate in core?
 		if ( array_key_exists( 'manage_stock', $changes ) && ! $product->get_stock_quantity( 'edit' ) ) {
 			$product->set_stock_quantity( 0 );
 		}
@@ -681,8 +679,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 	/**
 	 * Handle updated meta props after updating meta data.
-	 *
-	 * @todo can these checks and updates be moved elsewhere?
 	 *
 	 * @since  3.0.0
 	 * @param  WC_Product $product Product Object.
@@ -1196,7 +1192,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		if ( $existing_downloads ) {
 			$downloads = array();
 			foreach ( $existing_downloads as $data ) {
-				// @todo Should delete downloads that does not have any file?
 				if ( empty( $data->file ) ) {
 					continue;
 				}

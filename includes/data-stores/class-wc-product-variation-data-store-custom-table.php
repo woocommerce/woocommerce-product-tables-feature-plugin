@@ -65,7 +65,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 			$product->set_parent_id( 0 );
 		}
 
-		$this->read_attributes( $product ); // @todo This replaces wc_get_product_variation_attributes so deprecate it.
+		$this->read_attributes( $product );
 		$this->read_downloads( $product );
 		$this->read_product_data( $product );
 		$this->read_extra_data( $product );
@@ -78,7 +78,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		if ( $post_object->post_title !== $new_title ) {
 			$product->set_name( $new_title );
 			$GLOBALS['wpdb']->update( $GLOBALS['wpdb']->posts, array( 'post_title' => $new_title ), array( 'ID' => $product->get_id() ) );
-			clean_post_cache( $product->get_id() ); // @todo does this need changing?
+			clean_post_cache( $product->get_id() );
 		}
 
 		// Set object_read true once all data is read.
@@ -324,7 +324,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	*/
 
 	/**
-	 * Read attributes - in this case, the attribute values (name value pairs). @todo Do we need special code like wc_get_product_variation_attributes to keep this valid?
+	 * Read attributes - in this case, the attribute values (name value pairs).
 	 *
 	 * @param WC_Product $product Product Object.
 	 */
@@ -615,9 +615,6 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				foreach ( $attributes as $attribute_key => $attribute_value ) {
 					/**
 					 * Variation objects store name(slug)=>value pairs, so do a lookup on the attribute ID from the name.
-					 *
-					 * @todo when this moves to core I suggest we refactor the slug=>value pair storage and use IDs. This may
-					 * be a breaking change. For now we can workaround it with lookups.
 					 */
 					$product_attribute_id = $this->get_product_attribute_id_from_slug( $product, $attribute_key );
 
