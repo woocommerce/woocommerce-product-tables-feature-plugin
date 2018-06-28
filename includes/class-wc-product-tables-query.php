@@ -37,6 +37,8 @@ class WC_Product_Tables_Query {
 			add_filter( 'woocommerce_price_filter_sql', array( $this, 'custom_price_filter_sql' ), 10, 3 );
 			add_action( 'woocommerce_product_query', array( $this, 'custom_price_filter_args' ) );
 		}
+		add_filter( 'posts_results', array( $this, 'prime_product_table_caches' ) );
+		add_action( 'clean_post_cache', array( $this, 'clean_product_table_caches' ) );
 	}
 
 	/**
@@ -215,5 +217,43 @@ class WC_Product_Tables_Query {
 		}
 
 		return $args;
+	}
+
+	/**
+	 * Prime product table caches for a query of multiple products.
+	 *
+	 * @param array $posts Array of post objects.
+	 * @return array
+	 */
+	public function prime_product_table_caches( $posts ) {
+		$prime_ids = array();
+
+		foreach ( $posts as $post ) {
+			if ( ! in_array( $post->post_type, array( 'product', 'product_variation' ), true ) ) {
+				continue;
+			}
+			$prime_ids[] = (int) $post->ID;
+		}
+
+		if ( ! empty( $prime_ids ) ) {
+			global $wpdb;
+
+			$products = $wpdb->get_results( 'SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id IN (' . implode( ',', $prime_ids ) . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+			foreach ( $products as $product ) {
+				wp_cache_set( 'woocommerce_product_' . $product->product_id, $product, 'product' );
+			}
+		}
+
+		return $posts;
+	}
+
+	/**
+	 * Clean product table caches for a product.
+	 *
+	 * @param int $product_id Post/product ID.
+	 */
+	public function clean_product_table_caches( $product_id ) {
+		wp_cache_delete( 'woocommerce_product_' . $product_id, 'product' );
 	}
 }
