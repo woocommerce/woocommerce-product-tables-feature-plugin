@@ -238,7 +238,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
 
-		if ( empty( $data ) ) {
+		if ( false === $data ) {
 			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
@@ -258,7 +258,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		$data = wp_cache_get( 'woocommerce_product_relationships_' . $product_id, 'product' );
 
-		if ( empty( $data ) ) {
+		if ( false === $data ) {
 			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `relationship_id`, `object_id`, `type` FROM {$wpdb->prefix}wc_product_relationships WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_relationships_' . $product_id, $data, 'product' );
@@ -278,7 +278,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		$data = wp_cache_get( 'woocommerce_product_downloads_' . $product_id, 'product' );
 
-		if ( empty( $data ) ) {
+		if ( false === $data ) {
 			$data = $wpdb->get_results( $wpdb->prepare( "SELECT `download_id`, `name`, `file`, `priority` FROM {$wpdb->prefix}wc_product_downloads WHERE `product_id` = %d ORDER BY `priority` ASC", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_downloads_' . $product_id, $data, 'product' );
@@ -1333,7 +1333,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		$product_attributes = wp_cache_get( 'woocommerce_product_attributes_' . $product->get_id(), 'product' );
 
-		if ( empty( $product_attributes ) ) {
+		if ( false === $product_attributes ) {
 			$product_attributes = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
