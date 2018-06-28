@@ -270,14 +270,17 @@ class WC_Product_Tables_Query {
 
 			// Prime attribute values.
 			$rows  = $wpdb->get_results( '
-				SELECT `product_attribute_id`, `value`, `is_default`
+				SELECT `product_id`, `product_attribute_id`, `value`, `is_default`
 				FROM ' . $wpdb->prefix . 'wc_product_attribute_values
 				WHERE product_id IN (' . $prime_non_variations_sql . ');
 			' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
 			$cache = array_fill_keys( $prime_ids, array() );
 
 			foreach ( $rows as $row ) {
-				$cache[ $row->product_attribute_id ][] = $row;
+				if ( ! isset( $cache[ $row->product_id ] ) ) {
+					$cache[ $row->product_id ] = array();
+				}
+				$cache[ $row->product_id ][ $row->product_attribute_id ][] = $row;
 			}
 
 			foreach ( $prime_ids as $id ) {
