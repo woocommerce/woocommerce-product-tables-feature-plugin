@@ -331,7 +331,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	public function read_attributes( &$product ) {
 		global $wpdb;
 
-		$product_attributes = wp_cache_get( 'woocommerce_product_attributes_' . $product->get_id(), 'product' );
+		$product_attributes = wp_cache_get( 'woocommerce_product_variation_attribute_values_' . $product->get_id(), 'product' );
 
 		if ( false === $product_attributes ) {
 			$product_attributes = $wpdb->get_results(
@@ -341,7 +341,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 				)
 			); // WPCS: db call ok, cache ok.
 
-			wp_cache_set( 'woocommerce_product_attributes_' . $product->get_id(), $product_attributes, 'product' );
+			wp_cache_set( 'woocommerce_product_variation_attribute_values_' . $product->get_id(), $product_attributes, 'product' );
 		}
 
 		if ( ! empty( $product_attributes ) ) {
@@ -669,6 +669,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	 */
 	protected function clear_caches( &$product ) {
 		wp_cache_delete( 'woocommerce_product_children_stock_status_' . $product->get_parent_id(), 'product' );
+		wp_cache_delete( 'woocommerce_product_variation_attribute_values_' . $product->get_id(), 'product' );
 		parent::clear_caches( $product );
 	}
 }
