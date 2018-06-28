@@ -238,7 +238,7 @@ class WC_Product_Tables_Query {
 		if ( ! empty( $prime_ids ) ) {
 			global $wpdb;
 
-			$products = $wpdb->get_results( 'SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id IN (' . implode( ',', $prime_ids ) . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+			$products = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_products WHERE product_id IN (' . implode( ',', $prime_ids ) . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
 
 			foreach ( $products as $product ) {
 				wp_cache_set( 'woocommerce_product_' . $product->product_id, $product, 'product' );
