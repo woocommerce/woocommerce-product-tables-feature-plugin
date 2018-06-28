@@ -38,3 +38,75 @@ function woocommerce_admin_meta_boxes_prepare_attribute_custom_tables_support( $
 	return $attribute;
 }
 add_filter( 'woocommerce_admin_meta_boxes_prepare_attribute', 'woocommerce_admin_meta_boxes_prepare_attribute_custom_tables_support', 10, 3 );
+
+/**
+ * Modify queries to use new table.
+ *
+ * @param array $query_vars WP Query vars.
+ * @return array
+ */
+function woocommerce_modify_request_query_for_custom_tables( $query_vars ) {
+	global $typenow, $wc_list_table;
+
+	if ( 'product' !== $typenow ) {
+		return $query_vars;
+	}
+
+	remove_filter( 'request', array( $wc_list_table, 'request_query' ) );
+
+	if ( ! empty( $query_vars['product_type'] ) ) {
+		if ( 'downloadable' === $query_vars['product_type'] ) {
+			$query_vars['wc_products']['downloadable'] = 1;
+		} elseif ( 'virtual' === $query_vars['product_type'] ) {
+			$query_vars['wc_products']['virtual'] = 1;
+		} else {
+			$query_vars['wc_products']['type'] = $query_vars['product_type'];
+		}
+		unset( $query_vars['product_type'] );
+	}
+
+	if ( ! empty( $_REQUEST['stock_status'] ) ) { // WPCS: input var ok, CSRF ok.
+		$query_vars['wc_products']['stock_status'] = wc_clean( wp_unslash( $_REQUEST['stock_status'] ) ); // WPCS: input var ok, CSRF ok.
+		unset( $_GET['stock_status'] );
+	}
+
+	return $query_vars;
+}
+
+add_filter( 'request', 'woocommerce_modify_request_query_for_custom_tables', 5 );
+
+/**
+ * Handle filtering by type.
+ *
+ * @param array    $args Query args.
+ * @param WP_Query $query Query object.
+ * @return array
+ */
+function woocommerce_product_custom_tables_custom_query_vars( $args, $query ) {
+	global $wpdb;
+
+	if ( isset( $query->query_vars['wc_products'] ) ) {
+		foreach ( $query->query_vars['wc_products'] as $key => $value ) {
+			$key            = esc_sql( sanitize_key( $key ) );
+			$args['where'] .= $wpdb->prepare( " AND wc_products.{$key} = %s ", $value ); // WPCS: db call ok, unprepared sql ok.
+		}
+	}
+
+	return $args;
+}
+
+add_filter( 'posts_clauses', 'woocommerce_product_custom_tables_custom_query_vars', 10, 2 );
+
+/**
+ * Join product and post tables.
+ *
+ * @param array $args Query args.
+ * @return array
+ */
+function woocommerce_product_custom_tables_join_product_to_post( $args ) {
+	global $wpdb;
+	$args['join'] .= " LEFT JOIN {$wpdb->prefix}wc_products wc_products ON $wpdb->posts.ID = wc_products.product_id ";
+	return $args;
+}
+
+add_filter( 'posts_clauses', 'woocommerce_product_custom_tables_join_product_to_post' );
