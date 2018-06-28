@@ -595,6 +595,9 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 * @param WC_Product $product The product object.
 	 */
 	protected function clear_caches( &$product ) {
+		foreach ( $product->get_attributes( 'edit' ) as $attribute ) {
+			wp_cache_delete( 'woocommerce_product_attribute_values_' . $attribute->get_product_attribute_id(), 'product' );
+		}
 		wp_cache_delete( 'woocommerce_product_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_relationships_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_downloads_' . $product->get_id(), 'product' );
@@ -1356,12 +1359,18 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 				$attribute->set_visible( $attr->is_visible );
 				$attribute->set_variation( $attr->is_variation );
 
-				$attr_value_data = $wpdb->get_results(
-					$wpdb->prepare(
-						"SELECT value, is_default FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d",
-						$attr->product_attribute_id
-					)
-				);
+				$attr_value_data = wp_cache_get( 'woocommerce_product_attribute_values_' . $attr->product_attribute_id, 'product' );
+
+				if ( false === $attr_value_data ) {
+					$attr_value_data = $wpdb->get_results(
+						$wpdb->prepare(
+							"SELECT value, is_default FROM {$wpdb->prefix}wc_product_attribute_values WHERE product_attribute_id = %d",
+							$attr->product_attribute_id
+						)
+					);
+
+					wp_cache_set( 'woocommerce_product_attribute_values_' . $attr->product_attribute_id, $attr_value_data, 'product' );
+				}
 
 				$attr_values = wp_list_pluck( $attr_value_data, 'value' );
 

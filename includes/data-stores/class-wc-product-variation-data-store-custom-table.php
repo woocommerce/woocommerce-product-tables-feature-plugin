@@ -331,12 +331,18 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	public function read_attributes( &$product ) {
 		global $wpdb;
 
-		$product_attributes = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT value, product_attribute_id FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d",
-				$product->get_id()
-			)
-		); // WPCS: db call ok, cache ok.
+		$product_attributes = wp_cache_get( 'woocommerce_product_attributes_' . $product->get_id(), 'product' );
+
+		if ( false === $product_attributes ) {
+			$product_attributes = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT value, product_attribute_id FROM {$wpdb->prefix}wc_product_variation_attribute_values WHERE product_id = %d",
+					$product->get_id()
+				)
+			); // WPCS: db call ok, cache ok.
+
+			wp_cache_set( 'woocommerce_product_attributes_' . $product->get_id(), $product_attributes, 'product' );
+		}
 
 		if ( ! empty( $product_attributes ) ) {
 			$attributes = array();
@@ -571,7 +577,7 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 
 		$attributes = wp_cache_get( 'woocommerce_parent_product_attribute_names_' . $product->get_id(), 'product' );
 
-		if ( empty( $attributes ) ) {
+		if ( false === $attributes ) {
 			$attributes = wp_list_pluck(
 				$wpdb->get_results(
 					$wpdb->prepare(
