@@ -599,6 +599,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		wp_cache_delete( 'woocommerce_product_relationships_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_downloads_' . $product->get_id(), 'product' );
 		wp_cache_delete( 'woocommerce_product_backwards_compatibility_' . $product->get_id(), 'product' );
+		wp_cache_delete( 'woocommerce_product_attributes_' . $product->get_id(), 'product' );
 		wc_delete_product_transients( $product->get_id() );
 	}
 
@@ -1329,12 +1330,19 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 */
 	public function read_attributes( &$product ) {
 		global $wpdb;
-		$product_attributes = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
-				$product->get_id()
-			)
-		); // WPCS: db call ok, cache ok.
+
+		$product_attributes = wp_cache_get( 'woocommerce_product_attributes_' . $product->get_id(), 'product' );
+
+		if ( empty( $product_attributes ) ) {
+			$product_attributes = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
+					$product->get_id()
+				)
+			); // WPCS: db call ok, cache ok.
+
+			wp_cache_set( 'woocommerce_product_attributes_' . $product->get_id(), $product_attributes, 'product' );
+		}
 
 		if ( ! empty( $product_attributes ) ) {
 			$attributes         = array();
