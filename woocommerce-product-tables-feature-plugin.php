@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+define( 'WC_PRODUCT_TABLES_FILE', __FILE__ );
+
 /**
  * Admin notice for when WooCommerce not installed
  *
@@ -31,8 +33,6 @@ function wc_custom_product_tables_need_wc() {
 
 /**
  * Bootstrap function, loads everything up.
- *
- * @return void
  */
 function wc_custom_product_tables_bootstrap() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
@@ -47,10 +47,18 @@ function wc_custom_product_tables_bootstrap() {
 		return;
 	}
 
-	define( 'WC_PRODUCT_TABLES_FILE', __FILE__ );
-
 	// Include the main bootstrap class.
 	require_once dirname( __FILE__ ) . '/includes/class-wc-product-tables-bootstrap.php';
 }
 
 add_action( 'plugins_loaded', 'wc_custom_product_tables_bootstrap' );
+
+/**
+ * Runs on activation.
+ */
+function wc_custom_product_tables_activate() {
+	include_once dirname( __FILE__ ) . '/includes/class-wc-product-tables-install.php';
+	WC_Product_Tables_Install::activate();
+}
+
+register_activation_hook( WC_PRODUCT_TABLES_FILE, 'wc_custom_product_tables_activate' );

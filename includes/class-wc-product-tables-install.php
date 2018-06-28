@@ -12,15 +12,6 @@
 class WC_Product_Tables_Install {
 
 	/**
-	 * Constructor
-	 *
-	 * @return void
-	 */
-	public function __construct() {
-		register_activation_hook( WC_PRODUCT_TABLES_FILE, array( __CLASS__, 'activate' ) );
-	}
-
-	/**
 	 * Activate function, runs on plugin activation
 	 *
 	 * @return void
@@ -129,5 +120,3 @@ class WC_Product_Tables_Install {
 		dbDelta( $tables );
 	}
 }
-
-new WC_Product_Tables_Install();
