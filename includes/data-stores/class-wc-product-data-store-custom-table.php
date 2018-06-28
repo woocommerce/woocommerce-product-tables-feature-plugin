@@ -609,11 +609,11 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	 *
 	 * @since 3.0.0
 	 * @param int $product_id Product ID to query.
-	 * @return string
+	 * @return string|bool
 	 */
 	public function get_product_type( $product_id ) {
 		$data = $this->get_product_row_from_db( $product_id );
-		return ! empty( $data['type'] ) ? $data['type'] : 'simple';
+		return ! empty( $data['type'] ) ? $data['type'] : false;
 	}
 
 	/**
