@@ -82,26 +82,28 @@ class WC_Product_Tables_Migrate_Data {
 			// Migrate download files.
 			$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
 
-			foreach ( $downloadable_files as $download_key => $downloadable_file ) {
-				$new_download    = array(
-					'product_id' => $product->ID,
-					'name'       => $downloadable_file['name'],
-					'file'       => $downloadable_file['file'],
-					'priority'   => $priority,
-				);
-				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
+			if ( ! empty( $downloadable_files ) ) {
+				foreach ( $downloadable_files as $download_key => $downloadable_file ) {
+					$new_download    = array(
+						'product_id' => $product->ID,
+						'name'       => $downloadable_file['name'],
+						'file'       => $downloadable_file['file'],
+						'priority'   => $priority,
+					);
+					$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
-				$wpdb->update(
-					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
-					array(
-						'download_id' => $new_download_id,
-					),
-					array(
-						'download_id' => $download_key,
-					)
-				);
+					$wpdb->update(
+						$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
+						array(
+							'download_id' => $new_download_id,
+						),
+						array(
+							'download_id' => $download_key,
+						)
+					);
 
-				$priority++;
+					$priority++;
+				}
 			}
 
 			// Migrate grouped products.
