@@ -396,9 +396,11 @@ class WC_Product_Tables_Migrate_Data {
 				'priority'             => $count,
 				'is_default'           => 0,
 			);
-			foreach ( $default_attributes as $default_attr ) {
-				if ( isset( $default_attr[ $attribute_name ] ) && $default_attr[ $attribute_name ] === $term->slug ) {
-					$term_data['is_default'] = 1;
+			if ( ! empty( $default_attributes ) ) {
+				foreach ( $default_attributes as $default_attr ) {
+					if ( isset( $default_attr[ $attribute_name ] ) && $default_attr[ $attribute_name ] === $term->slug ) {
+						$term_data['is_default'] = 1;
+					}
 				}
 			}
 			self::insert( 'wc_product_attribute_values', $term_data );
@@ -426,9 +428,11 @@ class WC_Product_Tables_Migrate_Data {
 				'priority'             => $count,
 				'is_default'           => 0,
 			);
-			foreach ( $default_attributes as $default_attr ) {
-				if ( isset( $default_attr[ $attribute_name ] ) && trim( $attr_value ) === $default_attr[ $attribute_name ] ) {
-					$attr_value_data['is_default'] = 1;
+			if ( ! empty( $default_attributes ) ) {
+				foreach ( $default_attributes as $default_attr ) {
+					if ( isset( $default_attr[ $attribute_name ] ) && trim( $attr_value ) === $default_attr[ $attribute_name ] ) {
+						$attr_value_data['is_default'] = 1;
+					}
 				}
 			}
 			self::insert( 'wc_product_attribute_values', $attr_value_data );
