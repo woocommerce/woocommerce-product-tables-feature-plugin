@@ -51,11 +51,11 @@ class WC_Product_Tables_Install {
 			  `average_rating` float NULL default 0,
 			  `stock_status` varchar(100) NULL default 'instock',
 			  PRIMARY KEY  (`product_id`),
-			  KEY image_id (image_id),
-			  KEY type (type),
-			  KEY virtual (virtual),
-			  KEY downloadable (downloadable),
-			  KEY stock_status (stock_status)
+			  KEY `image_id` (`image_id`),
+			  KEY `type` (`type`),
+			  KEY `virtual` (`virtual`),
+			  KEY `downloadable` (`downloadable`),
+			  KEY `stock_status` (`stock_status`)
 
 			) $collate;
 
@@ -68,8 +68,8 @@ class WC_Product_Tables_Install {
 			  `priority` int(11) NOT NULL default 1,
 			  `attribute_id` bigint(20) NOT NULL,
 			  PRIMARY KEY  (`product_attribute_id`),
-			  KEY product_id (product_id),
-			  KEY attribute_id (attribute_id)
+			  KEY `product_id` (`product_id`),
+			  KEY `attribute_id` (`attribute_id`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_attribute_values (
@@ -80,8 +80,8 @@ class WC_Product_Tables_Install {
 			  `priority` int(11) NOT NULL default 1,
 			  `is_default` tinyint(1) NOT NULL,
 			  PRIMARY KEY  (`attribute_value_id`),
-			  KEY product_id (product_id),
-			  KEY product_attribute_id (product_attribute_id)
+			  KEY `product_id` (`product_id`),
+			  KEY `product_attribute_id` (`product_attribute_id`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_downloads (
@@ -91,7 +91,7 @@ class WC_Product_Tables_Install {
 			  `file` text NOT NULL,
 			  `priority` int(11) default 0,
 			  PRIMARY KEY  (`download_id`),
-			  KEY product_id (product_id)
+			  KEY `product_id` (`product_id`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_relationships (
@@ -101,9 +101,9 @@ class WC_Product_Tables_Install {
 			  `object_id` bigint(20) NOT NULL,
 			  `priority` int(11) NOT NULL,
 			  PRIMARY KEY  (`relationship_id`),
-			  KEY type (type),
-			  KEY product_id (product_id),
-			  KEY object_id (object_id)
+			  KEY `type` (`type`),
+			  KEY `product_id` (`product_id`),
+			  KEY `object_id` (`object_id`)
 			) $collate;
 
 			CREATE TABLE {$wpdb->prefix}wc_product_variation_attribute_values (
@@ -112,8 +112,8 @@ class WC_Product_Tables_Install {
 			  `value` text NOT NULL,
 			  `product_attribute_id` bigint(20) NOT NULL,
 			  PRIMARY KEY  (`variation_attribute_value_id`),
-			  KEY product_id (product_id),
-			  KEY product_attribute_id (product_attribute_id)
+			  KEY `product_id` (`product_id`),
+			  KEY `product_attribute_id` (`product_attribute_id`)
 			) $collate;
 		";
 
