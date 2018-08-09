@@ -43,7 +43,8 @@ function wc_custom_product_tables_bootstrap() {
 	}
 
 	if ( version_compare( WC_VERSION, '3.5.dev', '<' ) ) {
-		WC_Admin_Notices::add_notice( __( 'You need WooCommerce 3.5 development version or higher to run the Custom Product Tables plugin.', 'woocommerce' ) );
+		WC_Admin_Notices::add_custom_notice( 'wc_custom_product_tables_need_wc', __( 'You need WooCommerce 3.5 development version or higher to run the Custom Product Tables plugin.', 'woocommerce' ) );
+
 		return;
 	}
 
