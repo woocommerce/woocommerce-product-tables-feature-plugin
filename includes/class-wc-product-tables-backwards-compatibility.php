@@ -660,8 +660,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['product_id'] ) {
 			return array();
 		}
-
-		$product = wc_get_product( $args['product_id'] );
+		$product = $this->get_product( $args['product_id'] );
 		if ( ! $product ) {
 			return array();
 		}
@@ -708,7 +707,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$product_id = $args['product_id'];
 		$attributes = $args['value'];
 
-		$product = wc_get_product( $product_id );
+		$product = $this->get_product( $product_id );
 		if ( ! $product ) {
 			return false;
 		}
@@ -752,7 +751,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$product = wc_get_product( $args['product_id'] );
+		$product = $this->get_product( $args['product_id'] );
 		if ( $product ) {
 			return array( array( $product->get_default_attributes( 'edit' ) ) );
 		}
@@ -782,7 +781,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
-		$product = wc_get_product( $args['product_id'] );
+		$product = $this->get_product( $args['product_id'] );
 		if ( $product ) {
 			$product->set_default_attributes( $args['value'] );
 			$product->save();
@@ -1560,6 +1559,21 @@ class WC_Product_Tables_Backwards_Compatibility {
 				),
 			),
 		);
+	}
+
+	/**
+	 * Helper method to prevent infinite recursion with meta filters
+	 *
+	 * @param int $product_id Product ID.
+	 *
+	 * @return WC_Product
+	 */
+	protected function get_product( $product_id ) {
+		remove_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99 );
+		$product = wc_get_product( $product_id );
+		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
+
+		return $product;
 	}
 }
 
