@@ -22,20 +22,27 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 	 * [--clean-old-data]
 	 * : Pass this flag if old data should be removed after the migration
 	 *
+	 * [--resume]
+	 * : Pass this flag to resume failed migration without recreating tables
+	 *
 	 * @param array $args WP-CLI default args.
 	 * @param array $assoc_args WP-CLI default associative args.
 	 * @subcommand migrate-data
 	 */
 	public function migrate_data( $args, $assoc_args ) {
-		$clean_old_data = false;
+		$clean_old_data = ! empty( $assoc_args['clean-old-data'] );
+		$resume         = ! empty( $assoc_args['resume'] );
 
-		if ( isset( $assoc_args['clean-old-data'] ) && $assoc_args['clean-old-data'] ) {
-			$clean_old_data = true;
+		if ( ! $resume ) {
+			$this->recreate_tables();
+		} else {
+			WC_Product_Tables_Install::activate();
 		}
 
-		$this->recreate_tables();
-
 		$products = WC_Product_Tables_Migrate_Data::get_products();
+
+		WP_CLI::line( 'Found ' . count( $products ) . ' products to migrate.' );
+
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Migrating products', count( $products ) );
 
 		foreach ( $products as $product ) {
@@ -54,6 +61,7 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 	 */
 	public function recreate_tables() {
 		global $wpdb;
+		WP_CLI::line( 'Recreating product tables.' );
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_products, {$wpdb->prefix}wc_product_downloads, {$wpdb->prefix}wc_product_attributes, {$wpdb->prefix}wc_product_relationships, {$wpdb->prefix}wc_product_attribute_values, {$wpdb->prefix}wc_product_variation_attribute_values" );
 		WC_Product_Tables_Install::activate();
 	}
