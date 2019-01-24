@@ -54,23 +54,20 @@ class WC_Product_Tables_Migrate_Data {
 	);
 
 	/**
-	 * Whether or not the migration is currently running.
-	 *
-	 * @var bool
-	 */
-	public static $migrating = false;
-
-	/**
 	 * Main function that runs the whole migration.
 	 *
 	 * @param bool $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
 	 */
 	public static function migrate( $clean_old_data = false ) {
+		WC_Product_Tables_Backwards_Compatibility::unhook();
+
 		$products = self::get_products();
 
 		foreach ( $products as $product ) {
 			self::migrate_product( $product );
 		}
+
+		WC_Product_Tables_Backwards_Compatibility::hook();
 	}
 
 	/**
@@ -81,8 +78,6 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	public static function migrate_product( $product, $clean_old_data = false ) {
 		global $wpdb;
-
-		self::$migrating = true;
 
 		$metas = get_post_meta( $product->ID );
 
@@ -117,20 +112,24 @@ class WC_Product_Tables_Migrate_Data {
 			}
 		}
 
-		// Migrate grouped products.
-		self::migrate_relationship( $product->ID, 'grouped', '_children' );
+		if ( ! empty( $metas['_children'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'grouped', maybe_unserialize( $metas['_children'][0] ) );
+		}
 
-		// Migrate upsells.
-		self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
+		if ( ! empty( $metas['_upsell_ids'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'upsell', maybe_unserialize( $metas['_upsell_ids'][0] ) );
+		}
 
-		// Migrate cross-sells.
-		self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
+		if ( ! empty( $metas['_crosssell_ids'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'crosssell', maybe_unserialize( $metas['_crosssell_ids'][0] ) );
+		}
 
 		$priority = 1;
 
 		// Migrate product images.
-		$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
-		if ( ! empty( $image_ids ) ) {
+		if ( ! empty( $metas['_product_image_gallery'][0] ) ) {
+			$image_ids = maybe_unserialize( $metas['_product_image_gallery'][0] );
+
 			if ( ! is_array( $image_ids ) ) {
 				if ( false !== strpos( $image_ids, ',' ) ) {
 					$image_ids = explode( ',', $image_ids );
@@ -168,8 +167,7 @@ class WC_Product_Tables_Migrate_Data {
 		}
 
 		unset( $metas, $downloadable_files, $image_ids );
-
-		self::$migrating = false;
+		exit;
 	}
 
 	/**
@@ -293,33 +291,29 @@ class WC_Product_Tables_Migrate_Data {
 	 *
 	 * @param int    $product_id Product ID.
 	 * @param string $relationship_type 'grouped', 'upsell' or 'crosssell'.
-	 * @param string $old_meta_key Old meta key.
+	 * @param array  $object_ids Object ids to related, from old meta.
 	 */
-	protected static function migrate_relationship( $product_id, $relationship_type, $old_meta_key ) {
+	protected static function migrate_relationship( $product_id, $relationship_type, $object_ids ) {
 		global $wpdb;
 
-		$priority = 1;
-		$children = get_post_meta( $product_id, $old_meta_key, true );
-		if ( ! empty( $children ) ) {
-			foreach ( $children as $child ) {
-				if ( empty( $child ) ) {
+		if ( ! empty( $object_ids ) ) {
+			$priority = 1;
+
+			foreach ( $object_ids as $object_id ) {
+				if ( empty( $object_id ) ) {
 					continue;
 				}
 				$relationship = array(
 					'type'       => $relationship_type,
 					'product_id' => $product_id,
-					'object_id'  => $child,
+					'object_id'  => $object_id,
 					'priority'   => $priority,
 				);
 
 				$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
-				unset( $relationship );
-
 				$priority++;
 			}
 		}
-
-		unset( $priority, $children );
 	}
 
 	/**

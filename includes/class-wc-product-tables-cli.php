@@ -30,6 +30,8 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 	 * @subcommand migrate-data
 	 */
 	public function migrate_data( $args, $assoc_args ) {
+		WC_Product_Tables_Backwards_Compatibility::unhook();
+
 		$clean_old_data = ! empty( $assoc_args['clean-old-data'] );
 		$resume         = ! empty( $assoc_args['resume'] );
 
@@ -68,6 +70,8 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 
 		$progress->finish();
 		WP_CLI::success( $count . ' products and variations migrated.' );
+
+		WC_Product_Tables_Backwards_Compatibility::hook();
 	}
 
 	/**

@@ -832,7 +832,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			/**
 			 * In product table.
 			 */
-			'_thumbnail_id'                   => array(
+			'_thumbnail_id'         => array(
 				'get'    => array(
 					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
