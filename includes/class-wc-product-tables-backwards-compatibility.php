@@ -172,7 +172,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		if ( empty( $data[ $args['column'] ] ) ) {
-			$data[ $args['column'] ] = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
+			$escaped_column          = esc_sql( $args['column'] );
+			$data[ $args['column'] ] = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT {$escaped_column} FROM {$wpdb->prefix}wc_products WHERE product_id = %d", // phpcs:ignore
+					$args['product_id']
+				)
+			);
 
 			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], $data, 'product' );
 		}
