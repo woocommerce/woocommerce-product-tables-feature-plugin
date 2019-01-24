@@ -167,7 +167,7 @@ class WC_Product_Tables_Migrate_Data {
 			self::clean_old_data( $product->ID );
 		}
 
-		unset( $metas );
+		unset( $metas, $downloadable_files, $image_ids );
 
 		self::$migrating = false;
 	}
@@ -476,13 +476,16 @@ class WC_Product_Tables_Migrate_Data {
 	protected static function clean_old_data( $product_id ) {
 		global $wpdb;
 
-		$meta_keys = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
+		$meta_keys    = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
+		$meta_keys_in = "'" . implode( "','", array_map( 'esc_sql', $meta_keys ) ) . "'";
 
-		foreach ( $meta_keys as $meta_key ) {
-			delete_post_meta( $product_id, $meta_key );
-		}
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key IN ({$meta_keys_in})", // phpcs:ignore
+				$product_id
+			)
+		);
 
-		// remove product variation attributes.
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
