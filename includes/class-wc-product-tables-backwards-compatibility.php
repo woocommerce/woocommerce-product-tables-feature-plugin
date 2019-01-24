@@ -172,7 +172,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		if ( empty( $data[ $args['column'] ] ) ) {
-			$escaped_column          = esc_sql( $args['column'] );
+			$escaped_column          = '`' . esc_sql( $args['column'] ) . '`';
 			$data[ $args['column'] ] = $wpdb->get_col(
 				$wpdb->prepare(
 					"SELECT {$escaped_column} FROM {$wpdb->prefix}wc_products WHERE product_id = %d", // phpcs:ignore
