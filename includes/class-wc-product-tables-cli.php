@@ -39,7 +39,8 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 			WC_Product_Tables_Install::activate();
 		}
 
-		$products = WC_Product_Tables_Migrate_Data::get_products();
+		$count    = 0;
+		$products = WC_Product_Tables_Migrate_Data::get_products( 'product' );
 
 		WP_CLI::line( 'Found ' . count( $products ) . ' products to migrate.' );
 
@@ -48,10 +49,25 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 		foreach ( $products as $product ) {
 			WC_Product_Tables_Migrate_Data::migrate_product( $product, $clean_old_data );
 			$progress->tick();
+			$count ++;
 		}
 
 		$progress->finish();
-		WP_CLI::success( $amount . ' products migrated.' );
+
+		$variations = WC_Product_Tables_Migrate_Data::get_products( 'product_variation' );
+
+		WP_CLI::line( 'Found ' . count( $variations ) . ' variations to migrate.' );
+
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Migrating variations', count( $variations ) );
+
+		foreach ( $variations as $product ) {
+			WC_Product_Tables_Migrate_Data::migrate_product( $product, $clean_old_data );
+			$progress->tick();
+			$count ++;
+		}
+
+		$progress->finish();
+		WP_CLI::success( $count . ' products and variations migrated.' );
 	}
 
 	/**

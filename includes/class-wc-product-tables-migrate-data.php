@@ -174,16 +174,31 @@ class WC_Product_Tables_Migrate_Data {
 
 	/**
 	 * Get a list of products in the wp_posts table
+	 *
+	 * @param string|array $post_type Post types to get from DB.
+	 * @return array
 	 */
-	public static function get_products() {
+	public static function get_products( $post_type = false ) {
 		global $wpdb;
+
+		if ( ! $post_type ) {
+			$post_type = array( 'product', 'product_variation' );
+		} elseif ( ! is_array( $post_type ) ) {
+			$post_type = array( $post_type );
+		}
+
+		$post_type_sql = "'" . implode( "','", array_map( 'esc_sql', $post_type ) ) . "'";
+
+		// phpcs:disable
 		return $wpdb->get_results(
 			"SELECT ID, post_type FROM {$wpdb->posts}
-			WHERE post_type IN ('product', 'product_variation')
+			WHERE post_type IN ({$post_type_sql})
+			AND post_status IN ( 'publish', 'future', 'draft', 'private' )
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)"
 		);
+		// phpcs:enable
 	}
 
 	/**
