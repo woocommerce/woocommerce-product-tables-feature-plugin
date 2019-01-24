@@ -44,7 +44,7 @@ class WC_Product_Tables_Cli {
 	 */
 	public function recreate_tables() {
 		global $wpdb;
-		$wpdb->query( "DROP TABLE {$wpdb->prefix}wc_products, {$wpdb->prefix}wc_product_downloads, {$wpdb->prefix}wc_product_attributes, {$wpdb->prefix}wc_product_relationships, {$wpdb->prefix}wc_product_attribute_values, {$wpdb->prefix}wc_product_variation_attribute_values" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wc_products, {$wpdb->prefix}wc_product_downloads, {$wpdb->prefix}wc_product_attributes, {$wpdb->prefix}wc_product_relationships, {$wpdb->prefix}wc_product_attribute_values, {$wpdb->prefix}wc_product_variation_attribute_values" );
 		WC_Product_Tables_Install::activate();
 	}
 }
