@@ -803,6 +803,36 @@ class WC_Product_Tables_Backwards_Compatibility {
 			/**
 			 * In product table.
 			 */
+			'_thumbnail_id'                   => array(
+				'get'    => array(
+					'function' => array( $this, 'get_from_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+					),
+				),
+				'add'    => array(
+					'function' => array( $this, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
+				),
+				'update' => array(
+					'function' => array( $this, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
+				),
+				'delete' => array(
+					'function' => array( $this, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+						'value'  => '',
+					),
+				),
+			),
 			'_sku'                   => array(
 				'get'    => array(
 					'function' => array( $this, 'get_from_product_table' ),
