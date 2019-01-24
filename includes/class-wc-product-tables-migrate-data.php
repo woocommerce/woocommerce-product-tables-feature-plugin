@@ -221,7 +221,13 @@ class WC_Product_Tables_Migrate_Data {
 		if ( 'product_variation' === $product->post_type ) {
 			$product_type = 'variation';
 		} else {
-			$product_type = wp_get_post_terms( $product->ID, 'product_type' )[0]->slug;
+			$terms = wp_get_post_terms( $product->ID, 'product_type' );
+
+			if ( $terms && isset( $terms[0]->slug ) ) {
+				$product_type = $terms[0]->slug;
+			} else {
+				$product_type = 'simple';
+			}
 		}
 
 		$new_data = array(
