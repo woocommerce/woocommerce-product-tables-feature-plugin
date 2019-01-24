@@ -222,17 +222,17 @@ class WC_Product_Tables_Migrate_Data {
 					$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
 					break;
 				case '_sale_price_dates_from':
-					if ( ! empty( $metas['_sale_price_dates_from'] ) ) {
+					if ( ! empty( $metas['_sale_price_dates_from'][0] ) ) {
 						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_from'][0] );
 					} else {
-						$meta_vaule = null;
+						$meta_value = null;
 					}
 					break;
 				case '_sale_price_dates_to':
-					if ( ! empty( $metas['_sale_price_dates_to'] ) ) {
+					if ( ! empty( $metas['_sale_price_dates_to'][0] ) ) {
 						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_to'][0] );
 					} else {
-						$meta_vaule = null;
+						$meta_value = null;
 					}
 					break;
 				case '_virtual':
