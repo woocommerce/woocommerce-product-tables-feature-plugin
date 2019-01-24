@@ -155,6 +155,8 @@ class WC_Product_Tables_Migrate_Data {
 			if ( $clean_old_data ) {
 				self::clean_old_data( $product->ID );
 			}
+
+			unset( $metas );
 		}
 
 		self::$migrating = false;
@@ -257,6 +259,7 @@ class WC_Product_Tables_Migrate_Data {
 		}
 
 		self::insert( 'wc_products', $new_data );
+		unset( $meta_value, $product_type, $new_data );
 	}
 
 	/**
@@ -272,24 +275,26 @@ class WC_Product_Tables_Migrate_Data {
 
 		$priority = 1;
 		$children = get_post_meta( $product_id, $old_meta_key, true );
-		if ( empty( $children ) ) {
-			return;
-		}
-		foreach ( $children as $child ) {
-			if ( empty( $child ) ) {
-				continue;
+		if ( ! empty( $children ) ) {
+			foreach ( $children as $child ) {
+				if ( empty( $child ) ) {
+					continue;
+				}
+				$relationship = array(
+					'type'       => $relationship_type,
+					'product_id' => $product_id,
+					'object_id'  => $child,
+					'priority'   => $priority,
+				);
+
+				$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
+				unset( $relationship );
+
+				$priority++;
 			}
-			$relationship = array(
-				'type'       => $relationship_type,
-				'product_id' => $product_id,
-				'object_id'  => $child,
-				'priority'   => $priority,
-			);
-
-			$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
-
-			$priority++;
 		}
+
+		unset( $priority, $children );
 	}
 
 	/**
@@ -325,9 +330,14 @@ class WC_Product_Tables_Migrate_Data {
 						'product_attribute_id' => $attribute_id,
 					);
 					self::insert( 'wc_product_variation_attribute_values', $variation_data );
+					unset( $variation_data );
 				}
+
+				unset( $variation_value );
 			}
 		}
+
+		unset( $variable_products, $meta_key );
 	}
 
 	/**
@@ -337,39 +347,43 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	public static function migrate_attributes( &$product ) {
 		$product_attributes = get_post_meta( $product->ID, '_product_attributes', true );
-		if ( empty( $product_attributes ) ) {
-			return;
-		}
-		foreach ( $product_attributes as $attr_name => $attr ) {
-			$attribute_data = array(
-				'product_id'   => $product->ID,
-				'name'         => $attr['name'],
-				'is_visible'   => $attr['is_visible'],
-				'is_variation' => $attr['is_variation'],
-				'priority'     => $attr['position'],
-			);
-			$is_global      = false;
-			if ( false !== strpos( $attr_name, 'pa_' ) ) {
-				// Global attribute.
-				$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
 
-				if ( $attribute_id ) {
-					$attribute_data['attribute_id'] = $attribute_id;
-					$is_global                      = true;
+		if ( ! empty( $product_attributes ) ) {
+			foreach ( $product_attributes as $attr_name => $attr ) {
+				$attribute_data = array(
+					'product_id'   => $product->ID,
+					'name'         => $attr['name'],
+					'is_visible'   => $attr['is_visible'],
+					'is_variation' => $attr['is_variation'],
+					'priority'     => $attr['position'],
+				);
+				$is_global      = false;
+				if ( false !== strpos( $attr_name, 'pa_' ) ) {
+					// Global attribute.
+					$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
+
+					if ( $attribute_id ) {
+						$attribute_data['attribute_id'] = $attribute_id;
+						$is_global                      = true;
+					}
 				}
-			}
-			$product_attribute_id = self::insert( 'wc_product_attributes', $attribute_data );
-			if ( $is_global ) {
-				self::migrate_global_attributes( $product->ID, $product_attribute_id, $attr_name );
-			} else {
-				self::migrate_custom_attributes( $product->ID, $product_attribute_id, $attr_name, $attr['value'] );
-			}
+				$product_attribute_id = self::insert( 'wc_product_attributes', $attribute_data );
+				if ( $is_global ) {
+					self::migrate_global_attributes( $product->ID, $product_attribute_id, $attr_name );
+				} else {
+					self::migrate_custom_attributes( $product->ID, $product_attribute_id, $attr_name, $attr['value'] );
+				}
 
-			// Variation attribute values, lets check if the parent product has any child products ie. variations.
-			if ( 'product' === $product->post_type ) {
-				self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
+				// Variation attribute values, lets check if the parent product has any child products ie. variations.
+				if ( 'product' === $product->post_type ) {
+					self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
+				}
+
+				unset( $attribute_data );
 			}
 		}
+
+		unset( $product_attributes );
 	}
 
 	/**
@@ -406,6 +420,7 @@ class WC_Product_Tables_Migrate_Data {
 			self::insert( 'wc_product_attribute_values', $term_data );
 			$count++;
 		}
+		unset( $attr_terms, $term_data, $default_attributes );
 	}
 
 	/**
@@ -436,8 +451,10 @@ class WC_Product_Tables_Migrate_Data {
 				}
 			}
 			self::insert( 'wc_product_attribute_values', $attr_value_data );
+			unset( $attr_value_data );
 			$count++;
 		}
+		unset( $attribute_values, $default_attributes );
 	}
 
 	/**
@@ -463,5 +480,7 @@ class WC_Product_Tables_Migrate_Data {
 				$wpdb->esc_like( 'attribute_' ) . '%'
 			)
 		);
+
+		unset( $meta_keys );
 	}
 }

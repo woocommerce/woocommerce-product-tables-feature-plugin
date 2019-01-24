@@ -50,8 +50,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return string|array
 	 */
 	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating ) {
+			return $result;
+		}
+
 		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -83,8 +88,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array|bool
 	 */
 	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating ) {
+			return $result;
+		}
+
 		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -114,8 +124,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array|bool
 	 */
 	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating ) {
+			return $result;
+		}
+
 		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -139,8 +154,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return array|bool
 	 */
 	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
+		if ( WC_Product_Tables_Migrate_Data::$migrating ) {
+			return $result;
+		}
+
 		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
