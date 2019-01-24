@@ -17,10 +17,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! apply_filters( 'woocommerce_product_tables_enable_backward_compatibility', true ) || defined( 'WC_PRODUCT_TABLES_DISABLE_BW_COMPAT' ) ) {
 			return;
 		}
+		$this->hook();
+	}
+
+	/**
+	 * Hook into WP meta filters.
+	 */
+	private function hook() {
 		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
 		add_filter( 'add_post_metadata', array( $this, 'add_metadata_to_tables' ), 99, 5 );
 		add_filter( 'update_post_metadata', array( $this, 'update_metadata_in_tables' ), 99, 5 );
 		add_filter( 'delete_post_metadata', array( $this, 'delete_metadata_from_tables' ), 99, 5 );
+	}
+
+	/**
+	 * Unhook WP meta filters.
+	 */
+	private function unhook() {
+		remove_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
+		remove_filter( 'add_post_metadata', array( $this, 'add_metadata_to_tables' ), 99, 5 );
+		remove_filter( 'update_post_metadata', array( $this, 'update_metadata_in_tables' ), 99, 5 );
+		remove_filter( 'delete_post_metadata', array( $this, 'delete_metadata_from_tables' ), 99, 5 );
 	}
 
 	/**
@@ -969,14 +986,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'update' => array(
 					'function' => array( $this, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'delete' => array(
@@ -1605,9 +1622,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @return WC_Product
 	 */
 	protected function get_product( $product_id ) {
-		remove_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99 );
+		$this->unhook();
 		$product = wc_get_product( $product_id );
-		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
+		$this->hook();
 
 		return $product;
 	}
