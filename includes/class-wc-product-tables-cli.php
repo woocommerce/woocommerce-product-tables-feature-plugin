@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Provides woocommerce-product-tables-feature-plugin WP-CLI commands.
  */
-class WC_Product_Tables_Cli {
+class WC_Product_Tables_Cli extends WP_CLI_Command {
 
 	/**
 	 * Migrate WooCommerce products from old data structure to the new data structure used by this plugin.
@@ -34,7 +34,17 @@ class WC_Product_Tables_Cli {
 		}
 
 		$this->recreate_tables();
-		WC_Product_Tables_Migrate_Data::migrate( $clean_old_data );
+
+		$products = WC_Product_Tables_Migrate_Data::get_products();
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Migrating products', count( $products ) );
+
+		foreach ( $products as $product ) {
+			WC_Product_Tables_Migrate_Data::migrate_product( $product, $clean_old_data );
+			$progress->tick();
+		}
+
+		$progress->finish();
+		WP_CLI::success( $amount . ' products migrated.' );
 	}
 
 	/**

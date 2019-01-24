@@ -66,98 +66,108 @@ class WC_Product_Tables_Migrate_Data {
 	 * @param bool $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
 	 */
 	public static function migrate( $clean_old_data = false ) {
+		$products = self::get_products();
+
+		foreach ( $products as $product ) {
+			self::migrate_product( $product );
+		}
+	}
+
+	/**
+	 * Migrate a single product.
+	 *
+	 * @param object $product A product from the database we're migrating.
+	 * @param bool   $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
+	 */
+	public static function migrate_product( $product, $clean_old_data = false ) {
 		global $wpdb;
 
 		self::$migrating = true;
 
-		$products = self::get_products();
+		$metas = get_post_meta( $product->ID );
 
-		foreach ( $products as $product ) {
-			$metas = get_post_meta( $product->ID );
+		self::migrate_core_product_data( $product, $metas );
 
-			self::migrate_core_product_data( $product, $metas );
+		$priority = 1;
 
-			$priority = 1;
+		// Migrate download files.
+		$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
 
-			// Migrate download files.
-			$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
+		if ( ! empty( $downloadable_files ) ) {
+			foreach ( $downloadable_files as $download_key => $downloadable_file ) {
+				$new_download    = array(
+					'product_id' => $product->ID,
+					'name'       => $downloadable_file['name'],
+					'file'       => $downloadable_file['file'],
+					'priority'   => $priority,
+				);
+				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
-			if ( ! empty( $downloadable_files ) ) {
-				foreach ( $downloadable_files as $download_key => $downloadable_file ) {
-					$new_download    = array(
-						'product_id' => $product->ID,
-						'name'       => $downloadable_file['name'],
-						'file'       => $downloadable_file['file'],
-						'priority'   => $priority,
-					);
-					$new_download_id = self::insert( 'wc_product_downloads', $new_download );
+				$wpdb->update(
+					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
+					array(
+						'download_id' => $new_download_id,
+					),
+					array(
+						'download_id' => $download_key,
+					)
+				);
 
-					$wpdb->update(
-						$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
-						array(
-							'download_id' => $new_download_id,
-						),
-						array(
-							'download_id' => $download_key,
-						)
-					);
-
-					$priority++;
-				}
+				$priority++;
 			}
-
-			// Migrate grouped products.
-			self::migrate_relationship( $product->ID, 'grouped', '_children' );
-
-			// Migrate upsells.
-			self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
-
-			// Migrate cross-sells.
-			self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
-
-			$priority = 1;
-
-			// Migrate product images.
-			$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
-			if ( ! empty( $image_ids ) ) {
-				if ( ! is_array( $image_ids ) ) {
-					if ( false !== strpos( $image_ids, ',' ) ) {
-						$image_ids = explode( ',', $image_ids );
-					} else {
-						$image_ids = array( $image_ids );
-					}
-				}
-
-				foreach ( $image_ids as $image_id ) {
-					$relationship = array(
-						'type'       => 'image',
-						'product_id' => $product->ID,
-						'object_id'  => $image_id,
-						'priority'   => $priority,
-					);
-
-					self::insert( 'wc_product_relationships', $relationship );
-
-					$priority++;
-				}
-			}
-
-			self::migrate_attributes( $product );
-
-			// Migrate variation description.
-			if ( 'product_variation' === $product->post_type ) {
-				wp_update_post( array(
-					'ID'           => $product->ID,
-					'post_content' => get_post_meta( $product->ID, '_variation_description', true ),
-				) );
-			}
-
-			if ( $clean_old_data ) {
-				self::clean_old_data( $product->ID );
-			}
-
-			unset( $metas );
 		}
+
+		// Migrate grouped products.
+		self::migrate_relationship( $product->ID, 'grouped', '_children' );
+
+		// Migrate upsells.
+		self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
+
+		// Migrate cross-sells.
+		self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
+
+		$priority = 1;
+
+		// Migrate product images.
+		$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
+		if ( ! empty( $image_ids ) ) {
+			if ( ! is_array( $image_ids ) ) {
+				if ( false !== strpos( $image_ids, ',' ) ) {
+					$image_ids = explode( ',', $image_ids );
+				} else {
+					$image_ids = array( $image_ids );
+				}
+			}
+
+			foreach ( $image_ids as $image_id ) {
+				$relationship = array(
+					'type'       => 'image',
+					'product_id' => $product->ID,
+					'object_id'  => $image_id,
+					'priority'   => $priority,
+				);
+
+				self::insert( 'wc_product_relationships', $relationship );
+
+				$priority++;
+			}
+		}
+
+		self::migrate_attributes( $product );
+
+		// Migrate variation description.
+		if ( 'product_variation' === $product->post_type ) {
+			wp_update_post( array(
+				'ID'           => $product->ID,
+				'post_content' => get_post_meta( $product->ID, '_variation_description', true ),
+			) );
+		}
+
+		if ( $clean_old_data ) {
+			self::clean_old_data( $product->ID );
+		}
+
+		unset( $metas );
 
 		self::$migrating = false;
 	}
