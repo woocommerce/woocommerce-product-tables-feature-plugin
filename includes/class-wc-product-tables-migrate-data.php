@@ -167,7 +167,6 @@ class WC_Product_Tables_Migrate_Data {
 		}
 
 		unset( $metas, $downloadable_files, $image_ids );
-		exit;
 	}
 
 	/**
