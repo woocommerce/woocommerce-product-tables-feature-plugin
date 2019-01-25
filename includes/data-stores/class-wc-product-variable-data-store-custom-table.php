@@ -25,6 +25,19 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	protected $prices_array = array();
 
 	/**
+	 * Relationships. Note - grouped/children is not included here.
+	 * Children are child posts, not related via the table.
+	 *
+	 * @since 4.0.0
+	 * @var   array
+	 */
+	protected $relationships = array(
+		'image'      => 'gallery_image_ids',
+		'upsell'     => 'upsell_ids',
+		'cross_sell' => 'cross_sell_ids',
+	);
+
+	/**
 	 * Read product data.
 	 *
 	 * @since 3.0.0
@@ -53,23 +66,24 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			$all_args = array(
 				'parent'  => $product->get_id(),
 				'type'    => 'variation',
-				'orderby' => 'menu_order',
+				'orderby'     => array(
+					'menu_order' => 'ASC',
+					'ID'         => 'ASC',
+				),
 				'order'   => 'ASC',
 				'limit'   => -1,
 				'return'  => 'ids',
 				'status'  => array( 'publish', 'private' ),
 			);
-			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
 			$visible_only_args                = $all_args;
 			$visible_only_args['post_status'] = 'publish';
+
 			if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
 				$visible_only_args['stock_status'] = 'instock';
 			}
-			$visible_only_args = apply_filters( 'woocommerce_variable_children_args', $visible_only_args, $product, true );
-
-			$children['all']     = wc_get_products( $this->map_legacy_product_args( $all_args ) );
-			$children['visible'] = wc_get_products( $this->map_legacy_product_args( $visible_only_args ) );
+			$children['all']     = wc_get_products( apply_filters( 'woocommerce_variable_children_args', $this->map_legacy_product_args( $all_args ), $product, false ) );
+			$children['visible'] = wc_get_products( apply_filters( 'woocommerce_variable_children_args', $this->map_legacy_product_args( $visible_only_args ), $product, true ) );
 
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
