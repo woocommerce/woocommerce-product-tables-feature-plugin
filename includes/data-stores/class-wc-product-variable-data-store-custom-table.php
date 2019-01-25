@@ -45,7 +45,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 * @param  bool       $force_read True to bypass the transient.
 	 * @return array
 	 */
-	protected function read_children( &$product, $force_read = false ) {
+	public function read_children( &$product, $force_read = false ) {
 		$children_transient_name = 'wc_product_children_' . $product->get_id();
 		$children                = get_transient( $children_transient_name );
 
@@ -73,6 +73,10 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
+
+		$children['all']     = wp_parse_id_list( (array) $children['all'] );
+		$children['visible'] = wp_parse_id_list( (array) $children['visible'] );
+
 		return $children;
 	}
 
@@ -107,7 +111,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 *
 	 * @param WC_Product $product Product object.
 	 */
-	protected function read_variation_attributes( &$product ) {
+	public function read_variation_attributes( &$product ) {
 		global $wpdb;
 
 		$variation_attributes = array();
