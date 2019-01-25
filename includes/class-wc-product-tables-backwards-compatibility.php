@@ -186,6 +186,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
+		// Look in cache for table.
+		$cached_data = (array) wp_cache_get( 'woocommerce_product_' . $args['product_id'], 'product' );
+
+		if ( isset( $cached_data[ $args['column'] ] ) ) {
+			return $cached_data[ $args['column'] ];
+		}
+
+		// Look in cache for bw compat table.
 		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], 'product' );
 
 		if ( false === $data ) {
