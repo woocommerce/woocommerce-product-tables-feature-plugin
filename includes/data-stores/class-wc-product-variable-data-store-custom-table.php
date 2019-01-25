@@ -176,19 +176,19 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 *
 	 * @since  3.0.0
 	 * @param  WC_Product $product Product object.
-	 * @param  bool       $include_taxes If taxes should be calculated or not.
+	 * @param  bool       $for_display If true, prices will be adapted for display based on the `woocommerce_tax_display_shop` setting (including or excluding taxes).
 	 * @return array of prices
 	 */
-	public function read_price_data( &$product, $include_taxes = false ) {
+	public function read_price_data( &$product, $for_display = false ) {
 
 		/**
-		 * Transient name for storing prices for this product (note: Max transient length is 45).
+		 * Transient name for storing prices for this product (note: Max transient length is 45)
 		 *
 		 * @since 2.5.0 a single transient is used per product for all prices, rather than many transients per product.
 		 */
 		$transient_name = 'wc_var_prices_' . $product->get_id();
 
-		$price_hash = $this->get_price_hash( $product, $include_taxes );
+		$price_hash = $this->get_price_hash( $product, $for_display );
 
 		/**
 		 * $this->prices_array is an array of values which may have been modified from what is stored in transients - this may not match $transient_cached_prices_array.
@@ -199,16 +199,16 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 			// If the product version has changed since the transient was last saved, reset the transient cache.
 			if ( empty( $transient_cached_prices_array['version'] ) || WC_Cache_Helper::get_transient_version( 'product' ) !== $transient_cached_prices_array['version'] ) {
-				$transient_cached_prices_array = array(
-					'version' => WC_Cache_Helper::get_transient_version( 'product' ),
-				);
+				$transient_cached_prices_array = array( 'version' => WC_Cache_Helper::get_transient_version( 'product' ) );
 			}
 
 			// If the prices are not stored for this hash, generate them and add to the transient.
 			if ( empty( $transient_cached_prices_array[ $price_hash ] ) ) {
-				$prices         = array();
-				$regular_prices = array();
-				$sale_prices    = array();
+				$prices_array = array(
+					'price'         => array(),
+					'regular_price' => array(),
+					'sale_price'    => array(),
+				);
 				$variation_ids  = $product->get_visible_children();
 				foreach ( $variation_ids as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
@@ -229,41 +229,47 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						}
 
 						// If we are getting prices for display, we need to account for taxes.
-						if ( $include_taxes ) {
+						if ( $for_display ) {
 							if ( 'incl' === get_option( 'woocommerce_tax_display_shop' ) ) {
 								$price         = '' === $price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $price,
 									)
 								);
 								$regular_price = '' === $regular_price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $regular_price,
 									)
 								);
 								$sale_price    = '' === $sale_price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $sale_price,
 									)
 								);
 							} else {
 								$price         = '' === $price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $price,
 									)
 								);
 								$regular_price = '' === $regular_price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $regular_price,
 									)
 								);
 								$sale_price    = '' === $sale_price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $sale_price,
 									)
@@ -271,17 +277,18 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 							}
 						}
 
-						$prices[ $variation_id ]         = wc_format_decimal( $price, wc_get_price_decimals() );
-						$regular_prices[ $variation_id ] = wc_format_decimal( $regular_price, wc_get_price_decimals() );
-						$sale_prices[ $variation_id ]    = wc_format_decimal( $sale_price . '.00', wc_get_price_decimals() );
+						$prices_array['price'][ $variation_id ]         = wc_format_decimal( $price, wc_get_price_decimals() );
+						$prices_array['regular_price'][ $variation_id ] = wc_format_decimal( $regular_price, wc_get_price_decimals() );
+						$prices_array['sale_price'][ $variation_id ]    = wc_format_decimal( $sale_price . '.00', wc_get_price_decimals() );
+
+						$prices_array = apply_filters( 'woocommerce_variation_prices_array', $prices_array, $variation, $for_display );
 					}
 				}
 
-				$transient_cached_prices_array[ $price_hash ] = array(
-					'price'         => $prices,
-					'regular_price' => $regular_prices,
-					'sale_price'    => $sale_prices,
-				);
+				// Add all pricing data to the transient array.
+				foreach ( $prices_array as $key => $values ) {
+					$transient_cached_prices_array[ $price_hash ][ $key ] = $values;
+				}
 
 				set_transient( $transient_name, wp_json_encode( $transient_cached_prices_array ), DAY_IN_SECONDS * 30 );
 			}
@@ -290,7 +297,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			 * Give plugins one last chance to filter the variation prices array which has been generated and store locally to the class.
 			 * This value may differ from the transient cache. It is filtered once before storing locally.
 			 */
-			$this->prices_array[ $price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $price_hash ], $product, $include_taxes );
+			$this->prices_array[ $price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $price_hash ], $product, $for_display );
 		}
 		return $this->prices_array[ $price_hash ];
 	}
