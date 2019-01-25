@@ -36,12 +36,6 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		// Make sure data which does not apply to variables is unset.
 		$product->set_regular_price( '' );
 		$product->set_sale_price( '' );
-
-		// Set directly since individual data needs changed at the WC_Product_Variation level -- these datasets just pull.
-		$children = $this->read_children( $product );
-		$product->set_children( $children['all'] );
-		$product->set_visible_children( $children['visible'] );
-		$product->set_variation_attributes( $this->read_variation_attributes( $product ) );
 	}
 
 	/**
@@ -127,26 +121,35 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			return $cached_data;
 		}
 
-		if ( ! empty( $child_ids ) && ! empty( $attributes ) ) {
+		if ( ! empty( $attributes ) ) {
 			foreach ( $attributes as $attribute ) {
 				if ( ! $attribute->get_variation() ) {
 					continue;
 				}
 
-				$product_attribute_id = $attribute->get_product_attribute_id();
-				$values               = array_unique(
-					$wpdb->get_col(
-						$wpdb->prepare(
-							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
-							WHERE product_attribute_id = %d
-							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
-							$product_attribute_id
+				// Get possible values for this attribute, for only visible variations.
+				if ( ! empty( $child_ids ) ) {
+					$product_attribute_id = $attribute->get_product_attribute_id();
+					$format               = array_fill( 0, count( $child_ids ), '%d' );
+					$query_in             = '(' . implode( ',', $format ) . ')';
+					$query_args           = array( 'product_attribute_id' => $product_attribute_id ) + $child_ids;
+					$values               = array_unique(
+						$wpdb->get_col(
+							$wpdb->prepare( // wpcs: PreparedSQLPlaceholders replacement count ok.
+								"
+									SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
+									WHERE product_attribute_id = %d
+									AND product_id IN {$query_in}", // @codingStandardsIgnoreLine.
+								$query_args
+							)
 						)
-					)
-				);
+					);
+				} else {
+					$values = array();
+				}
 
 				// Empty value indicates that all options for given attribute are available.
-				if ( in_array( null, $values, true ) || empty( $values ) ) {
+				if ( in_array( null, $values, true ) || in_array( '', $values, true ) || empty( $values ) ) {
 					$values = $attribute->get_slugs();
 				} elseif ( ! $attribute->is_taxonomy() ) {
 					$text_attributes          = array_map( 'trim', $attribute->get_options() );
