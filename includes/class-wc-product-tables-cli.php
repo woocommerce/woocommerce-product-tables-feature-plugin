@@ -68,6 +68,9 @@ class WC_Product_Tables_Cli extends WP_CLI_Command {
 			$count ++;
 		}
 
+		wp_cache_flush();
+		wc_delete_product_transients();
+
 		$progress->finish();
 		WP_CLI::success( $count . ' products and variations migrated.' );
 

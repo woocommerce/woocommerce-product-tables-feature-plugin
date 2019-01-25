@@ -67,6 +67,9 @@ class WC_Product_Tables_Migrate_Data {
 			self::migrate_product( $product );
 		}
 
+		wp_cache_flush();
+		wc_delete_product_transients();
+
 		WC_Product_Tables_Backwards_Compatibility::hook();
 	}
 
