@@ -575,19 +575,19 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	protected function get_parent_product_attribute_names( &$product ) {
 		global $wpdb;
 
-		$attributes = wp_cache_get( 'woocommerce_parent_product_attribute_names_' . $product->get_id(), 'product' );
+		$attributes = wp_cache_get( 'woocommerce_parent_product_attribute_names_' . $product->get_parent_id(), 'product' );
 
 		if ( false === $attributes ) {
 			$attributes = wp_list_pluck(
 				$wpdb->get_results(
 					$wpdb->prepare(
-						"SELECT product_attribute_id, name FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
+						"SELECT `product_attribute_id`, `name` FROM {$wpdb->prefix}wc_product_attributes WHERE product_id = %d",
 						$product->get_parent_id()
 					)
 				), 'name', 'product_attribute_id'
 			); // WPCS: db call ok, cache ok.
 
-			wp_cache_set( 'woocommerce_parent_product_attribute_names_' . $product->get_id(), $attributes, 'product' );
+			wp_cache_set( 'woocommerce_parent_product_attribute_names_' . $product->get_parent_id(), $attributes, 'product' );
 		}
 
 		return $attributes;
