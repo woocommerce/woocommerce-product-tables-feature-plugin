@@ -230,7 +230,13 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 					'regular_price' => array(),
 					'sale_price'    => array(),
 				);
-				$variation_ids  = $product->get_visible_children();
+
+				$variation_ids = $product->get_visible_children();
+
+				if ( is_callable( '_prime_post_caches' ) ) {
+					_prime_post_caches( $variation_ids );
+				}
+
 				foreach ( $variation_ids as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
 
