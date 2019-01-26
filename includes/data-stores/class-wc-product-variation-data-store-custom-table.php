@@ -92,23 +92,8 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 	 * @since 3.0.0
 	 */
 	protected function read_product_data( &$product ) {
-		$id            = $product->get_id();
-		$props         = $this->get_product_row_from_db( $product->get_id() );
-		$review_count  = get_post_meta( $id, '_wc_review_count', true );
-		$rating_counts = get_post_meta( $id, '_wc_rating_count', true );
-
-		if ( '' === $review_count ) {
-			WC_Comments::get_review_count_for_product( $product );
-		} else {
-			$props['review_count'] = $review_count;
-		}
-
-		if ( '' === $rating_counts ) {
-			WC_Comments::get_rating_counts_for_product( $product );
-		} else {
-			$props['rating_counts'] = $rating_counts;
-		}
-
+		$id                    = $product->get_id();
+		$props                 = $this->get_product_row_from_db( $product->get_id() );
 		$props['manage_stock'] = isset( $props['stock_quantity'] ) && ! is_null( $props['stock_quantity'] );
 
 		$meta_to_props = array(
@@ -124,8 +109,6 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		}
 
 		$taxonomies_to_props = array(
-			'product_cat'            => 'category_ids',
-			'product_tag'            => 'tag_ids',
 			'product_shipping_class' => 'shipping_class_id',
 		);
 
@@ -161,7 +144,26 @@ class WC_Product_Variation_Data_Store_Custom_Table extends WC_Product_Data_Store
 		$parent = wc_get_product( $product->get_parent_id() );
 
 		if ( $parent ) {
-			$product->set_parent_data( array_merge( $parent->get_data(), array( 'title' => $parent->get_title() ) ) );
+			$product->set_parent_data(
+				array(
+					'title'              => $parent->get_title(),
+					'status'             => $parent->get_status(),
+					'sku'                => $parent->get_sku(),
+					'manage_stock'       => $parent->get_manage_stock(),
+					'backorders'         => $parent->get_backorders(),
+					'low_stock_amount'   => $parent->get_low_stock_amount(),
+					'stock_quantity'     => $parent->get_stock_quantity(),
+					'weight'             => $parent->get_weight(),
+					'length'             => $parent->get_length(),
+					'width'              => $parent->get_width(),
+					'height'             => $parent->get_height(),
+					'tax_class'          => $parent->get_tax_class(),
+					'shipping_class_id'  => $parent->get_shipping_class_id(),
+					'image_id'           => $parent->get_image_id(),
+					'purchase_note'      => $parent->get_purchase_note(),
+					'catalog_visibility' => $parent->get_catalog_visibility(),
+				)
+			);
 
 			// Pull data from the parent when there is no user-facing way to set props.
 			$product->set_sold_individually( $parent->get_sold_individually() );
