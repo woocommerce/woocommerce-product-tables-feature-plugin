@@ -212,8 +212,23 @@ class WC_Product_Tables_Query {
 		global $wpdb;
 
 		if ( $wp_query->is_main_query() ) {
-			$args['join']  .= " INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id ";
-			$args['where'] .= " AND {$wpdb->prefix}wc_products.price >= {$this->price_filter_min} AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max} ";
+			$args['where'] .= "
+				AND (
+					{$wpdb->posts}.ID IN (
+						SELECT product_id
+						FROM {$wpdb->prefix}wc_products
+						WHERE {$wpdb->prefix}wc_products.price >= {$this->price_filter_min}
+						AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max}
+					)
+					OR {$wpdb->posts}.ID IN (
+						SELECT post_parent
+						FROM {$wpdb->posts}
+						INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id
+						WHERE {$wpdb->prefix}wc_products.price >= {$this->price_filter_min}
+						AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max}
+					)
+				)
+			";
 		}
 
 		return $args;
