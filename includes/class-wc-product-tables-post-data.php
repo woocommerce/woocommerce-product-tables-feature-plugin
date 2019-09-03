@@ -16,7 +16,7 @@ class WC_Product_Tables_Post_Data {
 	 * Hook in methods.
 	 */
 	public static function init() {
-		add_action( 'delete_post', array( __CLASS__, 'delete_post' ) );
+		add_action( 'delete_post', [ __CLASS__, 'delete_post' ] );
 	}
 
 	/**
