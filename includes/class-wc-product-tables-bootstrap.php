@@ -40,6 +40,10 @@ class WC_Product_Tables_Bootstrap {
 			include_once dirname( __FILE__ ) . '/class-wc-product-tables-cli.php';
 		}
 
+		if ( is_admin() ) {
+			include_once dirname( __FILE__ ) . '/admin/meta-boxes/class-wc-product-tables-meta-box-product-data.php';
+		}
+
 		$this->query = new WC_Product_Tables_Query();
 	}
 
