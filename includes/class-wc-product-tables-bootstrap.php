@@ -4,8 +4,7 @@
  *
  * Loads everything needed for the plugin to function.
  *
- * @package WooCommerce Product Tables Feature Plugin
- * @author Automattic
+ * @package WooCommerce_Product_Tables_Feature_Plugin
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -33,6 +32,7 @@ class WC_Product_Tables_Bootstrap {
 		include_once dirname( __FILE__ ) . '/class-wc-product-tables-install.php';
 		include_once dirname( __FILE__ ) . '/class-wc-product-tables-migrate-data.php';
 		include_once dirname( __FILE__ ) . '/class-wc-product-tables-query.php';
+		include_once dirname( __FILE__ ) . '/class-wc-product-tables-post-data.php';
 		include_once dirname( __FILE__ ) . '/compatibility/hacks.php';
 		include_once dirname( __FILE__ ) . '/compatibility/class-wc-product-attribute.php';
 
