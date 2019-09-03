@@ -63,7 +63,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$query_results = call_user_func( $mapped_func, $args );
 
 		if ( $single && $query_results ) {
-			return $query_results[0];
+			return ( is_array( $query_results ) ) ? $query_results[0] : $query_results;
 		}
 
 		if ( $single && empty( $query_results ) ) {
