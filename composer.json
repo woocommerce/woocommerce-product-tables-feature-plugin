@@ -3,26 +3,33 @@
   "description": "WooCommerce product tables feature plugin",
   "homepage": "https://github.com/woocommerce/woocommerce-product-tables-feature-plugin",
   "type": "wordpress-plugin",
-  "license": "GPL-2.0+",
+  "license": "GPL-3.0+",
+  "require": {
+    "php": ">=5.6|>=7.0"
+  },
   "require-dev": {
-    "wp-coding-standards/wpcs": "0.14.1",
-    "woocommerce/woocommerce-git-hooks": "1.0.5",
-    "phpunit/phpunit": "^6.5"
+    "phpunit/phpunit": "8.3.5",
+    "woocommerce/woocommerce-sniffs": "0.0.9"
   },
   "scripts": {
-    "pre-update-cmd": [
-      "WooCommerce\\GitHooks\\Hooks::preHooks"
+    "test": [
+      "phpunit"
     ],
-    "pre-install-cmd": [
-      "WooCommerce\\GitHooks\\Hooks::preHooks"
+    "phpcs": [
+      "phpcs -s -p"
     ],
-    "post-install-cmd": [
-      "\"vendor/bin/phpcs\" --config-set installed_paths vendor/wp-coding-standards/wpcs",
-      "WooCommerce\\GitHooks\\Hooks::postHooks"
+    "phpcs-pre-commit": [
+      "phpcs -s -p -n"
     ],
-    "post-update-cmd": [
-      "\"vendor/bin/phpcs\" --config-set installed_paths vendor/wp-coding-standards/wpcs",
-      "WooCommerce\\GitHooks\\Hooks::postHooks"
+    "phpcbf": [
+      "phpcbf -p"
     ]
+  },
+  "extra": {
+    "scripts-description": {
+      "test": "Run unit tests",
+      "phpcs": "Analyze code against the WordPress coding standards with PHP_CodeSniffer",
+      "phpcbf": "Fix coding standards warnings/errors automatically with PHP Code Beautifier"
+    }
   }
 }

@@ -25,6 +25,19 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	protected $prices_array = array();
 
 	/**
+	 * Relationships. Note - grouped/children is not included here.
+	 * Children are child posts, not related via the table.
+	 *
+	 * @since 4.0.0
+	 * @var   array
+	 */
+	protected $relationships = array(
+		'image'      => 'gallery_image_ids',
+		'upsell'     => 'upsell_ids',
+		'cross_sell' => 'cross_sell_ids',
+	);
+
+	/**
 	 * Read product data.
 	 *
 	 * @since 3.0.0
@@ -36,12 +49,6 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 		// Make sure data which does not apply to variables is unset.
 		$product->set_regular_price( '' );
 		$product->set_sale_price( '' );
-
-		// Set directly since individual data needs changed at the WC_Product_Variation level -- these datasets just pull.
-		$children = $this->read_children( $product );
-		$product->set_children( $children['all'] );
-		$product->set_visible_children( $children['visible'] );
-		$product->set_variation_attributes( $this->read_variation_attributes( $product ) );
 	}
 
 	/**
@@ -51,7 +58,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 * @param  bool       $force_read True to bypass the transient.
 	 * @return array
 	 */
-	protected function read_children( &$product, $force_read = false ) {
+	public function read_children( &$product, $force_read = false ) {
 		$children_transient_name = 'wc_product_children_' . $product->get_id();
 		$children                = get_transient( $children_transient_name );
 
@@ -59,26 +66,31 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			$all_args = array(
 				'parent'  => $product->get_id(),
 				'type'    => 'variation',
-				'orderby' => 'menu_order',
+				'orderby'     => array(
+					'menu_order' => 'ASC',
+					'ID'         => 'ASC',
+				),
 				'order'   => 'ASC',
 				'limit'   => -1,
 				'return'  => 'ids',
 				'status'  => array( 'publish', 'private' ),
 			);
-			$all_args = apply_filters( 'woocommerce_variable_children_args', $all_args, $product, false );
 
 			$visible_only_args                = $all_args;
 			$visible_only_args['post_status'] = 'publish';
+
 			if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
 				$visible_only_args['stock_status'] = 'instock';
 			}
-			$visible_only_args = apply_filters( 'woocommerce_variable_children_args', $visible_only_args, $product, true );
-
-			$children['all']     = wc_get_products( $this->map_legacy_product_args( $all_args ) );
-			$children['visible'] = wc_get_products( $this->map_legacy_product_args( $visible_only_args ) );
+			$children['all']     = wc_get_products( apply_filters( 'woocommerce_variable_children_args', $this->map_legacy_product_args( $all_args ), $product, false ) );
+			$children['visible'] = wc_get_products( apply_filters( 'woocommerce_variable_children_args', $this->map_legacy_product_args( $visible_only_args ), $product, true ) );
 
 			set_transient( $children_transient_name, $children, DAY_IN_SECONDS * 30 );
 		}
+
+		$children['all']     = wp_parse_id_list( (array) $children['all'] );
+		$children['visible'] = wp_parse_id_list( (array) $children['visible'] );
+
 		return $children;
 	}
 
@@ -113,7 +125,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 *
 	 * @param WC_Product $product Product object.
 	 */
-	protected function read_variation_attributes( &$product ) {
+	public function read_variation_attributes( &$product ) {
 		global $wpdb;
 
 		$variation_attributes = array();
@@ -127,26 +139,35 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			return $cached_data;
 		}
 
-		if ( ! empty( $child_ids ) && ! empty( $attributes ) ) {
+		if ( ! empty( $attributes ) ) {
 			foreach ( $attributes as $attribute ) {
 				if ( ! $attribute->get_variation() ) {
 					continue;
 				}
 
-				$product_attribute_id = $attribute->get_product_attribute_id();
-				$values               = array_unique(
-					$wpdb->get_col(
-						$wpdb->prepare(
-							"SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
-							WHERE product_attribute_id = %d
-							AND product_id IN (" . implode( ',', array_map( 'absint', $child_ids ) ) . ')', // phpcs:ignore WordPress.WP.PreparedSQL.NotPrepared
-							$product_attribute_id
+				// Get possible values for this attribute, for only visible variations.
+				if ( ! empty( $child_ids ) ) {
+					$product_attribute_id = $attribute->get_product_attribute_id();
+					$format               = array_fill( 0, count( $child_ids ), '%d' );
+					$query_in             = '(' . implode( ',', $format ) . ')';
+					$query_args           = array( 'product_attribute_id' => $product_attribute_id ) + $child_ids;
+					$values               = array_unique(
+						$wpdb->get_col(
+							$wpdb->prepare( // wpcs: PreparedSQLPlaceholders replacement count ok.
+								"
+									SELECT value FROM {$wpdb->prefix}wc_product_variation_attribute_values
+									WHERE product_attribute_id = %d
+									AND product_id IN {$query_in}", // @codingStandardsIgnoreLine.
+								$query_args
+							)
 						)
-					)
-				);
+					);
+				} else {
+					$values = array();
+				}
 
 				// Empty value indicates that all options for given attribute are available.
-				if ( in_array( null, $values, true ) || empty( $values ) ) {
+				if ( in_array( null, $values, true ) || in_array( '', $values, true ) || empty( $values ) ) {
 					$values = $attribute->get_slugs();
 				} elseif ( ! $attribute->is_taxonomy() ) {
 					$text_attributes          = array_map( 'trim', $attribute->get_options() );
@@ -176,19 +197,19 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 	 *
 	 * @since  3.0.0
 	 * @param  WC_Product $product Product object.
-	 * @param  bool       $include_taxes If taxes should be calculated or not.
+	 * @param  bool       $for_display If true, prices will be adapted for display based on the `woocommerce_tax_display_shop` setting (including or excluding taxes).
 	 * @return array of prices
 	 */
-	public function read_price_data( &$product, $include_taxes = false ) {
+	public function read_price_data( &$product, $for_display = false ) {
 
 		/**
-		 * Transient name for storing prices for this product (note: Max transient length is 45).
+		 * Transient name for storing prices for this product (note: Max transient length is 45)
 		 *
 		 * @since 2.5.0 a single transient is used per product for all prices, rather than many transients per product.
 		 */
 		$transient_name = 'wc_var_prices_' . $product->get_id();
 
-		$price_hash = $this->get_price_hash( $product, $include_taxes );
+		$price_hash = $this->get_price_hash( $product, $for_display );
 
 		/**
 		 * $this->prices_array is an array of values which may have been modified from what is stored in transients - this may not match $transient_cached_prices_array.
@@ -199,17 +220,23 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 
 			// If the product version has changed since the transient was last saved, reset the transient cache.
 			if ( empty( $transient_cached_prices_array['version'] ) || WC_Cache_Helper::get_transient_version( 'product' ) !== $transient_cached_prices_array['version'] ) {
-				$transient_cached_prices_array = array(
-					'version' => WC_Cache_Helper::get_transient_version( 'product' ),
-				);
+				$transient_cached_prices_array = array( 'version' => WC_Cache_Helper::get_transient_version( 'product' ) );
 			}
 
 			// If the prices are not stored for this hash, generate them and add to the transient.
 			if ( empty( $transient_cached_prices_array[ $price_hash ] ) ) {
-				$prices         = array();
-				$regular_prices = array();
-				$sale_prices    = array();
-				$variation_ids  = $product->get_visible_children();
+				$prices_array = array(
+					'price'         => array(),
+					'regular_price' => array(),
+					'sale_price'    => array(),
+				);
+
+				$variation_ids = $product->get_visible_children();
+
+				if ( is_callable( '_prime_post_caches' ) ) {
+					_prime_post_caches( $variation_ids );
+				}
+
 				foreach ( $variation_ids as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
 
@@ -229,41 +256,47 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 						}
 
 						// If we are getting prices for display, we need to account for taxes.
-						if ( $include_taxes ) {
+						if ( $for_display ) {
 							if ( 'incl' === get_option( 'woocommerce_tax_display_shop' ) ) {
 								$price         = '' === $price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $price,
 									)
 								);
 								$regular_price = '' === $regular_price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $regular_price,
 									)
 								);
 								$sale_price    = '' === $sale_price ? '' : wc_get_price_including_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $sale_price,
 									)
 								);
 							} else {
 								$price         = '' === $price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $price,
 									)
 								);
 								$regular_price = '' === $regular_price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $regular_price,
 									)
 								);
 								$sale_price    = '' === $sale_price ? '' : wc_get_price_excluding_tax(
-									$variation, array(
+									$variation,
+									array(
 										'qty'   => 1,
 										'price' => $sale_price,
 									)
@@ -271,17 +304,18 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 							}
 						}
 
-						$prices[ $variation_id ]         = wc_format_decimal( $price, wc_get_price_decimals() );
-						$regular_prices[ $variation_id ] = wc_format_decimal( $regular_price, wc_get_price_decimals() );
-						$sale_prices[ $variation_id ]    = wc_format_decimal( $sale_price . '.00', wc_get_price_decimals() );
+						$prices_array['price'][ $variation_id ]         = wc_format_decimal( $price, wc_get_price_decimals() );
+						$prices_array['regular_price'][ $variation_id ] = wc_format_decimal( $regular_price, wc_get_price_decimals() );
+						$prices_array['sale_price'][ $variation_id ]    = wc_format_decimal( $sale_price . '.00', wc_get_price_decimals() );
+
+						$prices_array = apply_filters( 'woocommerce_variation_prices_array', $prices_array, $variation, $for_display );
 					}
 				}
 
-				$transient_cached_prices_array[ $price_hash ] = array(
-					'price'         => $prices,
-					'regular_price' => $regular_prices,
-					'sale_price'    => $sale_prices,
-				);
+				// Add all pricing data to the transient array.
+				foreach ( $prices_array as $key => $values ) {
+					$transient_cached_prices_array[ $price_hash ][ $key ] = $values;
+				}
 
 				set_transient( $transient_name, wp_json_encode( $transient_cached_prices_array ), DAY_IN_SECONDS * 30 );
 			}
@@ -290,7 +324,7 @@ class WC_Product_Variable_Data_Store_Custom_Table extends WC_Product_Data_Store_
 			 * Give plugins one last chance to filter the variation prices array which has been generated and store locally to the class.
 			 * This value may differ from the transient cache. It is filtered once before storing locally.
 			 */
-			$this->prices_array[ $price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $price_hash ], $product, $include_taxes );
+			$this->prices_array[ $price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $price_hash ], $product, $for_display );
 		}
 		return $this->prices_array[ $price_hash ];
 	}

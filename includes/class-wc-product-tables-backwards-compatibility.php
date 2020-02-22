@@ -11,16 +11,33 @@
 class WC_Product_Tables_Backwards_Compatibility {
 
 	/**
-	 * WC_Product_Tables_Backwards_Compatibility constructor.
+	 * Field mapping.
+	 *
+	 * @var array
 	 */
-	public function __construct() {
+	protected static $mapping;
+
+	/**
+	 * Hook into WP meta filters.
+	 */
+	public static function hook() {
 		if ( ! apply_filters( 'woocommerce_product_tables_enable_backward_compatibility', true ) || defined( 'WC_PRODUCT_TABLES_DISABLE_BW_COMPAT' ) ) {
 			return;
 		}
-		add_filter( 'get_post_metadata', array( $this, 'get_metadata_from_tables' ), 99, 4 );
-		add_filter( 'add_post_metadata', array( $this, 'add_metadata_to_tables' ), 99, 5 );
-		add_filter( 'update_post_metadata', array( $this, 'update_metadata_in_tables' ), 99, 5 );
-		add_filter( 'delete_post_metadata', array( $this, 'delete_metadata_from_tables' ), 99, 5 );
+		add_filter( 'get_post_metadata', array( __CLASS__, 'get_metadata_from_tables' ), 99, 4 );
+		add_filter( 'add_post_metadata', array( __CLASS__, 'add_metadata_to_tables' ), 99, 5 );
+		add_filter( 'update_post_metadata', array( __CLASS__, 'update_metadata_in_tables' ), 99, 5 );
+		add_filter( 'delete_post_metadata', array( __CLASS__, 'delete_metadata_from_tables' ), 99, 5 );
+	}
+
+	/**
+	 * Unhook WP meta filters.
+	 */
+	public static function unhook() {
+		remove_filter( 'get_post_metadata', array( __CLASS__, 'get_metadata_from_tables' ), 99, 4 );
+		remove_filter( 'add_post_metadata', array( __CLASS__, 'add_metadata_to_tables' ), 99, 5 );
+		remove_filter( 'update_post_metadata', array( __CLASS__, 'update_metadata_in_tables' ), 99, 5 );
+		remove_filter( 'delete_post_metadata', array( __CLASS__, 'delete_metadata_from_tables' ), 99, 5 );
 	}
 
 	/**
@@ -32,9 +49,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param bool       $single   Whether to return a single value.
 	 * @return string|array
 	 */
-	public function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
-		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+	public static function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
+		$mapping = self::get_mapping();
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -45,7 +63,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$query_results = call_user_func( $mapped_func, $args );
 
 		if ( $single && $query_results ) {
-			return $query_results[0];
+			return ( is_array( $query_results ) ) ? $query_results[0] : $query_results;
 		}
 
 		if ( $single && empty( $query_results ) ) {
@@ -65,14 +83,15 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param bool       $unique     Whether the same key should not be added.
 	 * @return array|bool
 	 */
-	public function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
-		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+	public static function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
+		$mapping = self::get_mapping();
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
 		if ( $unique ) {
-			$existing = $this->get_metadata_from_tables( null, $post_id, $meta_key, false );
+			$existing = self::get_metadata_from_tables( null, $post_id, $meta_key, false );
 			if ( $existing ) {
 				return false;
 			}
@@ -96,9 +115,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param mixed      $prev_value Previous value to check before removing.
 	 * @return array|bool
 	 */
-	public function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
-		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+	public static function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
+		$mapping = self::get_mapping();
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -121,9 +141,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * @param bool       $delete_all Delete all metadata.
 	 * @return array|bool
 	 */
-	public function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
-		$mapping = $this->get_mapping();
-		if ( WC_Product_Tables_Migrate_Data::$migrating || ! isset( $mapping[ $meta_key ] ) ) {
+	public static function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
+		$mapping = self::get_mapping();
+
+		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -152,7 +173,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_from_product_table( $args ) {
+	public static function get_from_product_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -165,6 +186,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
+		// Look in cache for table.
+		$cached_data = (array) wp_cache_get( 'woocommerce_product_' . $args['product_id'], 'product' );
+
+		if ( isset( $cached_data[ $args['column'] ] ) ) {
+			return $cached_data[ $args['column'] ];
+		}
+
+		// Look in cache for bw compat table.
 		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], 'product' );
 
 		if ( false === $data ) {
@@ -172,7 +201,13 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		if ( empty( $data[ $args['column'] ] ) ) {
-			$data[ $args['column'] ] = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . esc_sql( $args['column'] ) . "` from {$wpdb->prefix}wc_products WHERE product_id = %d", $args['product_id'] ) ); // WPCS: db call ok.
+			$escaped_column          = '`' . esc_sql( $args['column'] ) . '`';
+			$data[ $args['column'] ] = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT {$escaped_column} FROM {$wpdb->prefix}wc_products WHERE product_id = %d", // phpcs:ignore
+					$args['product_id']
+				)
+			);
 
 			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $args['product_id'], $data, 'product' );
 		}
@@ -193,7 +228,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function update_in_product_table( $args ) {
+	public static function update_in_product_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -261,7 +296,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_from_relationship_table( $args ) {
+	public static function get_from_relationship_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -301,7 +336,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function update_relationship_table( $args ) {
+	public static function update_relationship_table( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -373,7 +408,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_variation_description( $args ) {
+	public static function get_variation_description( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -397,7 +432,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function set_variation_description( $args ) {
+	public static function set_variation_description( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -435,7 +470,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		// Check for previous value while deleting or updating.
 		if ( ! empty( $args['prev_value'] ) ) {
-			$description = $this->get_variation_description( $args );
+			$description = self::get_variation_description( $args );
 
 			if ( $args['prev_value'] !== $description[0] ) {
 				return false;
@@ -461,7 +496,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_manage_stock( $args ) {
+	public static function get_manage_stock( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -472,7 +507,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		$args['column'] = 'stock_quantity';
-		$stock          = $this->get_from_product_table( $args );
+		$stock          = self::get_from_product_table( $args );
 		if ( ! empty( $stock ) && is_numeric( $stock[0] ) ) {
 			return array( true );
 		}
@@ -491,7 +526,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function set_manage_stock( $args ) {
+	public static function set_manage_stock( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => false,
@@ -507,14 +542,14 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( $args['value'] ) {
 			$args['value']  = 0;
 			$args['format'] = '%d';
-			return $this->update_in_product_table( $args );
+			return self::update_in_product_table( $args );
 		}
 
 		// Set stock_quantity to NULL if not managing stock.
 		$args['value']  = null;
 		$args['format'] = '';
 
-		return $this->update_in_product_table( $args );
+		return self::update_in_product_table( $args );
 	}
 
 	/**
@@ -527,7 +562,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_downloadable_files( $args ) {
+	public static function get_downloadable_files( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -571,7 +606,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function update_downloadable_files( $args ) {
+	public static function update_downloadable_files( $args ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -651,7 +686,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_product_attributes( $args ) {
+	public static function get_product_attributes( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -660,8 +695,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		if ( ! $args['product_id'] ) {
 			return array();
 		}
-
-		$product = wc_get_product( $args['product_id'] );
+		$product = self::get_product( $args['product_id'] );
 		if ( ! $product ) {
 			return array();
 		}
@@ -694,7 +728,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function update_product_attributes( $args ) {
+	public static function update_product_attributes( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => array(),
@@ -708,7 +742,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$product_id = $args['product_id'];
 		$attributes = $args['value'];
 
-		$product = wc_get_product( $product_id );
+		$product = self::get_product( $product_id );
 		if ( ! $product ) {
 			return false;
 		}
@@ -742,7 +776,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return array
 	 */
-	public function get_product_default_attributes( $args ) {
+	public static function get_product_default_attributes( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 		);
@@ -752,7 +786,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return array();
 		}
 
-		$product = wc_get_product( $args['product_id'] );
+		$product = self::get_product( $args['product_id'] );
 		if ( $product ) {
 			return array( array( $product->get_default_attributes( 'edit' ) ) );
 		}
@@ -771,7 +805,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * }
 	 * @return bool
 	 */
-	public function update_product_default_attributes( $args ) {
+	public static function update_product_default_attributes( $args ) {
 		$defaults = array(
 			'product_id' => 0,
 			'value'      => array(),
@@ -782,7 +816,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			return false;
 		}
 
-		$product = wc_get_product( $args['product_id'] );
+		$product = self::get_product( $args['product_id'] );
 		if ( $product ) {
 			$product->set_default_attributes( $args['value'] );
 			$product->save();
@@ -797,35 +831,68 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 *
 	 * @return array
 	 */
-	protected function get_mapping() {
-		return array(
+	protected static function get_mapping() {
+		if ( self::$mapping ) {
+			return self::$mapping;
+		}
+		self::$mapping = array(
 
 			/**
 			 * In product table.
 			 */
+			'_thumbnail_id'          => array(
+				'get'    => array(
+					'function' => array( __CLASS__, 'get_from_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+					),
+				),
+				'add'    => array(
+					'function' => array( __CLASS__, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
+				),
+				'update' => array(
+					'function' => array( __CLASS__, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+					),
+				),
+				'delete' => array(
+					'function' => array( __CLASS__, 'update_in_product_table' ),
+					'args'     => array(
+						'column' => 'image_id',
+						'format' => '%d',
+						'value'  => '',
+					),
+				),
+			),
 			'_sku'                   => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'sku',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sku',
 						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sku',
 						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sku',
 						'format' => '%s',
@@ -835,27 +902,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_price'                 => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'price',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'price',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'price',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'price',
 						'format' => '',
@@ -865,27 +932,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_regular_price'         => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'regular_price',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'regular_price',
 						'format' => '',
@@ -895,27 +962,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_sale_price'            => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'sale_price',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'sale_price',
 						'format' => '',
@@ -925,27 +992,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_sale_price_dates_from' => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
-						'format' => '%d',
+						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_from',
 						'format' => '',
@@ -955,27 +1022,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_sale_price_dates_to'   => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'date_on_sale_to',
 						'format' => '',
@@ -985,27 +1052,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'total_sales'            => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'total_sales',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'total_sales',
 						'format' => '%d',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'total_sales',
 						'format' => '%d',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'total_sales',
 						'format' => '%d',
@@ -1015,27 +1082,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_tax_status'            => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'tax_status',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_status',
 						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_status',
 						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_status',
 						'format' => '%s',
@@ -1045,27 +1112,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_tax_class'             => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'tax_class',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_class',
 						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_class',
 						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'tax_class',
 						'format' => '%s',
@@ -1075,27 +1142,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_stock'                 => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'stock_quantity',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '%d',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '%d',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_quantity',
 						'format' => '',
@@ -1105,27 +1172,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_stock_status'          => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
 						'format' => '%s',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
 						'format' => '%s',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'stock_status',
 						'format' => '%s',
@@ -1135,27 +1202,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_length'                => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'length',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'length',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'length',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'length',
 						'format' => '',
@@ -1165,27 +1232,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_width'                 => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'width',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'width',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'width',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'width',
 						'format' => '',
@@ -1195,27 +1262,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_height'                => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'height',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'height',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'height',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'height',
 						'format' => '',
@@ -1225,27 +1292,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_weight'                => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'weight',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'weight',
 						'format' => '',
@@ -1255,27 +1322,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_virtual'               => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'virtual',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'virtual',
 						'format' => '%d',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'virtual',
 						'format' => '%d',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'virtual',
 						'format' => '%d',
@@ -1285,27 +1352,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_downloadable'          => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'downloadable',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'downloadable',
 						'format' => '%d',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'downloadable',
 						'format' => '%d',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'downloadable',
 						'format' => '%d',
@@ -1315,27 +1382,27 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_wc_average_rating'     => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_product_table' ),
+					'function' => array( __CLASS__, 'get_from_product_table' ),
 					'args'     => array(
 						'column' => 'average_rating',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'average_rating',
 						'format' => '%f',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'average_rating',
 						'format' => '%f',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_in_product_table' ),
+					'function' => array( __CLASS__, 'update_in_product_table' ),
 					'args'     => array(
 						'column' => 'average_rating',
 						'format' => '%f',
@@ -1349,25 +1416,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 			 */
 			'_upsell_ids'            => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_relationship_table' ),
+					'function' => array( __CLASS__, 'get_from_relationship_table' ),
 					'args'     => array(
 						'type' => 'upsell',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'upsell',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'upsell',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type'  => 'upsell',
 						'value' => array(),
@@ -1376,25 +1443,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_crosssell_ids'         => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_relationship_table' ),
+					'function' => array( __CLASS__, 'get_from_relationship_table' ),
 					'args'     => array(
 						'type' => 'cross_sell',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'cross_sell',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'cross_sell',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type'  => 'cross_sell',
 						'value' => array(),
@@ -1403,25 +1470,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_product_image_gallery' => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_relationship_table' ),
+					'function' => array( __CLASS__, 'get_from_relationship_table' ),
 					'args'     => array(
 						'type' => 'image',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'image',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'image',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type'  => 'image',
 						'value' => array(),
@@ -1430,25 +1497,25 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_children'              => array(
 				'get'    => array(
-					'function' => array( $this, 'get_from_relationship_table' ),
+					'function' => array( __CLASS__, 'get_from_relationship_table' ),
 					'args'     => array(
 						'type' => 'grouped',
 					),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'grouped',
 					),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type' => 'grouped',
 					),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_relationship_table' ),
+					'function' => array( __CLASS__, 'update_relationship_table' ),
 					'args'     => array(
 						'type'  => 'grouped',
 						'value' => array(),
@@ -1461,19 +1528,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			 */
 			'_downloadable_files'    => array(
 				'get'    => array(
-					'function' => array( $this, 'get_downloadable_files' ),
+					'function' => array( __CLASS__, 'get_downloadable_files' ),
 					'args'     => array(),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_downloadable_files' ),
+					'function' => array( __CLASS__, 'update_downloadable_files' ),
 					'args'     => array(),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_downloadable_files' ),
+					'function' => array( __CLASS__, 'update_downloadable_files' ),
 					'args'     => array(),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_downloadable_files' ),
+					'function' => array( __CLASS__, 'update_downloadable_files' ),
 					'args'     => array(
 						'value' => array(),
 					),
@@ -1481,19 +1548,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_variation_description' => array(
 				'get'    => array(
-					'function' => array( $this, 'get_variation_description' ),
+					'function' => array( __CLASS__, 'get_variation_description' ),
 					'args'     => array(),
 				),
 				'add'    => array(
-					'function' => array( $this, 'set_variation_description' ),
+					'function' => array( __CLASS__, 'set_variation_description' ),
 					'args'     => array(),
 				),
 				'update' => array(
-					'function' => array( $this, 'set_variation_description' ),
+					'function' => array( __CLASS__, 'set_variation_description' ),
 					'args'     => array(),
 				),
 				'delete' => array(
-					'function' => array( $this, 'set_variation_description' ),
+					'function' => array( __CLASS__, 'set_variation_description' ),
 					'args'     => array(
 						'value' => '',
 					),
@@ -1501,19 +1568,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_manage_stock'          => array(
 				'get'    => array(
-					'function' => array( $this, 'get_manage_stock' ),
+					'function' => array( __CLASS__, 'get_manage_stock' ),
 					'args'     => array(),
 				),
 				'add'    => array(
-					'function' => array( $this, 'set_manage_stock' ),
+					'function' => array( __CLASS__, 'set_manage_stock' ),
 					'args'     => array(),
 				),
 				'update' => array(
-					'function' => array( $this, 'set_manage_stock' ),
+					'function' => array( __CLASS__, 'set_manage_stock' ),
 					'args'     => array(),
 				),
 				'delete' => array(
-					'function' => array( $this, 'set_manage_stock' ),
+					'function' => array( __CLASS__, 'set_manage_stock' ),
 					'args'     => array(
 						'value' => false,
 					),
@@ -1521,19 +1588,19 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_product_attributes'    => array(
 				'get'    => array(
-					'function' => array( $this, 'get_product_attributes' ),
+					'function' => array( __CLASS__, 'get_product_attributes' ),
 					'args'     => array(),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_product_attributes' ),
+					'function' => array( __CLASS__, 'update_product_attributes' ),
 					'args'     => array(),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_product_attributes' ),
+					'function' => array( __CLASS__, 'update_product_attributes' ),
 					'args'     => array(),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_product_attributes' ),
+					'function' => array( __CLASS__, 'update_product_attributes' ),
 					'args'     => array(
 						'value' => array(),
 					),
@@ -1541,26 +1608,41 @@ class WC_Product_Tables_Backwards_Compatibility {
 			),
 			'_default_attributes'    => array(
 				'get'    => array(
-					'function' => array( $this, 'get_product_default_attributes' ),
+					'function' => array( __CLASS__, 'get_product_default_attributes' ),
 					'args'     => array(),
 				),
 				'add'    => array(
-					'function' => array( $this, 'update_product_default_attributes' ),
+					'function' => array( __CLASS__, 'update_product_default_attributes' ),
 					'args'     => array(),
 				),
 				'update' => array(
-					'function' => array( $this, 'update_product_default_attributes' ),
+					'function' => array( __CLASS__, 'update_product_default_attributes' ),
 					'args'     => array(),
 				),
 				'delete' => array(
-					'function' => array( $this, 'update_product_default_attributes' ),
+					'function' => array( __CLASS__, 'update_product_default_attributes' ),
 					'args'     => array(
 						'value' => array(),
 					),
 				),
 			),
 		);
+		return self::$mapping;
+	}
+
+	/**
+	 * Helper method to prevent infinite recursion with meta filters
+	 *
+	 * @param int $product_id Product ID.
+	 * @return WC_Product
+	 */
+	protected static function get_product( $product_id ) {
+		self::unhook();
+		$product = wc_get_product( $product_id );
+		self::hook();
+
+		return $product;
 	}
 }
 
-new WC_Product_Tables_Backwards_Compatibility();
+WC_Product_Tables_Backwards_Compatibility::hook();

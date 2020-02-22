@@ -54,124 +54,152 @@ class WC_Product_Tables_Migrate_Data {
 	);
 
 	/**
-	 * Whether or not the migration is currently running.
-	 *
-	 * @var bool
-	 */
-	public static $migrating = false;
-
-	/**
 	 * Main function that runs the whole migration.
 	 *
 	 * @param bool $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
 	 */
 	public static function migrate( $clean_old_data = false ) {
-		global $wpdb;
-
-		self::$migrating = true;
+		WC_Product_Tables_Backwards_Compatibility::unhook();
 
 		$products = self::get_products();
 
 		foreach ( $products as $product ) {
-			$metas = get_post_meta( $product->ID );
+			self::migrate_product( $product );
+		}
 
-			self::migrate_core_product_data( $product, $metas );
+		wp_cache_flush();
+		wc_delete_product_transients();
 
-			$priority = 1;
+		WC_Product_Tables_Backwards_Compatibility::hook();
+	}
 
-			// Migrate download files.
-			$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
+	/**
+	 * Migrate a single product.
+	 *
+	 * @param object $product A product from the database we're migrating.
+	 * @param bool   $clean_old_data Whether to clean old data or keep it. Old data is kept by default.
+	 */
+	public static function migrate_product( $product, $clean_old_data = false ) {
+		global $wpdb;
 
-			if ( ! empty( $downloadable_files ) ) {
-				foreach ( $downloadable_files as $download_key => $downloadable_file ) {
-					$new_download    = array(
-						'product_id' => $product->ID,
-						'name'       => $downloadable_file['name'],
-						'file'       => $downloadable_file['file'],
-						'priority'   => $priority,
-					);
-					$new_download_id = self::insert( 'wc_product_downloads', $new_download );
+		$metas = get_post_meta( $product->ID );
 
-					$wpdb->update(
-						$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
-						array(
-							'download_id' => $new_download_id,
-						),
-						array(
-							'download_id' => $download_key,
-						)
-					);
+		self::migrate_core_product_data( $product, $metas );
 
-					$priority++;
-				}
-			}
+		$priority = 1;
 
-			// Migrate grouped products.
-			self::migrate_relationship( $product->ID, 'grouped', '_children' );
+		// Migrate download files.
+		$downloadable_files = isset( $metas['_downloadable_files'] ) ? maybe_unserialize( $metas['_downloadable_files'][0] ) : array();
 
-			// Migrate upsells.
-			self::migrate_relationship( $product->ID, 'upsell', '_upsell_ids' );
+		if ( ! empty( $downloadable_files ) ) {
+			foreach ( $downloadable_files as $download_key => $downloadable_file ) {
+				$new_download    = array(
+					'product_id' => $product->ID,
+					'name'       => $downloadable_file['name'],
+					'file'       => $downloadable_file['file'],
+					'priority'   => $priority,
+				);
+				$new_download_id = self::insert( 'wc_product_downloads', $new_download );
 
-			// Migrate cross-sells.
-			self::migrate_relationship( $product->ID, 'crosssell', '_crosssell_ids' );
+				$wpdb->update(
+					$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
+					array(
+						'download_id' => $new_download_id,
+					),
+					array(
+						'download_id' => $download_key,
+					)
+				);
 
-			$priority = 1;
-
-			// Migrate product images.
-			$image_ids = get_post_meta( $product->ID, '_product_image_gallery', true );
-			if ( ! empty( $image_ids ) ) {
-				if ( ! is_array( $image_ids ) ) {
-					if ( false !== strpos( $image_ids, ',' ) ) {
-						$image_ids = explode( ',', $image_ids );
-					} else {
-						$image_ids = array( $image_ids );
-					}
-				}
-
-				foreach ( $image_ids as $image_id ) {
-					$relationship = array(
-						'type'       => 'image',
-						'product_id' => $product->ID,
-						'object_id'  => $image_id,
-						'priority'   => $priority,
-					);
-
-					self::insert( 'wc_product_relationships', $relationship );
-
-					$priority++;
-				}
-			}
-
-			self::migrate_attributes( $product );
-
-			// Migrate variation description.
-			if ( 'product_variation' === $product->post_type ) {
-				wp_update_post( array(
-					'ID'           => $product->ID,
-					'post_content' => get_post_meta( $product->ID, '_variation_description', true ),
-				) );
-			}
-
-			if ( $clean_old_data ) {
-				self::clean_old_data( $product->ID );
+				$priority++;
 			}
 		}
 
-		self::$migrating = false;
+		if ( ! empty( $metas['_children'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'grouped', maybe_unserialize( $metas['_children'][0] ) );
+		}
+
+		if ( ! empty( $metas['_upsell_ids'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'upsell', maybe_unserialize( $metas['_upsell_ids'][0] ) );
+		}
+
+		if ( ! empty( $metas['_crosssell_ids'][0] ) ) {
+			self::migrate_relationship( $product->ID, 'crosssell', maybe_unserialize( $metas['_crosssell_ids'][0] ) );
+		}
+
+		$priority = 1;
+
+		// Migrate product images.
+		if ( ! empty( $metas['_product_image_gallery'][0] ) ) {
+			$image_ids = maybe_unserialize( $metas['_product_image_gallery'][0] );
+
+			if ( ! is_array( $image_ids ) ) {
+				if ( false !== strpos( $image_ids, ',' ) ) {
+					$image_ids = explode( ',', $image_ids );
+				} else {
+					$image_ids = array( $image_ids );
+				}
+			}
+
+			foreach ( $image_ids as $image_id ) {
+				$relationship = array(
+					'type'       => 'image',
+					'product_id' => $product->ID,
+					'object_id'  => $image_id,
+					'priority'   => $priority,
+				);
+
+				self::insert( 'wc_product_relationships', $relationship );
+
+				$priority++;
+			}
+		}
+
+		self::migrate_attributes( $product );
+
+		// Migrate variation description.
+		if ( 'product_variation' === $product->post_type ) {
+			wp_update_post( array(
+				'ID'           => $product->ID,
+				'post_content' => get_post_meta( $product->ID, '_variation_description', true ),
+			) );
+		}
+
+		if ( $clean_old_data ) {
+			self::clean_old_data( $product->ID );
+		}
+
+		unset( $metas, $downloadable_files, $image_ids );
+		$wpdb->flush();
 	}
 
 	/**
 	 * Get a list of products in the wp_posts table
+	 *
+	 * @param string|array $post_type Post types to get from DB.
+	 * @return array
 	 */
-	public static function get_products() {
+	public static function get_products( $post_type = false ) {
 		global $wpdb;
+
+		if ( ! $post_type ) {
+			$post_type = array( 'product', 'product_variation' );
+		} elseif ( ! is_array( $post_type ) ) {
+			$post_type = array( $post_type );
+		}
+
+		$post_type_sql = "'" . implode( "','", array_map( 'esc_sql', $post_type ) ) . "'";
+
+		// phpcs:disable
 		return $wpdb->get_results(
 			"SELECT ID, post_type FROM {$wpdb->posts}
-			WHERE post_type IN ('product', 'product_variation')
+			WHERE post_type IN ({$post_type_sql})
+			AND post_status IN ( 'publish', 'future', 'draft', 'private' )
 			AND ID NOT IN (
 				SELECT product_id FROM {$wpdb->prefix}wc_products
 			)"
 		);
+		// phpcs:enable
 	}
 
 	/**
@@ -197,7 +225,13 @@ class WC_Product_Tables_Migrate_Data {
 		if ( 'product_variation' === $product->post_type ) {
 			$product_type = 'variation';
 		} else {
-			$product_type = wp_get_post_terms( $product->ID, 'product_type' )[0]->slug;
+			$terms = wp_get_post_terms( $product->ID, 'product_type' );
+
+			if ( $terms && isset( $terms[0]->slug ) ) {
+				$product_type = $terms[0]->slug;
+			} else {
+				$product_type = 'simple';
+			}
 		}
 
 		$new_data = array(
@@ -222,17 +256,17 @@ class WC_Product_Tables_Migrate_Data {
 					$meta_value = ( isset( $metas['_sale_price'] ) && '' !== $metas['_sale_price'][0] ) ? $metas['_sale_price'][0] : null;
 					break;
 				case '_sale_price_dates_from':
-					if ( ! empty( $metas['_sale_price_dates_from'] ) ) {
+					if ( ! empty( $metas['_sale_price_dates_from'][0] ) ) {
 						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_from'][0] );
 					} else {
-						$meta_vaule = null;
+						$meta_value = null;
 					}
 					break;
 				case '_sale_price_dates_to':
-					if ( ! empty( $metas['_sale_price_dates_to'] ) ) {
+					if ( ! empty( $metas['_sale_price_dates_to'][0] ) ) {
 						$meta_value = date( 'Y-m-d H:i:s', (int) $metas['_sale_price_dates_to'][0] );
 					} else {
-						$meta_vaule = null;
+						$meta_value = null;
 					}
 					break;
 				case '_virtual':
@@ -257,6 +291,7 @@ class WC_Product_Tables_Migrate_Data {
 		}
 
 		self::insert( 'wc_products', $new_data );
+		unset( $meta_value, $product_type, $new_data );
 	}
 
 	/**
@@ -265,30 +300,28 @@ class WC_Product_Tables_Migrate_Data {
 	 *
 	 * @param int    $product_id Product ID.
 	 * @param string $relationship_type 'grouped', 'upsell' or 'crosssell'.
-	 * @param string $old_meta_key Old meta key.
+	 * @param array  $object_ids Object ids to related, from old meta.
 	 */
-	protected static function migrate_relationship( $product_id, $relationship_type, $old_meta_key ) {
+	protected static function migrate_relationship( $product_id, $relationship_type, $object_ids ) {
 		global $wpdb;
 
-		$priority = 1;
-		$children = get_post_meta( $product_id, $old_meta_key, true );
-		if ( empty( $children ) ) {
-			return;
-		}
-		foreach ( $children as $child ) {
-			if ( empty( $child ) ) {
-				continue;
+		if ( ! empty( $object_ids ) ) {
+			$priority = 1;
+
+			foreach ( $object_ids as $object_id ) {
+				if ( empty( $object_id ) ) {
+					continue;
+				}
+				$relationship = array(
+					'type'       => $relationship_type,
+					'product_id' => $product_id,
+					'object_id'  => $object_id,
+					'priority'   => $priority,
+				);
+
+				$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
+				$priority++;
 			}
-			$relationship = array(
-				'type'       => $relationship_type,
-				'product_id' => $product_id,
-				'object_id'  => $child,
-				'priority'   => $priority,
-			);
-
-			$wpdb->insert( $wpdb->prefix . 'wc_product_relationships', $relationship );
-
-			$priority++;
 		}
 	}
 
@@ -325,9 +358,14 @@ class WC_Product_Tables_Migrate_Data {
 						'product_attribute_id' => $attribute_id,
 					);
 					self::insert( 'wc_product_variation_attribute_values', $variation_data );
+					unset( $variation_data );
 				}
+
+				unset( $variation_value );
 			}
 		}
+
+		unset( $variable_products, $meta_key );
 	}
 
 	/**
@@ -337,39 +375,43 @@ class WC_Product_Tables_Migrate_Data {
 	 */
 	public static function migrate_attributes( &$product ) {
 		$product_attributes = get_post_meta( $product->ID, '_product_attributes', true );
-		if ( empty( $product_attributes ) ) {
-			return;
-		}
-		foreach ( $product_attributes as $attr_name => $attr ) {
-			$attribute_data = array(
-				'product_id'   => $product->ID,
-				'name'         => $attr['name'],
-				'is_visible'   => $attr['is_visible'],
-				'is_variation' => $attr['is_variation'],
-				'priority'     => $attr['position'],
-			);
-			$is_global      = false;
-			if ( false !== strpos( $attr_name, 'pa_' ) ) {
-				// Global attribute.
-				$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
 
-				if ( $attribute_id ) {
-					$attribute_data['attribute_id'] = $attribute_id;
-					$is_global                      = true;
+		if ( ! empty( $product_attributes ) ) {
+			foreach ( $product_attributes as $attr_name => $attr ) {
+				$attribute_data = array(
+					'product_id'   => $product->ID,
+					'name'         => $attr['name'],
+					'is_visible'   => $attr['is_visible'],
+					'is_variation' => $attr['is_variation'],
+					'priority'     => $attr['position'],
+				);
+				$is_global      = false;
+				if ( false !== strpos( $attr_name, 'pa_' ) ) {
+					// Global attribute.
+					$attribute_id = wc_attribute_taxonomy_id_by_name( $attr_name );
+
+					if ( $attribute_id ) {
+						$attribute_data['attribute_id'] = $attribute_id;
+						$is_global                      = true;
+					}
 				}
-			}
-			$product_attribute_id = self::insert( 'wc_product_attributes', $attribute_data );
-			if ( $is_global ) {
-				self::migrate_global_attributes( $product->ID, $product_attribute_id, $attr_name );
-			} else {
-				self::migrate_custom_attributes( $product->ID, $product_attribute_id, $attr_name, $attr['value'] );
-			}
+				$product_attribute_id = self::insert( 'wc_product_attributes', $attribute_data );
+				if ( $is_global ) {
+					self::migrate_global_attributes( $product->ID, $product_attribute_id, $attr_name );
+				} else {
+					self::migrate_custom_attributes( $product->ID, $product_attribute_id, $attr_name, $attr['value'] );
+				}
 
-			// Variation attribute values, lets check if the parent product has any child products ie. variations.
-			if ( 'product' === $product->post_type ) {
-				self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
+				// Variation attribute values, lets check if the parent product has any child products ie. variations.
+				if ( 'product' === $product->post_type ) {
+					self::migrate_variation_attribute_values( $product->ID, $product_attribute_id, $attr_name );
+				}
+
+				unset( $attribute_data );
 			}
 		}
+
+		unset( $product_attributes );
 	}
 
 	/**
@@ -406,6 +448,7 @@ class WC_Product_Tables_Migrate_Data {
 			self::insert( 'wc_product_attribute_values', $term_data );
 			$count++;
 		}
+		unset( $attr_terms, $term_data, $default_attributes );
 	}
 
 	/**
@@ -436,8 +479,10 @@ class WC_Product_Tables_Migrate_Data {
 				}
 			}
 			self::insert( 'wc_product_attribute_values', $attr_value_data );
+			unset( $attr_value_data );
 			$count++;
 		}
+		unset( $attribute_values, $default_attributes );
 	}
 
 	/**
@@ -449,13 +494,16 @@ class WC_Product_Tables_Migrate_Data {
 	protected static function clean_old_data( $product_id ) {
 		global $wpdb;
 
-		$meta_keys = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
+		$meta_keys    = array_merge( self::$meta_keys['product'], self::$meta_keys['custom'] );
+		$meta_keys_in = "'" . implode( "','", array_map( 'esc_sql', $meta_keys ) ) . "'";
 
-		foreach ( $meta_keys as $meta_key ) {
-			delete_post_meta( $product_id, $meta_key );
-		}
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key IN ({$meta_keys_in})", // phpcs:ignore
+				$product_id
+			)
+		);
 
-		// remove product variation attributes.
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
@@ -463,5 +511,7 @@ class WC_Product_Tables_Migrate_Data {
 				$wpdb->esc_like( 'attribute_' ) . '%'
 			)
 		);
+
+		unset( $meta_keys );
 	}
 }

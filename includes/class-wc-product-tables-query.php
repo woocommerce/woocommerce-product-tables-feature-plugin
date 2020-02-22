@@ -37,7 +37,7 @@ class WC_Product_Tables_Query {
 			add_filter( 'woocommerce_price_filter_sql', array( $this, 'custom_price_filter_sql' ), 10, 3 );
 			add_action( 'woocommerce_product_query', array( $this, 'custom_price_filter_args' ) );
 		}
-		add_filter( 'posts_results', array( $this, 'prime_product_table_caches' ) );
+		add_filter( 'update_post_metadata_cache', array( $this, 'prime_table_caches' ), 10, 2 );
 		add_action( 'clean_post_cache', array( $this, 'clean_product_table_caches' ) );
 	}
 
@@ -212,8 +212,23 @@ class WC_Product_Tables_Query {
 		global $wpdb;
 
 		if ( $wp_query->is_main_query() ) {
-			$args['join']  .= " INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id ";
-			$args['where'] .= " AND {$wpdb->prefix}wc_products.price >= {$this->price_filter_min} AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max} ";
+			$args['where'] .= "
+				AND (
+					{$wpdb->posts}.ID IN (
+						SELECT product_id
+						FROM {$wpdb->prefix}wc_products
+						WHERE {$wpdb->prefix}wc_products.price >= {$this->price_filter_min}
+						AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max}
+					)
+					OR {$wpdb->posts}.ID IN (
+						SELECT post_parent
+						FROM {$wpdb->posts}
+						INNER JOIN {$wpdb->prefix}wc_products ON {$wpdb->posts}.ID = {$wpdb->prefix}wc_products.product_id
+						WHERE {$wpdb->prefix}wc_products.price >= {$this->price_filter_min}
+						AND {$wpdb->prefix}wc_products.price <= {$this->price_filter_max}
+					)
+				)
+			";
 		}
 
 		return $args;
@@ -222,111 +237,140 @@ class WC_Product_Tables_Query {
 	/**
 	 * Prime product table caches for a query of multiple products.
 	 *
-	 * @param array $posts Array of post objects.
-	 * @return array
+	 * @param mixed $return Return value for filter.
+	 * @param array $object_ids Array of object ids.
+	 * @return null
 	 */
-	public function prime_product_table_caches( $posts ) {
-		$prime_ids     = array();
-		$variation_ids = array();
+	public function prime_table_caches( $return, $object_ids ) {
+		if ( empty( $object_ids ) ) {
+			return $return;
+		}
+		global $wpdb;
 
-		foreach ( $posts as $post ) {
-			if ( ! in_array( $post->post_type, array( 'product', 'product_variation' ), true ) ) {
-				continue;
+		$prime_product_ids   = array();
+		$prime_variation_ids = array();
+
+		foreach ( $object_ids as $object_id ) {
+			$cached_post = wp_cache_get( $object_id, 'posts' );
+			$post_type   = isset( $cached_post->post_type ) ? $cached_post->post_type : get_post_type( $object_id );
+			if ( 'product' === $post_type ) {
+				$prime_product_ids[] = $object_id;
 			}
-			$prime_ids[] = (int) $post->ID;
-
-			if ( 'product_variation' === $post->post_type ) {
-				$variation_ids[] = (int) $post->ID;
+			if ( 'product_variation' === $post_type ) {
+				$prime_variation_ids[] = $object_id;
 			}
 		}
 
-		if ( ! empty( $prime_ids ) ) {
-			global $wpdb;
+		$prime_ids = array_merge( $prime_product_ids, $prime_variation_ids );
 
-			$prime_id_sql             = implode( ',', $prime_ids );
-			$prime_non_variations_sql = implode( ',', array_diff( $prime_ids, $variation_ids ) );
-			$prime_variations_sql     = implode( ',', $variation_ids );
-
-			// Prime product rows.
-			$rows = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_products WHERE product_id IN (' . $prime_id_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-
-			foreach ( $rows as $row ) {
-				wp_cache_set( 'woocommerce_product_' . $row->product_id, $row, 'product' );
-			}
-
-			// Prime attribute rows.
-			if ( $prime_non_variations_sql ) {
-				$rows  = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_product_attributes WHERE product_id IN (' . $prime_non_variations_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-				$cache = array_fill_keys( $prime_ids, array() );
-
-				foreach ( $rows as $row ) {
-					$cache[ $row->product_id ][] = $row;
-				}
-
-				foreach ( $prime_ids as $id ) {
-					wp_cache_set( 'woocommerce_product_attributes_' . $id, $cache[ $id ], 'product' );
-				}
-			}
-
-			// Prime attribute values.
-			$rows  = $wpdb->get_results( '
-				SELECT `product_id`, `product_attribute_id`, `value`, `is_default`
-				FROM ' . $wpdb->prefix . 'wc_product_attribute_values
-				WHERE product_id IN (' . $prime_non_variations_sql . ');
-			' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-			$cache = array_fill_keys( $prime_ids, array() );
-
-			foreach ( $rows as $row ) {
-				if ( ! isset( $cache[ $row->product_id ] ) ) {
-					$cache[ $row->product_id ] = array();
-				}
-				$cache[ $row->product_id ][ $row->product_attribute_id ][] = $row;
-			}
-
-			foreach ( $prime_ids as $id ) {
-				wp_cache_set( 'woocommerce_product_attribute_values_' . $id, $cache[ $id ], 'product' );
-			}
-
-			// Prime variation attribute values.
-			if ( $prime_variations_sql ) {
-				$rows  = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_product_variation_attribute_values WHERE product_id IN (' . $prime_variations_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-				$cache = array_fill_keys( $prime_ids, array() );
-
-				foreach ( $rows as $row ) {
-					$cache[ $row->product_id ][] = $row;
-				}
-
-				foreach ( $prime_ids as $id ) {
-					wp_cache_set( 'woocommerce_product_variation_attribute_values_' . $id, $cache[ $id ], 'product' );
-				}
-			}
-
-			// Prime relationships.
-			$rows  = $wpdb->get_results( 'SELECT `product_id`, `relationship_id`, `object_id`, `type` FROM ' . $wpdb->prefix . 'wc_product_relationships WHERE product_id IN (' . $prime_id_sql . ') ORDER BY `priority` ASC;' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-			$cache = array_fill_keys( $prime_ids, array() );
-
-			foreach ( $rows as $row ) {
-				$cache[ $row->product_id ][] = $row;
-			}
-
-			foreach ( $prime_ids as $id ) {
-				wp_cache_set( 'woocommerce_product_relationships_' . $id, $cache[ $id ], 'product' );
-			}
-
-			// Prime downloads.
-			$rows  = $wpdb->get_results( 'SELECT `product_id`, `download_id`, `name`, `file`, `priority` FROM ' . $wpdb->prefix . 'wc_product_downloads WHERE product_id IN (' . $prime_id_sql . ') ORDER BY `priority` ASC;' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
-			$cache = array_fill_keys( $prime_ids, array() );
-
-			foreach ( $rows as $row ) {
-				$cache[ $row->product_id ][] = $row;
-			}
-
-			foreach ( $prime_ids as $id ) {
-				wp_cache_set( 'woocommerce_product_downloads_' . $id, $cache[ $id ], 'product' );
-			}
+		if ( empty( $prime_ids ) ) {
+			return $return;
 		}
 
-		return $posts;
+		$prime_ids_sql = implode( ',', $prime_ids );
+
+		// Prime product and variation rows.
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_products WHERE product_id IN (' . $prime_ids_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			wp_cache_set( 'woocommerce_product_' . $row->product_id, $row, 'product' );
+		}
+
+		$rel_cache       = array_fill_keys( $prime_ids, array() );
+		$download_cache  = array_fill_keys( $prime_ids, array() );
+
+		// Prime relationships.
+		$rows = $wpdb->get_results( 'SELECT `product_id`, `relationship_id`, `object_id`, `type` FROM ' . $wpdb->prefix . 'wc_product_relationships WHERE product_id IN (' . $prime_ids_sql . ') ORDER BY `priority` ASC;' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			$rel_cache[ $row->product_id ][] = $row;
+		}
+
+		// Prime downloads.
+		$rows = $wpdb->get_results( 'SELECT `product_id`, `download_id`, `name`, `file`, `priority` FROM ' . $wpdb->prefix . 'wc_product_downloads WHERE product_id IN (' . $prime_ids_sql . ') ORDER BY `priority` ASC;' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			$download_cache[ $row->product_id ][] = $row;
+		}
+
+		foreach ( $prime_ids as $id ) {
+			wp_cache_set( 'woocommerce_product_relationships_' . $id, $rel_cache[ $id ], 'product' );
+			wp_cache_set( 'woocommerce_product_downloads_' . $id, $download_cache[ $id ], 'product' );
+		}
+
+		if ( ! empty( $prime_product_ids ) ) {
+			$this->prime_product_table_caches( $prime_product_ids );
+		}
+
+		if ( ! empty( $prime_variation_ids ) ) {
+			$this->prime_product_variation_table_caches( $prime_variation_ids );
+		}
+
+		return $return;
+	}
+
+	/**
+	 * Prime product table caches for a query of multiple products.
+	 *
+	 * @param array $prime_ids Array of product ids.
+	 */
+	protected function prime_product_table_caches( $prime_ids ) {
+		global $wpdb;
+
+		$prime_id_sql    = implode( ',', $prime_ids );
+		$att_cache       = array_fill_keys( $prime_ids, array() );
+		$att_value_cache = array_fill_keys( $prime_ids, array() );
+
+		// Prime attribute rows.
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_product_attributes WHERE product_id IN (' . $prime_id_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			$att_cache[ $row->product_id ][] = $row;
+		}
+
+		// Prime attribute values.
+		$rows  = $wpdb->get_results( '
+			SELECT `product_id`, `product_attribute_id`, `value`, `is_default`
+			FROM ' . $wpdb->prefix . 'wc_product_attribute_values
+			WHERE product_id IN (' . $prime_id_sql . ');
+		' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			if ( ! isset( $att_value_cache[ $row->product_id ] ) ) {
+				$att_value_cache[ $row->product_id ] = array();
+			}
+			$att_value_cache[ $row->product_id ][ $row->product_attribute_id ][] = $row;
+		}
+
+		foreach ( $prime_ids as $id ) {
+			wp_cache_set( 'woocommerce_product_attributes_' . $id, $att_cache[ $id ], 'product' );
+			wp_cache_set( 'woocommerce_product_attribute_values_' . $id, $att_value_cache[ $id ], 'product' );
+		}
+	}
+
+	/**
+	 * Prime product variation table caches for a query of multiple products.
+	 *
+	 * @param array $prime_ids Array of variation ids.
+	 */
+	protected function prime_product_variation_table_caches( $prime_ids ) {
+		global $wpdb;
+
+		$prime_id_sql        = implode( ',', $prime_ids );
+		$variation_att_cache = array_fill_keys( $prime_ids, array() );
+		$rel_cache           = array_fill_keys( $prime_ids, array() );
+		$download_cache      = array_fill_keys( $prime_ids, array() );
+
+		// Prime variation attribute values.
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'wc_product_variation_attribute_values WHERE product_id IN (' . $prime_id_sql . ');' ); // WPCS: db call ok, cache ok, unprepared SQL OK.
+
+		foreach ( $rows as $row ) {
+			$variation_att_cache[ $row->product_id ][] = $row;
+		}
+
+		foreach ( $prime_ids as $id ) {
+			wp_cache_set( 'woocommerce_product_variation_attribute_values_' . $id, $variation_att_cache[ $id ], 'product' );
+		}
 	}
 
 	/**

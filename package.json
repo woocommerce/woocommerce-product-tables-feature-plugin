@@ -1,0 +1,29 @@
+{
+  "name": "woocommerce-product-tables-feature-plugin",
+  "title": "WooCommerce Product Tables Feature Plugin",
+  "version": "3.7.0",
+  "homepage": "https://github.com/woocommerce/woocommerce-product-tables-feature-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/woocommerce/woocommerce-product-tables-feature-plugin.git"
+  },
+  "license": "GPL-3.0+",
+  "scripts": {
+    "git:update-hooks": "rm -r .git/hooks && mkdir -p .git/hooks && node ./node_modules/husky/husky.js install"
+  },
+  "devDependencies": {
+    "husky": "3.0.9",
+    "lint-staged": "9.4.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.php": [
+      "php -d display_errors=1 -l",
+      "composer run-script phpcs-pre-commit"
+    ]
+  }
+}
