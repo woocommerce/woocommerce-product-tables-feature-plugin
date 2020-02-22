@@ -1647,19 +1647,23 @@ class WC_Product_Tables_Backwards_Compatibility {
 	}
 
 	/**
-	 * @param \WC_Product $product
-	 * @param string $old_type
-	 * @param string $new_type
+	 * Ensure product type stays synced if not using our custom storage
+	 *
+	 * @param \WC_Product $product Product object.
+	 * @param string      $old_type Old product type.
+	 * @param string      $new_type New product type.
 	 *
 	 * @return void
 	 */
 	public static function sync_product_type( $product, $old_type, $new_type ) {
-		self::update_in_product_table( array(
-			'product_id' => $product->get_id(),
-			'column'     => 'type',
-			'format'     => '%s',
-			'value'      => $new_type,
-		) );
+		self::update_in_product_table(
+			array(
+				'product_id' => $product->get_id(),
+				'column'     => 'type',
+				'format'     => '%s',
+				'value'      => $new_type,
+			)
+		);
 	}
 }
 
