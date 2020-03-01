@@ -200,7 +200,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			$data = array();
 		}
 
-		if ( empty( $data[ $args['column'] ] ) ) {
+		if ( ! isset( $data[ $args['column'] ] ) ) {
 			$escaped_column          = '`' . esc_sql( $args['column'] ) . '`';
 			$data[ $args['column'] ] = $wpdb->get_col(
 				$wpdb->prepare(
@@ -311,7 +311,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 
 		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $args['type'] . '_relationship_' . $args['product_id'], 'product' );
 
-		if ( empty( $data ) ) {
+		if ( false === $data ) {
 			$data = array(
 				array(
 					$wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id from {$wpdb->prefix}wc_product_relationships WHERE product_id = %d AND type = %s", $args['product_id'], $args['type'] ) ),
