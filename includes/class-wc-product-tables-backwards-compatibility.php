@@ -52,6 +52,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
 		$mapping = self::get_mapping();
 
+		if ( empty( $meta_key ) && WC_Product_Factory::get_product_type( $post_id ) && ! self::uses_custom_product_store( $post_id ) ) {
+			return self::get_record_from_product_table( $post_id );
+		}
+
 		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
@@ -213,6 +217,57 @@ class WC_Product_Tables_Backwards_Compatibility {
 		}
 
 		return $data[ $args['column'] ];
+	}
+
+	/**
+	 * @param int $product_id Product ID.
+	 *
+	 * @return array
+	 */
+	public static function get_record_from_product_table( $product_id ) {
+		global $wpdb;
+
+		if ( ! $product_id ) {
+			return array();
+		}
+
+		// Look in cache for table.
+		$cached_data = (array) wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
+
+		if ( false !== $cached_data && ! array_diff_key( $cached_data, self::get_core_product_data_map() ) ) {
+			$cached_data = self::fill_product_data( $product_id, $cached_data );
+			$cached_data = self::translate_product_data( $cached_data, true );
+			self::unhook();
+			$cached_data = array_merge( get_post_meta( $product_id ), $cached_data );
+			self::hook();
+
+			return $cached_data;
+		}
+
+		// Look in cache for bw compat table.
+		$data = wp_cache_get( 'woocommerce_product_backwards_compatibility_' . $product_id, 'product' );
+
+		if ( false === $data ) {
+			$data = array();
+		}
+
+		if ( array_diff_key( $cached_data, self::get_core_product_data_map() ) ) {
+			$data = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d", // phpcs:ignore
+					$product_id
+				), ARRAY_A );
+			unset( $data['product_id'] );
+			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $product_id, $data, 'product' );
+		}
+
+		$data = self::fill_product_data( $product_id, $data );
+		$data = self::translate_product_data( $data, true );
+		self::unhook();
+		$data = array_merge( get_post_meta( $product_id ), $data );
+		self::hook();
+
+		return $data;
 	}
 
 	/**
@@ -1642,6 +1697,148 @@ class WC_Product_Tables_Backwards_Compatibility {
 		self::hook();
 
 		return $product;
+	}
+
+	/**
+	 * Determine if product uses a store extending WC_Product_Data_Store_Custom_Table
+	 *
+	 * @param int $post_id Product ID
+	 *
+	 * @return bool
+	 */
+	private static function uses_custom_product_store( $post_id ) {
+
+		$product_type = WC_Product_Factory::get_product_type( $post_id );
+		$classname = WC_Product_Factory::get_product_classname( $post_id, $product_type );
+
+		/** @var \WC_Product $product */
+		$product = new $classname( 0 );
+
+		return $product->get_data_store() instanceof WC_Product_Data_Store_Custom_Table;
+	}
+
+	/**
+	 * Get a map of core product data between column and internal ids to expected post meta names.
+	 *
+	 * @param bool $all Return only the product data stored in the products table or all core data
+	 *
+	 * @return array|string[]
+	 */
+	private static function get_core_product_data_map( $all = false ) {
+		$default = array(
+			'sku'               => '_sku',
+			'image_id'          => '_thumbnail_id',
+			'height'            => '_height',
+			'width'             => '_width',
+			'length'            => '_length',
+			'weight'            => '_weight',
+			'stock_quantity'    => '_stock',
+			'virtual'           => '_virtual',
+			'downloadable'      => '_downloadable',
+			'tax_class'         => '_tax_class',
+			'tax_status'        => '_tax_status',
+			'total_sales'       => 'total_sales',
+			'regular_price'     => '_regular_price',
+			'sale_price'        => '_sale_price',
+			'date_on_sale_from' => '_sale_price_dates_from',
+			'date_on_sale_to'   => '_sale_price_dates_to',
+			'average_rating'    => '_wc_average_rating',
+			'stock_status'      => '_stock_status',
+		);
+		if ( $all ) {
+			return array_merge( $default, array(
+				'manage_stock'       => '_manage_stock',
+				'backorders'         => '_backorders',
+				'low_stock_amount'   => '_low_stock_amount',
+				'sold_individually'  => '_sold_individually',
+				'upsell_ids'         => '_upsell_ids',
+				'cross_sell_ids'     => '_crosssell_ids',
+				'purchase_note'      => '_purchase_note',
+				'default_attributes' => '_default_attributes',
+				'gallery_image_ids'  => '_product_image_gallery',
+				'download_limit'     => '_download_limit',
+				'download_expiry'    => '_download_expiry',
+				'rating_counts'      => '_wc_rating_count',
+				'review_count'       => '_wc_review_count',
+			) );
+		}
+
+		return $default;
+	}
+
+	/**
+	 * Add in missing product data
+	 *
+	 * @param int   $product_id Product ID.
+	 * @param array $data       Product data to merge with.
+	 *
+	 * @return array
+	 */
+	private static function fill_product_data( $product_id, array $data ) {
+		$call_map = self::get_mapping();
+
+		$meta_keys = array(
+			'_backorders',
+			'_sold_individually',
+			'_purchase_note',
+			'_wc_rating_count',
+			'_wc_review_count',
+			'_download_limit',
+			'_download_expiry',
+		);
+
+		$data_keys = array(
+			'_upsell_ids',
+			'_crosssell_ids',
+			'_product_image_gallery',
+			'_children',
+		);
+		$new_data = array();
+		foreach ( $meta_keys as $key ) {
+			$new_data[ $key ] = get_post_meta( $product_id, $key, true );
+		}
+
+		foreach ( $data_keys as $key ) {
+			$mapped_func        = $call_map[ $key ]['get']['function'];
+			$args               = $call_map[ $key ]['get']['args'];
+			$type               = $args['type'];
+			$args['product_id'] = $product_id;
+
+			$new_data[ $type ] = call_user_func( $mapped_func, $args );
+			$new_data[ $type ] = end($new_data[ $type ]);
+		}
+
+		$new_data = array_merge( $data, self::translate_product_data( $data ) );
+
+		return $new_data;
+	}
+
+	/**
+	 * Translate between internal names and meta key identifiers.
+	 *
+	 * @param array $data The product data to change.
+	 * @param bool  $column_to_meta If we are convert for return with a get_post_meta call.
+	 *
+	 * @return array
+	 */
+	private static function translate_product_data( array $data, $column_to_meta = false ) {
+		$new_data = array();
+		$core_map = self::get_core_product_data_map( true );
+
+		if ( ! $column_to_meta ) {
+			$core_map = array_flip( $core_map );
+		}
+
+		foreach ( $data as $key => $item ) {
+			if ( isset( $core_map[ $key ] ) ) {
+				$new_data[ $core_map[ $key ] ] = $item;
+				if ( $column_to_meta ) {
+					$new_data[ $core_map[ $key ] ] = array( $new_data[ $core_map[ $key ] ] );
+				}
+			}
+		}
+
+		return $new_data;
 	}
 }
 
