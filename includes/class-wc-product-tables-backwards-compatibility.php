@@ -220,6 +220,8 @@ class WC_Product_Tables_Backwards_Compatibility {
 	}
 
 	/**
+	 * Fetch all product data for a product
+	 *
 	 * @param int $product_id Product ID.
 	 *
 	 * @return array
@@ -256,7 +258,9 @@ class WC_Product_Tables_Backwards_Compatibility {
 				$wpdb->prepare(
 					"SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d", // phpcs:ignore
 					$product_id
-				), ARRAY_A );
+				),
+				ARRAY_A
+			);
 			unset( $data['product_id'] );
 			wp_cache_set( 'woocommerce_product_backwards_compatibility_' . $product_id, $data, 'product' );
 		}
@@ -1702,7 +1706,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Determine if product uses a store extending WC_Product_Data_Store_Custom_Table
 	 *
-	 * @param int $post_id Product ID
+	 * @param int $post_id Product ID.
 	 *
 	 * @return bool
 	 */
@@ -1711,7 +1715,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		$product_type = WC_Product_Factory::get_product_type( $post_id );
 		$classname = WC_Product_Factory::get_product_classname( $post_id, $product_type );
 
-		/** @var \WC_Product $product */
+		/* @var \WC_Product $product */
 		$product = new $classname( 0 );
 
 		return $product->get_data_store() instanceof WC_Product_Data_Store_Custom_Table;
@@ -1720,7 +1724,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	/**
 	 * Get a map of core product data between column and internal ids to expected post meta names.
 	 *
-	 * @param bool $all Return only the product data stored in the products table or all core data
+	 * @param bool $all Return only the product data stored in the products table or all core data.
 	 *
 	 * @return array|string[]
 	 */
@@ -1746,21 +1750,24 @@ class WC_Product_Tables_Backwards_Compatibility {
 			'stock_status'      => '_stock_status',
 		);
 		if ( $all ) {
-			return array_merge( $default, array(
-				'manage_stock'       => '_manage_stock',
-				'backorders'         => '_backorders',
-				'low_stock_amount'   => '_low_stock_amount',
-				'sold_individually'  => '_sold_individually',
-				'upsell_ids'         => '_upsell_ids',
-				'cross_sell_ids'     => '_crosssell_ids',
-				'purchase_note'      => '_purchase_note',
-				'default_attributes' => '_default_attributes',
-				'gallery_image_ids'  => '_product_image_gallery',
-				'download_limit'     => '_download_limit',
-				'download_expiry'    => '_download_expiry',
-				'rating_counts'      => '_wc_rating_count',
-				'review_count'       => '_wc_review_count',
-			) );
+			return array_merge(
+				$default,
+				array(
+					'manage_stock'       => '_manage_stock',
+					'backorders'         => '_backorders',
+					'low_stock_amount'   => '_low_stock_amount',
+					'sold_individually'  => '_sold_individually',
+					'upsell_ids'         => '_upsell_ids',
+					'cross_sell_ids'     => '_crosssell_ids',
+					'purchase_note'      => '_purchase_note',
+					'default_attributes' => '_default_attributes',
+					'gallery_image_ids'  => '_product_image_gallery',
+					'download_limit'     => '_download_limit',
+					'download_expiry'    => '_download_expiry',
+					'rating_counts'      => '_wc_rating_count',
+					'review_count'       => '_wc_review_count',
+				)
+			);
 		}
 
 		return $default;
@@ -1805,7 +1812,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 			$args['product_id'] = $product_id;
 
 			$new_data[ $type ] = call_user_func( $mapped_func, $args );
-			$new_data[ $type ] = end($new_data[ $type ]);
+			$new_data[ $type ] = end( $new_data[ $type ] );
 		}
 
 		$new_data = array_merge( $data, self::translate_product_data( $data ) );
