@@ -139,7 +139,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		);
 		$changes = $product->get_changes();
 		$insert  = false;
-		$row     = $this->get_product_row_from_db( $product->get_id() );
+		$row     = $this->get_product_row_from_db( $product->get_id(), true );
 
 		if ( ! $row ) {
 			$insert = true;
