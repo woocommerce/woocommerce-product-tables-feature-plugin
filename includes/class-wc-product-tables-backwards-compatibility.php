@@ -52,7 +52,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
 		$mapping = self::get_mapping();
 
-		if ( empty( $meta_key ) && WC_Product_Factory::get_product_type( $post_id ) && ! self::uses_custom_product_store( $post_id ) ) {
+		if ( empty( $meta_key ) && 'product' === get_post_type( $post_id ) && WC_Product_Factory::get_product_type( $post_id ) && ! self::uses_custom_product_store( $post_id ) ) {
 			return self::get_record_from_product_table( $post_id );
 		}
 
