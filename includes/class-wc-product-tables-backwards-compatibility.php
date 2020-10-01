@@ -39,7 +39,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 		remove_filter( 'add_post_metadata', array( __CLASS__, 'add_metadata_to_tables' ), 99, 5 );
 		remove_filter( 'update_post_metadata', array( __CLASS__, 'update_metadata_in_tables' ), 99, 5 );
 		remove_filter( 'delete_post_metadata', array( __CLASS__, 'delete_metadata_from_tables' ), 99, 5 );
-		add_filter( 'woocommerce_product_type_changed', array( __CLASS__, 'sync_product_type' ), 10 );
+		remove_filter( 'woocommerce_product_type_changed', array( __CLASS__, 'sync_product_type' ), 10 );
 	}
 
 	/**
