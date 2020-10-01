@@ -34,10 +34,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	 * Unhook WP meta filters.
 	 */
 	public static function unhook() {
-		remove_filter( 'get_post_metadata', array( __CLASS__, 'get_metadata_from_tables' ), 99, 4 );
-		remove_filter( 'add_post_metadata', array( __CLASS__, 'add_metadata_to_tables' ), 99, 5 );
-		remove_filter( 'update_post_metadata', array( __CLASS__, 'update_metadata_in_tables' ), 99, 5 );
-		remove_filter( 'delete_post_metadata', array( __CLASS__, 'delete_metadata_from_tables' ), 99, 5 );
+		remove_filter( 'get_post_metadata', array( __CLASS__, 'get_metadata_from_tables' ), 9 );
+		remove_filter( 'add_post_metadata', array( __CLASS__, 'add_metadata_to_tables' ), 9 );
+		remove_filter( 'update_post_metadata', array( __CLASS__, 'update_metadata_in_tables' ), 99 );
+		remove_filter( 'delete_post_metadata', array( __CLASS__, 'delete_metadata_from_tables' ), 99 );
 	}
 
 	/**
