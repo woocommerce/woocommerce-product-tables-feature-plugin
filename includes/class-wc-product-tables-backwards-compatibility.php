@@ -52,6 +52,10 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function get_metadata_from_tables( $result, $post_id, $meta_key, $single ) {
 		$mapping = self::get_mapping();
 
+		if ( ! self::is_product( $post_id ) ) {
+			return $result;
+		}
+
 		if ( ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
@@ -86,7 +90,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function add_metadata_to_tables( $result, $post_id, $meta_key, $meta_value, $unique ) {
 		$mapping = self::get_mapping();
 
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ! self::is_product( $post_id ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -118,7 +122,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function update_metadata_in_tables( $result, $post_id, $meta_key, $meta_value, $prev_value ) {
 		$mapping = self::get_mapping();
 
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ! self::is_product( $post_id ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -144,7 +148,7 @@ class WC_Product_Tables_Backwards_Compatibility {
 	public static function delete_metadata_from_tables( $result, $post_id, $meta_key, $prev_value, $delete_all ) {
 		$mapping = self::get_mapping();
 
-		if ( ! isset( $mapping[ $meta_key ] ) ) {
+		if ( ! self::is_product( $post_id ) || ! isset( $mapping[ $meta_key ] ) ) {
 			return $result;
 		}
 
@@ -1642,6 +1646,20 @@ class WC_Product_Tables_Backwards_Compatibility {
 		self::hook();
 
 		return $product;
+	}
+
+	/**
+	 * Helper method to ensure we are dealing with a product
+	 *
+	 * @param int $post_id Product ID.
+	 * @return bool
+	 */
+	private static function is_product( $post_id ) {
+		if ( 'product' === get_post_type( $post_id ) && WC_Product_Factory::get_product_type( $post_id ) ) {
+			return true;
+		}
+
+		return false;
 	}
 }
 
