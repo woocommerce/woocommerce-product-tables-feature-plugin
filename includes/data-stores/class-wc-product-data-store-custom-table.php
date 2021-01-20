@@ -2286,7 +2286,6 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		return $wpdb->prepare(
 			"
 			SELECT COALESCE ( MAX( stock_quantity ), 0 ) FROM {$wpdb->prefix}wc_products
-			
 			WHERE product_id = %d
 			",
 			$product_id
