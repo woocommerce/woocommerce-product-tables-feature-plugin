@@ -2273,4 +2273,22 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 
 		return $products;
 	}
+
+	/**
+	 * Returns query statement for getting current `stock_quantity` of a product.
+	 *
+	 * @internal MAX function below is used to make sure result is a scalar.
+	 * @param int $product_id Product ID.
+	 * @return string|void Query statement.
+	 */
+	public function get_query_for_stock( $product_id ) { 
+		global $wpdb;
+		return $wpdb->prepare(
+			"
+			SELECT COALESCE ( MAX( stock_quantity ), 0 ) FROM {$wpdb->prefix}wc_products
+			WHERE product_id = %d
+			",
+			$product_id
+		);
+	}
 }
