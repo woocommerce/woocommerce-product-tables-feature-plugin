@@ -139,7 +139,7 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 		);
 		$changes = $product->get_changes();
 		$insert  = false;
-		$row     = $this->get_product_row_from_db( $product->get_id() );
+		$row     = $this->get_product_row_from_db( $product->get_id(), true );
 
 		if ( ! $row ) {
 			$insert = true;
@@ -230,15 +230,19 @@ class WC_Product_Data_Store_Custom_Table extends WC_Data_Store_WP implements WC_
 	/**
 	 * Get product data row from the DB whilst utilising cache.
 	 *
-	 * @param int $product_id Product ID to grab from the database.
+	 * @param int  $product_id Product ID to grab from the database.
+	 * @param bool $skip_cache Don't check object cache and fetch directly from database.
+	 *
 	 * @return array
 	 */
-	protected function get_product_row_from_db( $product_id ) {
+	protected function get_product_row_from_db( $product_id, $skip_cache = false ) {
 		global $wpdb;
 
-		$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
+		if ( ! $skip_cache ) {
+			$data = wp_cache_get( 'woocommerce_product_' . $product_id, 'product' );
+		}
 
-		if ( false === $data ) {
+		if ( $skip_cache || false === $data ) {
 			$data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wc_products WHERE product_id = %d;", $product_id ) ); // WPCS: db call ok.
 
 			wp_cache_set( 'woocommerce_product_' . $product_id, $data, 'product' );
